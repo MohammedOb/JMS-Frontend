@@ -118,6 +118,26 @@ export const normalizeTakRow = (r) => ({
   // Vajebaat year-over-year amounts
   lastTakhmeen:    r.LastTakhmeen    || r.lastTakhmeen    || 0,
   currentTakhmeen: r.CurrentTakhmeen || r.currentTakhmeen || 0,
+  // Sila Fitra specific (kept for backwards-compat if LoadTakhmeenDetails returns these)
+  sfRate:    r.SF        || r.SFRate    || r.sfRate    || 0,
+  mardo:     r.M         || r.Mardo     || r.mardo     || 0,
+  baira:     r.B         || r.Baira     || r.baira     || 0,
+  gairBalig: r.GB        || r.GairBalig || r.gairBalig || 0,
+  hamal:     r.H         || r.Hamal     || r.hamal     || 0,
+  amwaat:    r.AM        || r.Amwaat    || r.amwaat    || 0,
+  sfAmount:  r.SFAmount  || r.sfAmount  || 0,
+});
+
+export const normalizeSfRow = (r) => ({
+  id:       r.ID  || r.Id  || r.id,
+  forYear:  r.ForYear || r.forYear || '',
+  sfRate:   r.SF  || r.sf  || 0,
+  mardo:    r.M   || r.m   || 0,
+  baira:    r.B   || r.b   || 0,
+  gairBalig:r.GB  || r.gb  || 0,
+  hamal:    r.H   || r.h   || 0,
+  amwaat:   r.AM  || r.am  || 0,
+  sfAmount: r.SFAmount || r.sfAmount || 0,
 });
 
 export const normalizeMember = (m = {}) => ({

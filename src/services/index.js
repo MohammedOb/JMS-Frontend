@@ -67,6 +67,10 @@ export const vajebaatService = {
   getSNiyaz:     (accno)   => api.get(`/vajebaat/${accno}/sniyaz`),
   saveSNiyaz:    (data)    => api.post('/vajebaat/sniyaz', data),
   getSilaFitra:  (accno)   => api.get(`/vajebaat/${accno}/sila-fitra`),
+  loadSilaFitra:   (data)  => api.post('/LoadSilaFitraDetails',   data),
+  addSilaFitra:    (data)  => api.post('/AddSilaFitraDetails',    data),
+  updateSilaFitra: (data)  => api.post('/UpdateSilaFitraDetails', data),
+  deleteSilaFitra: (data)  => api.delete('/DeleteSilaFitraDetails', { data }),
 };
 
 // ── Safai Chitthi ────────────────────────────────────────────────────────────

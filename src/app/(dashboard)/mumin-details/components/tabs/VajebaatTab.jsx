@@ -25,6 +25,7 @@ export default function VajebaatTab({
   onSaveVajebaat, onAddHim, onHimForm, onEditHim, onDeleteHim, onAddSniyaz, onSniyazForm, onEditSniyaz, onDeleteSniyaz, onAddReceipt,
   onAddVaj, onVajForm, onEditVaj, onDeleteVaj, onPrintVaj,
   onEditVajInfo,
+  onAddSf, onUpdateSf, onDeleteSf,
 }) {
   return (
     <div className="p-4">
@@ -74,7 +75,12 @@ export default function VajebaatTab({
       )}
 
       {VAJ_SECTIONS.silaFitra && (
-        <SilaFitraSection silaFitra={silaFitra} />
+        <SilaFitraSection
+          silaFitra={silaFitra}
+          onAdd={onAddSf}
+          onUpdate={onUpdateSf}
+          onDelete={onDeleteSf}
+        />
       )}
 
     </div>

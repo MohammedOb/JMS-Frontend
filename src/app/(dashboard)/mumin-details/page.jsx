@@ -12,7 +12,7 @@ import clsx   from 'clsx';
 
 import {
   today, toInputDate,
-  normalizeArray, normalizeTakRow, normalizeMemberPayload,
+  normalizeArray, normalizeTakRow, normalizeSfRow, normalizeMemberPayload,
 } from './utils';
 
 // Layout components
@@ -215,7 +215,7 @@ function MuminDetailsInner() {
   useEffect(() => {
     if (suggestTimer.current) clearTimeout(suggestTimer.current);
     const query = String(searchVal ?? '').trim();
-    if (!query || query.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    if (!query || query.length < 1) { setSuggestions([]); setShowSuggestions(false); return; }
     suggestTimer.current = setTimeout(async () => {
       updateDropdownPos();
       setSuggestLoading(true);
@@ -275,7 +275,8 @@ function MuminDetailsInner() {
     setVajebaat(all.filter(r => r.subHead === 'Vajebaat'));
     setHimList(all.filter(r => r.subHead === 'HIM'));
     setSniyazList(all.filter(r => r.subHead === 'Shehrullah Niyaz'));
-    setSilaFitra(all.filter(r => r.subHead === 'Sila Fitra'));
+    const sfRes = await vajebaatService.loadSilaFitra({ AccNo: member.accno });
+    setSilaFitra(normalizeArray(sfRes.data).map(normalizeSfRow));
   }, [member]);
 
   useEffect(() => {
@@ -371,6 +372,50 @@ function MuminDetailsInner() {
       await takhmeenService.deleteDetails({ ID: id });
       toast.success('Deleted');
       await Promise.all([reloadTakhmeen(), loadVajebaat()]);
+    } catch { toast.error('Failed to delete'); }
+  };
+
+  // ── Sila Fitra handlers ───────────────────────────────────────────────────
+  const saveSilaFitraRecord = async (row) => {
+    try {
+      await vajebaatService.addSilaFitra({
+        AccNo:   member.accno,
+        ForYear: row.forYear,
+        SF:      Number(row.sfRate)    || 0,
+        M:       Number(row.mardo)     || 0,
+        B:       Number(row.baira)     || 0,
+        GB:      Number(row.gairBalig) || 0,
+        H:       Number(row.hamal)     || 0,
+        AM:      Number(row.amwaat)    || 0,
+      });
+      toast.success('Sila Fitra saved');
+      await loadVajebaat();
+    } catch { toast.error('Failed to save Sila Fitra'); }
+  };
+
+  const updateSilaFitraRecord = async (row) => {
+    try {
+      await vajebaatService.updateSilaFitra({
+        ID:      row.id,
+        ForYear: row.forYear,
+        SF:      Number(row.sfRate)    || 0,
+        M:       Number(row.mardo)     || 0,
+        B:       Number(row.baira)     || 0,
+        GB:      Number(row.gairBalig) || 0,
+        H:       Number(row.hamal)     || 0,
+        AM:      Number(row.amwaat)    || 0,
+      });
+      toast.success('Sila Fitra updated');
+      await loadVajebaat();
+    } catch { toast.error('Failed to update Sila Fitra'); }
+  };
+
+  const deleteSilaFitraRecord = async (id) => {
+    if (!confirm('Delete this Sila Fitra record?')) return;
+    try {
+      await vajebaatService.deleteSilaFitra({ ID: id });
+      toast.success('Deleted');
+      await loadVajebaat();
     } catch { toast.error('Failed to delete'); }
   };
 
@@ -746,6 +791,9 @@ function MuminDetailsInner() {
                   onEditVaj={(row) => { setEditTakRow(row); openModal('editTakhmeen'); }}
                   onDeleteVaj={deleteTakhmeen}
                   onPrintVaj={(row) => { setEditTakRow(row); openModal('printReceipt'); }}
+                  onAddSf={saveSilaFitraRecord}
+                  onUpdateSf={updateSilaFitraRecord}
+                  onDeleteSf={deleteSilaFitraRecord}
                   onEditVajInfo={() => {
                     setVajInfoForm({
                       LocalTokenNo:     member.tokenNo   || '',
