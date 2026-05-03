@@ -1,0 +1,12 @@
+node_modules
+.vscode
+.env
+*.json
+*.log
+*.env
+dist
+build
+*.local
+*.backup
+.next
+.claude

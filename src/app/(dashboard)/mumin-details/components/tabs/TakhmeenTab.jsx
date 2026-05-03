@@ -1,0 +1,153 @@
+'use client';
+
+import clsx from 'clsx';
+import { fmt, fmtDate, toInputDate } from '../../utils';
+
+export default function TakhmeenTab({
+  takhmeen, permissions,
+  takYear, setTakYear,
+  takMainHead, setTakMainHead,
+  takSubHead, setTakSubHead,
+  onAdd, onEdit, onDelete,
+}) {
+  const filteredTakhmeen = takhmeen
+    .filter(t =>
+      (!takYear     || String(t.forYear)  === String(takYear)) &&
+      (!takMainHead || t.mainHead === takMainHead) &&
+      (!takSubHead  || t.subHead  === takSubHead)
+    )
+    .sort((a, b) => {
+      const aRem = Number(a.remaining) || 0;
+      const bRem = Number(b.remaining) || 0;
+      if ((bRem > 0) !== (aRem > 0)) return (bRem > 0) - (aRem > 0);
+      return Number(b.forYear) - Number(a.forYear);
+    });
+
+  const takYearOptions     = [...new Set(takhmeen.map(t => t.forYear).filter(Boolean))].sort((a, b) => b - a);
+  const takMainHeadOptions = [...new Set(takhmeen.map(t => t.mainHead).filter(Boolean))].sort();
+  const takSubHeadOptions  = [...new Set(
+    takhmeen.filter(t => !takMainHead || t.mainHead === takMainHead).map(t => t.subHead).filter(Boolean)
+  )].sort();
+
+  const totTak = filteredTakhmeen.reduce((s, t) => s + (Number(t.takhmeen) || 0), 0);
+  const totRec = filteredTakhmeen.reduce((s, t) => s + (Number(t.received) || 0), 0);
+  const totRem = filteredTakhmeen.reduce((s, t) => s + (Number(t.remaining) || 0), 0);
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            className="form-select w-[110px] h-[32px] text-[12px]"
+            value={takYear}
+            onChange={e => setTakYear(e.target.value)}
+          >
+            <option value="">All Years</option>
+            {takYearOptions.map(y => <option key={y}>{y}</option>)}
+          </select>
+          <select
+            className="form-select w-[130px] h-[32px] text-[12px]"
+            value={takMainHead}
+            onChange={e => { setTakMainHead(e.target.value); setTakSubHead(''); }}
+          >
+            <option value="">All Hub Types</option>
+            {takMainHeadOptions.map(h => <option key={h}>{h}</option>)}
+          </select>
+          <select
+            className="form-select w-[160px] h-[32px] text-[12px]"
+            value={takSubHead}
+            onChange={e => setTakSubHead(e.target.value)}
+          >
+            <option value="">All Sub Types</option>
+            {takSubHeadOptions.map(s => <option key={s}>{s}</option>)}
+          </select>
+          <span className="text-[11px] text-gray-400">
+            {filteredTakhmeen.length} record{filteredTakhmeen.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+        {permissions.MDNewInsert && (
+          <button className="btn btn-primary btn-sm" onClick={onAdd}>+ Add Takhmeen</button>
+        )}
+      </div>
+
+      <div className="rounded-lg overflow-hidden border border-border">
+        <table className="w-full border-collapse text-[12px]">
+          <thead>
+            <tr>
+              {['Actions','For Year','Hub Type','Sub Type','Grade','Takhmeen','Received','Remaining','Date','Remark'].map(h => (
+                <th key={h} className="th-navy text-center">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTakhmeen.length === 0 ? (
+              <tr><td colSpan={11} className="text-center py-8 text-gray-400">No takhmeen records</td></tr>
+            ) : filteredTakhmeen.map(t => {
+              const rem = Number(t.remaining) || 0;
+              return (
+                <tr key={t.id} className="hover:bg-blue-500/[0.025]">
+                  <td className="px-2 py-2.5 border-t border-border text-center whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-1.5">
+                      {permissions.MDEditTakhmeen && (
+                        <button
+                          title="Edit"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-colors"
+                          onClick={() => onEdit({ ...t, date: toInputDate(t.date) })}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          </svg>
+                        </button>
+                      )}
+                      {permissions.MDDeleteTakhmeen && (
+                        <button
+                          title="Delete"
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors"
+                          onClick={() => onDelete(t.id)}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/>
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                            <path d="M10 11v6M14 11v6"/>
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-2 py-2.5 border-t border-border text-center font-semibold">{t.forYear}</td>
+                  <td className="px-2 py-2.5 border-t border-border text-center">{t.mainHead}</td>
+                  <td className="px-2 py-2.5 border-t border-border text-center">{t.subHead || '—'}</td>
+                  <td className="px-2 py-2.5 border-t border-border text-center">{t.grade || '—'}</td>
+                  <td className="px-2 py-2.5 border-t border-border text-center font-medium">{fmt(t.takhmeen)}</td>
+                  <td className="px-2 py-2.5 border-t border-border text-center text-green-600 font-medium">{fmt(t.received)}</td>
+                  <td className={clsx('px-2 py-2.5 border-t border-border text-center font-bold',
+                    rem > 0 ? 'bg-red-500 text-white' : 'text-green-600'
+                  )}>{fmt(t.remaining)}</td>
+                  <td className="px-2 py-2.5 border-t border-border text-center whitespace-nowrap text-gray-500">{fmtDate(t.date)}</td>
+                  <td className="px-2 py-2.5 border-t border-border text-center text-gray-500">{t.remark || '—'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          {filteredTakhmeen.length > 0 && (
+            <tfoot>
+              <tr className="bg-navy-800/[0.04] font-bold text-[11.5px]">
+                <td colSpan={5} className="px-3 py-2.5 border-t-2 border-navy-800/20 text-center">
+                  Total ({filteredTakhmeen.length})
+                </td>
+                <td className="px-3 py-2.5 border-t-2 border-navy-800/20 text-center">{fmt(totTak)}</td>
+                <td className="px-3 py-2.5 border-t-2 border-navy-800/20 text-center text-green-600">{fmt(totRec)}</td>
+                <td className={clsx('px-3 py-2.5 border-t-2 border-navy-800/20 text-center font-bold',
+                  totRem > 0 ? 'bg-red-500 text-white' : 'text-green-600'
+                )}>{fmt(totRem)}</td>
+                <td colSpan={2} className="px-3 py-2.5 border-t-2 border-navy-800/20" />
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    </div>
+  );
+}

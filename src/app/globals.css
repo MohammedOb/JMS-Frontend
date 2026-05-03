@@ -1,0 +1,106 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    @apply bg-surface text-gray-700;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded; }
+}
+
+@layer components {
+  /* Sidebar nav item active state */
+  .nav-active {
+    @apply bg-blue-500/20 text-white;
+  }
+  .nav-active .nav-icon {
+    @apply text-blue-300;
+  }
+
+  /* Table header */
+  .th-navy {
+    @apply bg-navy-800 text-white/90 text-[10px] font-semibold tracking-wider uppercase px-3 py-2 text-left whitespace-nowrap;
+  }
+
+  /* Form label */
+  .form-label {
+    @apply block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1;
+  }
+
+  /* Form input */
+  .form-input {
+    @apply w-full h-8 px-2.5 border border-border rounded-md text-[12.5px] font-sans text-gray-800
+           bg-white outline-none transition-all
+           focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10;
+  }
+
+  /* Select */
+  .form-select {
+    @apply form-input pr-7 cursor-pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7a90' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    appearance: none;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md border font-medium text-[12px]
+           cursor-pointer transition-all duration-150 whitespace-nowrap select-none;
+  }
+  .btn:active { transform: scale(0.98); }
+
+  .btn-primary {
+    @apply btn bg-blue-500 text-white border-blue-500
+           hover:bg-blue-600 hover:shadow-md hover:shadow-blue-500/25 hover:-translate-y-px;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-gray-700 border-border
+           hover:bg-surface hover:border-slate-300;
+  }
+  .btn-success {
+    @apply btn bg-green-600 text-white border-green-600
+           hover:bg-green-700 hover:-translate-y-px;
+  }
+  .btn-danger {
+    @apply btn bg-red-600 text-white border-red-600
+           hover:bg-red-700 hover:-translate-y-px;
+  }
+  .btn-sm {
+    @apply h-7 px-2.5 text-[11px];
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold;
+  }
+  .badge-green  { @apply bg-green-100 text-green-700; }
+  .badge-red    { @apply bg-red-100 text-red-700; }
+  .badge-amber  { @apply bg-amber-100 text-amber-700; }
+  .badge-blue   { @apply bg-blue-100 text-blue-700; }
+  .badge-gray   { @apply bg-gray-100 text-gray-600; }
+
+  /* Card */
+  .card {
+    @apply bg-white border border-border rounded-lg shadow-sm overflow-hidden;
+  }
+  .card-header {
+    @apply px-4 py-3 border-b border-border text-[13px] font-semibold text-navy-900
+           flex items-center justify-between;
+  }
+  .card-body {
+    @apply p-4;
+  }
+}
