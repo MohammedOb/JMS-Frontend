@@ -92,19 +92,32 @@ export const normalizeArray = (value) => {
 };
 
 export const normalizeTakRow = (r) => ({
-  id:        r.ID           || r.Id        || r.id,
-  forYear:   r.ForYear      || r.forYear,
-  mainHead:  r.HubMainHead  || r.mainHead,
-  subHead:   r.HubSubHead   || r.subHead,
-  grade:     r.Grade        || r.grade     || '',
-  takhmeen:  r.Takhmeen     || r.takhmeen  || 0,
-  received:  r.Received     || r.received  || 0,
-  remaining: r.Remaining    || r.remaining || 0,
-  date:      r.TakhmeenDate || r.date      || '',
-  remark:    r.Remark       || r.remark    || '',
-  paidin:    r.Paidin       || r.paidin    || '',
-  place:     r.Place        || r.place     || '',
-  vajRemark: r.VajRemark    || r.vajRemark || '',
+  id:           r.ID           || r.Id           || r.id,
+  forYear:      r.ForYear      || r.forYear,
+  mainHead:     r.HubMainHead  || r.mainHead,
+  subHead:      r.HubSubHead   || r.subHead,
+  grade:        r.Grade        || r.grade        || '',
+  takhmeen:     r.Takhmeen     || r.takhmeen     || 0,
+  received:     r.Received     || r.received     || 0,
+  remaining:    r.Remaining    || r.remaining    || 0,
+  date:         r.TakhmeenDate || r.date         || '',
+  remark:       r.Remark       || r.remark       || '',
+  paidin:       r.Paidin       || r.paidin       || '',
+  place:        r.Place        || r.place        || '',
+  vajRemark:    r.VajRemark    || r.vajRemark    || '',
+  // HIM-specific
+  himTotal:     r.HIMTotal     || r.himTotal     || 0,
+  // Shehrullah Niyaz-specific
+  niyazCount:   r.NiyazCount   || r.niyazCount   || '',
+  niyazTareekh: r.NiyazTareekh || r.niyazTareekh || '',
+  niyazStatus:  r.NiyazStatus  || r.niyazStatus  || '',
+  // Vajebaat favor info
+  favorName:       r.FavorName       || r.favorName       || '',
+  favorIts:        r.FavorITS        || r.favorIts        || '',
+  mouze:           r.Mouze           || r.mouze           || '',
+  // Vajebaat year-over-year amounts
+  lastTakhmeen:    r.LastTakhmeen    || r.lastTakhmeen    || 0,
+  currentTakhmeen: r.CurrentTakhmeen || r.currentTakhmeen || 0,
 });
 
 export const normalizeMember = (m = {}) => ({

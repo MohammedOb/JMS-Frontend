@@ -13,7 +13,6 @@ import {
   TrendingUpIcon, TrendingDownIcon, CreditCardIcon, FileTextIcon, TruckIcon,
   MapPinIcon, CalendarIcon, StarIcon, ListIcon, MailIcon, GiftIcon,
   UtensilsIcon, UserCogIcon, SettingsIcon, MosqueIcon, LogoutIcon,
-  ChevronRightIcon,
 } from '@/components/shared/Icons';
 
 // ── Nav config — mirrors LinkButton visibility rules in Master.cs ─────────
@@ -103,7 +102,7 @@ function NavItem({ item, active }) {
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, setIsOpen }) {
   const pathname = usePathname();
   const { user, permissions, logout } = useAuth();
 
@@ -116,7 +115,6 @@ export default function Sidebar() {
     .slice(0, 2);
 
   return (
-<<<<<<< HEAD
     <>
       {/* Mobile backdrop — tap outside to close */}
       {isOpen && (
@@ -126,21 +124,11 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Mobile pull ribbon — hidden on md+ */}
-      <button
-        className={clsx(
-          'fixed top-1/2 -translate-y-1/2 z-[51] md:hidden',
-          'w-5 h-14 bg-navy-800 rounded-r-lg',
-          'border border-l-0 border-blue-500/40',
-          'flex items-center justify-center shadow-lg',
-          'text-blue-300 transition-all duration-300 ease-in-out',
-          isOpen ? 'left-[228px]' : 'left-0'
-        )}
-        onClick={() => setIsOpen(v => !v)}
-        aria-label={isOpen ? 'Close sidebar' : 'Open sidebar'}
-      >
-        <ChevronRightIcon className={clsx('w-3.5 h-3.5 transition-transform duration-300', isOpen && 'rotate-180')} />
-      </button>
+      {/* Desktop hover trigger strip — thin invisible zone at left edge */}
+      <div
+        className="fixed left-0 top-0 bottom-0 w-2 z-[49] hidden md:block"
+        onMouseEnter={() => setIsOpen(true)}
+      />
 
       <aside
         className={clsx(
@@ -148,15 +136,11 @@ export default function Sidebar() {
           'shadow-[4px_0_24px_rgba(6,15,30,0.3)]',
           'border-r border-blue-500/20',
           'transition-transform duration-300 ease-in-out',
-          isOpen ? 'translate-x-0' : '-translate-x-full md:-translate-x-[220px]'
+          isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
         onMouseEnter={() => setIsOpen(true)}
         onMouseLeave={() => setIsOpen(false)}
       >
-=======
-    <aside className="fixed left-0 top-0 bottom-0 w-[228px] bg-navy-800 flex flex-col z-50
-                      shadow-[4px_0_24px_rgba(6,15,30,0.3)]">
->>>>>>> parent of 9c097b08 (yes)
 
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-white/[0.06] flex-shrink-0 h-[52px]">
@@ -234,5 +218,6 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }

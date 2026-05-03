@@ -32,14 +32,11 @@ import SafaiChitthiTab from './components/tabs/SafaiChitthiTab';
 import VajebaatTab     from './components/tabs/VajebaatTab';
 
 // Modal components
-import AddTakhmeenModal    from './components/modals/AddTakhmeenModal';
-import EditTakhmeenModal   from './components/modals/EditTakhmeenModal';
+import TakhmeenModal       from './components/modals/TakhmeenModal';
 import AddReceiptModal     from './components/modals/AddReceiptModal';
 import ResetPasswordModal  from './components/modals/ResetPasswordModal';
 import AddFollowupModal    from './components/modals/AddFollowupModal';
 import AddSafaiModal       from './components/modals/AddSafaiModal';
-import HimTakhmeenModal    from './components/modals/HimTakhmeenModal';
-import SniyazTakhmeenModal from './components/modals/SniyazTakhmeenModal';
 import OverallDueModal     from './components/modals/OverallDueModal';
 import TakhmeenPreviewModal from './components/modals/TakhmeenPreviewModal';
 import EditMemberModal     from './components/modals/EditMemberModal';
@@ -147,14 +144,15 @@ function MuminDetailsInner() {
   // ── Form state ────────────────────────────────────────────────────────────
   const [takForm, setTakForm] = useState({
     mainHead: '', subHead: '', forYear: '', grade: '',
-    takhmeen: '', paidin: '', date: today(), remark: '', place: '', vajRemark: '',
+    takhmeen: 0, received: 0, date: today(), remark: '',
+    lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '',
   });
   const [editTakRow,   setEditTakRow]   = useState(null);
   const [rcItems,      setRcItems]      = useState([]);
   const [rcForm,       setRcForm]       = useState({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false });
   const [rcItem,       setRcItem]       = useState({ hubType: 'Sabeel Regular', forYear: '', amount: '' });
   const [safaiForm,    setSafaiForm]    = useState({ issueDate: today(), validTill: '', reason: '', remark: '' });
-  const [vajForm,      setVajForm]      = useState({ sf: '', vaj: '', house: '', niyaz: '', najwa: '' });
+  const [vajForm,      setVajForm]      = useState({ sf: '', vaj: '', house: '', niyaz: '', other: '' });
   const [himForm,      setHimForm]      = useState({ forYear: '', override: '' });
   const [sniyazForm,   setSniyazForm]   = useState({ forYear: '', count: '', tareekh: '', status: 'Done', amount: '' });
   const [memberForm,   setMemberForm]   = useState({});
@@ -272,18 +270,12 @@ function MuminDetailsInner() {
 
   const loadVajebaat = useCallback(async () => {
     if (!member) return;
-    const [vRes, hRes, snRes, sfRes, dRes] = await Promise.all([
-      vajebaatService.getByAccno(member.accno),
-      vajebaatService.getHIM(member.accno),
-      vajebaatService.getSNiyaz(member.accno),
-      vajebaatService.getSilaFitra(member.accno),
-      memberService.getOverallDue(member.accno),
-    ]);
-    setVajebaat(vRes.data);
-    setHimList(hRes.data);
-    setSniyazList(snRes.data);
-    setSilaFitra(sfRes.data);
-    setDue(dRes.data);
+    const takRes = await takhmeenService.loadDetails({ AccNo: member.accno });
+    const all = normalizeArray(takRes.data).map(normalizeTakRow);
+    setVajebaat(all.filter(r => r.subHead === 'Vajebaat'));
+    setHimList(all.filter(r => r.subHead === 'HIM'));
+    setSniyazList(all.filter(r => r.subHead === 'Shehrullah Niyaz'));
+    setSilaFitra(all.filter(r => r.subHead === 'Sila Fitra'));
   }, [member]);
 
   useEffect(() => {
@@ -322,14 +314,26 @@ function MuminDetailsInner() {
     if (!takForm.mainHead || !takForm.takhmeen) { toast.error('Fill required fields'); return; }
     try {
       await takhmeenService.addDetails({
-        AccNo: member.accno, ForYear: takForm.forYear, HubMainHead: takForm.mainHead,
-        HubSubHead: takForm.subHead, Grade: takForm.grade, Takhmeen: takForm.takhmeen,
-        Received: takForm.received, TakhmeenDate: takForm.date, Remark: takForm.remark,
-        Place: takForm.place, VajRemark: takForm.vajRemark,
+        AccNo:           member.accno,
+        ForYear:         takForm.forYear,
+        HubMainHead:     takForm.mainHead,
+        HubSubHead:      takForm.subHead,
+        Grade:           takForm.grade,
+        Takhmeen:        Number(takForm.takhmeen) || 0,
+        Received:        Number(takForm.received) || 0,
+        TakhmeenDate:    takForm.date,
+        Remark:          takForm.remark,
+        ...(takForm.mainHead === 'Vajebaat' && {
+          LastTakhmeen:    Number(takForm.lastTakhmeen) || 0,
+          CurrentTakhmeen: Number(takForm.currentTakhmeen) || 0,
+          Paidin:          takForm.paidin,
+          Place:           takForm.place,
+        }),
       });
       toast.success('Takhmeen saved');
       closeModal('addTakhmeen');
       await reloadTakhmeen();
+      if (takForm.mainHead === 'Vajebaat') await loadVajebaat();
     } catch { toast.error('Failed to save'); }
   };
 
@@ -337,15 +341,27 @@ function MuminDetailsInner() {
     if (!editTakRow) return;
     try {
       await takhmeenService.updateDetails({
-        ID: editTakRow.id, AccNo: member.accno, ForYear: editTakRow.forYear,
-        HubMainHead: editTakRow.mainHead, HubSubHead: editTakRow.subHead,
-        Grade: editTakRow.grade, Takhmeen: editTakRow.takhmeen, Received: editTakRow.received,
-        TakhmeenDate: editTakRow.date, Remark: editTakRow.remark,
-        Place: editTakRow.place, VajRemark: editTakRow.vajRemark,
+        ID:           editTakRow.id,
+        AccNo:        member.accno,
+        ForYear:      editTakRow.forYear,
+        HubMainHead:  editTakRow.mainHead,
+        HubSubHead:   editTakRow.subHead,
+        Grade:        editTakRow.grade,
+        Takhmeen:     Number(editTakRow.takhmeen) || 0,
+        Received:     Number(editTakRow.received) || 0,
+        TakhmeenDate: editTakRow.date,
+        Remark:       editTakRow.remark,
+        ...(editTakRow.mainHead === 'Vajebaat' && {
+          LastTakhmeen:    Number(editTakRow.lastTakhmeen) || 0,
+          CurrentTakhmeen: Number(editTakRow.currentTakhmeen) || 0,
+          Paidin:          editTakRow.paidin,
+          Place:           editTakRow.place,
+        }),
       });
       toast.success('Updated');
       closeModal('editTakhmeen');
       await reloadTakhmeen();
+      if (editTakRow.mainHead === 'Vajebaat') await loadVajebaat();
     } catch { toast.error('Failed to update'); }
   };
 
@@ -354,7 +370,7 @@ function MuminDetailsInner() {
     try {
       await takhmeenService.deleteDetails({ ID: id });
       toast.success('Deleted');
-      await reloadTakhmeen();
+      await Promise.all([reloadTakhmeen(), loadVajebaat()]);
     } catch { toast.error('Failed to delete'); }
   };
 
@@ -384,9 +400,30 @@ function MuminDetailsInner() {
 
   // ── Vajebaat handler ──────────────────────────────────────────────────────
   const saveVajebaat = async () => {
+    const entries = [
+      { key: 'sf',    subHead: 'Sila Fitra' },
+      { key: 'vaj',   subHead: 'Vajebaat' },
+      { key: 'house', subHead: 'House Vajebaat' },
+      { key: 'niyaz', subHead: 'Shehrullah Niyaz' },
+      { key: 'other', subHead: 'Other' },
+    ].filter(({ key }) => Number(vajForm[key]) > 0);
+
+    if (entries.length === 0) { toast.error('Enter at least one takhmeen value'); return; }
+
     try {
-      await vajebaatService.save({ accno: member.accno, ...vajForm });
-      toast.success('Vajebaat saved');
+      await Promise.all(entries.map(({ key, subHead }) =>
+        takhmeenService.addDetails({
+          AccNo:        member.accno,
+          ForYear:      permissions.ForYearAll,
+          HubMainHead:  'Vajebaat',
+          HubSubHead:   subHead,
+          Takhmeen:     Number(vajForm[key]) || 0,
+          Received:     0,
+          TakhmeenDate: today(),
+        })
+      ));
+      toast.success('Vajebaat takhmeen saved');
+      await Promise.all([reloadTakhmeen(), loadVajebaat()]);
       openModal('addReceipt');
     } catch { toast.error('Failed to save'); }
   };
@@ -608,7 +645,7 @@ function MuminDetailsInner() {
               features={FEATURES}
               onAddReceipt={() => openModal('addReceipt')}
               onAddTakhmeen={() => {
-                setTakForm({ mainHead: '', subHead: '', forYear: takYear || '', grade: '', takhmeen: '', paidin: '', date: today(), remark: '', place: '', vajRemark: '' });
+                setTakForm({ mainHead: '', subHead: '', forYear: takYear || '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
                 openModal('addTakhmeen');
               }}
               onVajebaatEntry={() => openModal('vajebaatSpeed')}
@@ -650,7 +687,7 @@ function MuminDetailsInner() {
                   takMainHead={takMainHead} setTakMainHead={setTakMainHead}
                   takSubHead={takSubHead}   setTakSubHead={setTakSubHead}
                   onAdd={() => {
-                    setTakForm({ mainHead: '', subHead: '', forYear: takYear || '', grade: '', takhmeen: '', paidin: '', date: today(), remark: '', place: '', vajRemark: '' });
+                    setTakForm({ mainHead: '', subHead: '', forYear: takYear || '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
                     openModal('addTakhmeen');
                   }}
                   onEdit={(row) => { setEditTakRow(row); openModal('editTakhmeen'); }}
@@ -677,6 +714,7 @@ function MuminDetailsInner() {
               )}
               {tab === 'vajebaat' && permissions.MDVajebaatTabView && (
                 <VajebaatTab
+                  member={member}
                   vajebaat={vajebaat}
                   himList={himList}
                   sniyazList={sniyazList}
@@ -685,9 +723,41 @@ function MuminDetailsInner() {
                   setVajForm={setVajForm}
                   permissions={permissions}
                   onSaveVajebaat={saveVajebaat}
-                  onAddHim={() => openModal('himTakhmeen')}
-                  onAddSniyaz={() => openModal('sniyazTakhmeen')}
+                  onAddHim={() => {
+                    setTakForm({ mainHead: 'Vajebaat', subHead: 'HIM', forYear: '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
+                    openModal('addTakhmeen');
+                  }}
+                  onHimForm={() => openModal('takPreview')}
+                  onEditHim={(row) => { setEditTakRow(row); openModal('editTakhmeen'); }}
+                  onDeleteHim={deleteTakhmeen}
+                  onAddSniyaz={() => {
+                    setTakForm({ mainHead: 'Vajebaat', subHead: 'Shehrullah Niyaz', forYear: '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
+                    openModal('addTakhmeen');
+                  }}
+                  onSniyazForm={() => openModal('takPreview')}
+                  onEditSniyaz={(row) => { setEditTakRow(row); openModal('editTakhmeen'); }}
+                  onDeleteSniyaz={deleteTakhmeen}
                   onAddReceipt={() => openModal('addReceipt')}
+                  onAddVaj={() => {
+                    setTakForm({ mainHead: 'Vajebaat', subHead: 'Vajebaat', forYear: '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
+                    openModal('addTakhmeen');
+                  }}
+                  onVajForm={() => openModal('takPreview')}
+                  onEditVaj={(row) => { setEditTakRow(row); openModal('editTakhmeen'); }}
+                  onDeleteVaj={deleteTakhmeen}
+                  onPrintVaj={(row) => { setEditTakRow(row); openModal('printReceipt'); }}
+                  onEditVajInfo={() => {
+                    setVajInfoForm({
+                      LocalTokenNo:     member.tokenNo   || '',
+                      LocalTokenDate:   toInputDate(member.tokenDate),
+                      FavorName:        member.favorName || '',
+                      FavorITS:         member.favorIts  || '',
+                      Mouze:            member.mouze     || '',
+                      VajebaatRemark:   '',
+                      VajProfileUnlock: !!member.vajUnlock,
+                    });
+                    openModal('editVaj');
+                  }}
                 />
               )}
             </div>
@@ -696,15 +766,18 @@ function MuminDetailsInner() {
       )}
 
       {/* ═══════════════════ MODALS ═══════════════════════════════════════ */}
-      <AddTakhmeenModal
+      <TakhmeenModal
+        mode="add"
         open={modals.addTakhmeen} onClose={() => closeModal('addTakhmeen')}
         member={member} permissions={permissions}
-        takForm={takForm} setTakForm={setTakForm}
+        row={takForm} setRow={setTakForm}
         onSave={saveTakhmeen}
       />
-      <EditTakhmeenModal
+      <TakhmeenModal
+        mode="edit"
         open={modals.editTakhmeen} onClose={() => closeModal('editTakhmeen')}
-        member={member} editTakRow={editTakRow} setEditTakRow={setEditTakRow}
+        member={member} permissions={permissions}
+        row={editTakRow} setRow={setEditTakRow}
         onSave={updateTakhmeen}
       />
       <AddReceiptModal
@@ -729,17 +802,8 @@ function MuminDetailsInner() {
         member={member} safaiForm={safaiForm} setSafaiForm={setSafaiForm}
         onSave={saveSafai}
       />
-      <HimTakhmeenModal
-        open={modals.himTakhmeen} onClose={() => closeModal('himTakhmeen')}
-        member={member} permissions={permissions}
-        himForm={himForm} setHimForm={setHimForm}
-        onSave={() => closeModal('himTakhmeen')}
-      />
-      <SniyazTakhmeenModal
-        open={modals.sniyazTakhmeen} onClose={() => closeModal('sniyazTakhmeen')}
-        sniyazForm={sniyazForm} setSniyazForm={setSniyazForm}
-        onSave={() => closeModal('sniyazTakhmeen')}
-      />
+
+
       <OverallDueModal
         open={modals.overallDue} onClose={() => closeModal('overallDue')}
         member={member} due={due} takhmeen={takhmeen}
