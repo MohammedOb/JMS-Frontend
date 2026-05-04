@@ -177,8 +177,10 @@ function MuminDetailsInner() {
   const setVF = (k, v) => setVajInfoForm(p => ({ ...p, [k]: v }));
 
   const [followupForm, setFollowupForm] = useState({ date: today(), note: '', action: 'Call Again' });
-  const [mohallaList,  setMohallaList]  = useState([]);
-  const [lookupCities, setLookupCities] = useState([]);
+  const [mohallaList,       setMohallaList]       = useState([]);
+  const [lookupCities,      setLookupCities]      = useState([]);
+  const [lookupWorkStatuses, setLookupWorkStatuses] = useState([]);
+  const [lookupDistributors, setLookupDistributors] = useState([]);
 
   // ── ComboBox option arrays ────────────────────────────────────────────────
   const sectorOptions = useMemo(
@@ -293,10 +295,10 @@ function MuminDetailsInner() {
 
     memberService.loadMuminDetails({ Search: '' })
       .then(res => {
-        const cities = [...new Set(
-          toArray(res).map(m => m.StayingIn ?? m.stayingIn ?? '').filter(Boolean)
-        )].sort();
-        setLookupCities(cities);
+        const rows = toArray(res);
+        setLookupCities([...new Set(rows.map(m => m.StayingIn ?? m.stayingIn ?? '').filter(Boolean))].sort());
+        setLookupWorkStatuses([...new Set(rows.map(m => m.WorkStatus ?? m.workStatus ?? '').filter(Boolean))].sort());
+        setLookupDistributors([...new Set(rows.map(m => m.DistributorName ?? m.distributorName ?? '').filter(Boolean))].sort());
       })
       .catch(err => console.error('LoadMuminDetails (cities) failed:', err?.response?.data ?? err.message));
   }, []); // eslint-disable-line
@@ -312,7 +314,7 @@ function MuminDetailsInner() {
   };
 
   const saveTakhmeen = async () => {
-    if (!takForm.mainHead || !takForm.takhmeen) { toast.error('Fill required fields'); return; }
+    if (!takForm.mainHead || !takForm.subHead || !takForm.forYear || takForm.takhmeen === '' || takForm.takhmeen == null || !takForm.date) { toast.error('Fill required fields'); return; }
     try {
       await takhmeenService.addDetails({
         AccNo:           member.accno,
@@ -560,22 +562,26 @@ function MuminDetailsInner() {
 
   const updateMember = async () => {
     try {
-      const f       = memberForm;
-      const payload = { AccNo: member.accno };
-      if (f.name          !== undefined) payload.FullName      = f.name;
-      if (f.sector        !== undefined) payload.Sector        = f.sector;
-      if (f.mobile        !== undefined) payload.Mobile        = f.mobile;
-      const altMobile = f.mobile1 ?? f.mobile2;
-      if (altMobile       !== undefined) payload.Mobile1       = altMobile;
-      if (f.itsNo         !== undefined) payload.ITSNo         = f.itsNo;
-      if (f.hofIts        !== undefined) payload.LocalHOFITSNo = f.hofIts;
-      if (f.stayingIn     !== undefined) payload.StayingIn     = f.stayingIn;
-      if (f.workStatus    !== undefined) payload.WorkStatus    = f.workStatus;
-      if (f.loginAccess   !== undefined) payload.LoginAccess   = f.loginAccess;
-      if (f.status        !== undefined) payload.AccountStatus = f.status;
-      if (f.subsector     !== undefined) payload.Subsector     = f.subsector;
-      if (f.subsectorName !== undefined) payload.SubsectorName = f.subsectorName;
-      await memberService.updateMuminDetails(payload);
+      const f = memberForm;
+
+      const basicPayload = { AccNo: member.accno };
+      if (f.name          !== undefined) basicPayload.FullName       = f.name;
+      if (f.itsNo         !== undefined) basicPayload.ITSNo          = f.itsNo;
+      if (f.hofIts        !== undefined) basicPayload.LocalHOFITSNo  = f.hofIts;
+      if (f.mobile        !== undefined) basicPayload.Mobile         = f.mobile;
+      if (f.mobile1       !== undefined) basicPayload.Mobile1        = f.mobile1;
+      if (f.stayingIn     !== undefined) basicPayload.StayingIn      = f.stayingIn;
+      if (f.sector        !== undefined) basicPayload.Sector         = f.sector;
+      if (f.subsector     !== undefined) basicPayload.Subsector      = f.subsector;
+      if (f.subsectorName !== undefined) basicPayload.SubsectorName  = f.subsectorName;
+      if (f.workStatus    !== undefined) basicPayload.WorkStatus     = f.workStatus;
+      if (f.loginAccess   !== undefined) basicPayload.LoginAccess    = f.loginAccess;
+      if (f.status        !== undefined) basicPayload.AccountStatus  = f.status;
+      if (f.sabeelType    !== undefined) basicPayload.SabeelType     = f.sabeelType;
+      if (f.grade         !== undefined) basicPayload.CurrentGrade   = f.grade;
+      if (f.sabeelRemark  !== undefined) basicPayload.SabeelRemark   = f.sabeelRemark;
+
+      await memberService.updateMuminDetails(basicPayload);
       toast.success('Member profile updated');
       closeModal('editMember');
       await loadMember(member.accno);
@@ -678,14 +684,26 @@ function MuminDetailsInner() {
 
           {/* ── RIGHT PANEL ────────────────────────────────────────────── */}
           <div>
-            {FEATURES.dueSummary && <DueSummaryCards due={due} />}
-            {FEATURES.alertBanners && (
-              <AlertBanners
-                due={due}
-                onHimTakhmeen={() => openModal('himTakhmeen')}
-                onFmbTakhmeen={() => openModal('fmbTakhmeen')}
-              />
-            )}
+            <div className="flex gap-3 mb-3">
+              {FEATURES.dueSummary && (
+                <div className="w-[35%] shrink-0">
+                  <DueSummaryCards takhmeen={takhmeen} />
+                </div>
+              )}
+              {FEATURES.alertBanners && (
+                <div className="flex-1">
+                  <AlertBanners
+                    takhmeen={takhmeen}
+                    permissions={permissions}
+                    member={member}
+                    onAddTakhmeen={(mainHead, subHead, forYear) => {
+                      setTakForm({ mainHead, subHead, forYear: forYear || permissions.ForYearAll || '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
+                      openModal('addTakhmeen');
+                    }}
+                  />
+                </div>
+              )}
+            </div>
             <ActionBar
               features={FEATURES}
               onAddReceipt={() => openModal('addReceipt')}
@@ -864,6 +882,7 @@ function MuminDetailsInner() {
         open={modals.editMember} onClose={() => closeModal('editMember')}
         member={member} memberForm={memberForm} setMemberForm={setMemberForm}
         sectorOptions={sectorOptions} cityOptions={cityOptions} subsectorOpts={subsectorOpts}
+        workStatusOptions={lookupWorkStatuses} distributorOptions={lookupDistributors}
         onSave={updateMember}
       />
       <AddNewMemberModal
@@ -875,6 +894,7 @@ function MuminDetailsInner() {
       <EditFmbModal
         open={modals.editFMB} onClose={() => closeModal('editFMB')}
         member={member} fmbForm={fmbForm} setFF={setFF}
+        distributorOptions={lookupDistributors}
         onSave={saveFMB}
       />
       <EditVajInfoModal

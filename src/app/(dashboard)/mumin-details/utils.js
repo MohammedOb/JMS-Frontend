@@ -157,6 +157,7 @@ export const normalizeMember = (m = {}) => ({
   sabeelType:    m.SabeelType     || m.sabeelType     || '',
   grade:         m.CurrentGrade   || m.grade          || m.currentGrade  || '',
   sabeelAmount:  m.SabeelAmt      || m.sabeelAmount   || '',
+  sabeelRemark:  m.SabeelRemark   || m.sabeelRemark   || '',
   thaaliStatus:  m.ThaaliStatus   || m.thaaliStatus   || '',
   thaaliSize:    m.ThaaliSize     || m.thaaliSize     || '',
   distributor:   m.DistributorName|| m.distributorname|| '',

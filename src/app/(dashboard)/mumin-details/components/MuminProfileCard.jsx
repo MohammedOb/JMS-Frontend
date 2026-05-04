@@ -37,9 +37,7 @@ export default function MuminProfileCard({ member, initials, features = {}, onEd
           ['Sabeel Type',     member.sabeelType || '—'],
           ['Current Grade',   member.grade || '—'],
           ['Sabeel Amt',      fmt(member.sabeelAmount)],
-          ['FMB Status',      member.thaaliStatus || '—'],
-          ['Thaali Size',     member.thaaliSize || '—'],
-          ['Distributor',     member.distributor || '—'],
+          ['Sabeel Remark',   member.sabeelRemark || '—'],
           ['Account Created', fmtDate(member.createdDate)],
           ['Login Access',    member.loginAccess || '—'],
         ].map(([label, val]) => (

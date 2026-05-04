@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import Modal from '@/components/shared/Modal';
 import { SaveIcon } from '@/components/shared/Icons';
 import { SUB_HEADS } from '../../utils';
@@ -7,12 +8,32 @@ import { SUB_HEADS } from '../../utils';
 export default function AddTakhmeenModal({ open, onClose, member, permissions, takForm, setTakForm, onSave }) {
   const set = (k, v) => setTakForm(p => ({ ...p, [k]: v }));
 
+  const mainHeadRef = useRef(null);
+  const subHeadRef  = useRef(null);
+  const forYearRef  = useRef(null);
+  const takhmeenRef = useRef(null);
+  const dateRef     = useRef(null);
+
+  const focusField = (ref) => {
+    ref.current?.focus();
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const handleSave = () => {
+    if (!takForm.mainHead)                                          { focusField(mainHeadRef); return; }
+    if (!takForm.subHead)                                           { focusField(subHeadRef);  return; }
+    if (!takForm.forYear)                                           { focusField(forYearRef);  return; }
+    if (takForm.takhmeen === '' || takForm.takhmeen == null)        { focusField(takhmeenRef); return; }
+    if (!takForm.date)                                              { focusField(dateRef);     return; }
+    onSave();
+  };
+
   return (
     <Modal open={open} onClose={onClose} title="Add Takhmeen Entry" size="md"
       footer={
         <>
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={onSave}>
+          <button className="btn btn-primary" onClick={handleSave}>
             <SaveIcon className="w-3.5 h-3.5 mr-1.5" />Save Takhmeen
           </button>
         </>
@@ -24,7 +45,7 @@ export default function AddTakhmeenModal({ open, onClose, member, permissions, t
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
           <label className="form-label">Hub Main Head</label>
-          <select className="form-select" value={takForm.mainHead}
+          <select ref={mainHeadRef} className="form-select" value={takForm.mainHead}
             onChange={e => set('mainHead', e.target.value) || set('subHead', '')}>
             <option value="">-- Select --</option>
             {Object.keys(SUB_HEADS).map(k => <option key={k}>{k}</option>)}
@@ -32,7 +53,7 @@ export default function AddTakhmeenModal({ open, onClose, member, permissions, t
         </div>
         <div>
           <label className="form-label">Hub Sub Head</label>
-          <select className="form-select" value={takForm.subHead}
+          <select ref={subHeadRef} className="form-select" value={takForm.subHead}
             onChange={e => set('subHead', e.target.value)}>
             <option value="">-- Select Main Head First --</option>
             {(SUB_HEADS[takForm.mainHead] || []).map(s => <option key={s}>{s}</option>)}
@@ -42,7 +63,7 @@ export default function AddTakhmeenModal({ open, onClose, member, permissions, t
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
           <label className="form-label">For Year</label>
-          <input className="form-input" placeholder={permissions?.ForYearAll} value={takForm.forYear}
+          <input ref={forYearRef} className="form-input" placeholder={permissions?.ForYearAll} value={takForm.forYear}
             onChange={e => set('forYear', e.target.value)} />
         </div>
         <div>
@@ -54,17 +75,18 @@ export default function AddTakhmeenModal({ open, onClose, member, permissions, t
       <div className="grid grid-cols-3 gap-3 mb-3">
         <div>
           <label className="form-label">Takhmeen (₹) *</label>
-          <input type="number" className="form-input" placeholder="0" value={takForm.takhmeen}
+          <input ref={takhmeenRef} type="number" className="form-input" placeholder="enter value 0 and above"
+            value={takForm.takhmeen ?? ''}
             onChange={e => set('takhmeen', e.target.value)} />
         </div>
         <div>
           <label className="form-label">Paid In (₹)</label>
-          <input type="number" className="form-input" placeholder="0" value={takForm.paidin}
+          <input type="number" className="form-input" placeholder="enter value 0 and above" value={takForm.paidin}
             onChange={e => set('paidin', e.target.value)} />
         </div>
         <div>
           <label className="form-label">Takhmeen Date</label>
-          <input type="date" className="form-input" value={takForm.date}
+          <input ref={dateRef} type="date" className="form-input" value={takForm.date}
             onChange={e => set('date', e.target.value)} />
         </div>
       </div>

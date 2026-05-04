@@ -140,7 +140,7 @@ export default function SilaFitraSection({ silaFitra, onAdd, onUpdate, onDelete 
                   <td className="px-3 py-2 border-t border-border">{row.gairBalig ?? 0}</td>
                   <td className="px-3 py-2 border-t border-border">{row.hamal ?? 0}</td>
                   <td className="px-3 py-2 border-t border-border">{row.amwaat ?? 0}</td>
-                  <td className="px-3 py-2 border-t border-border text-center font-semibold">{totalM(row)}</td>
+                  <td className="px-3 py-2 border-t border-border font-semibold">{totalM(row)}</td>
                   <td className="px-3 py-2 border-t border-border font-bold text-green-600">{fmt(calcAmt(row))}</td>
                 </tr>
               );
@@ -158,8 +158,8 @@ export default function SilaFitraSection({ silaFitra, onAdd, onUpdate, onDelete 
                     <InlineInput value={newRow[k]} onChange={v => setN(k, v)} width={w} />
                   </td>
                 ))}
-                <td className="px-3 py-1.5 border-t border-border text-center font-semibold text-gray-700">{totalM(newRow)}</td>
-                <td className="px-3 py-1.5 border-t border-border text-right font-semibold text-gray-700">{fmt(calcAmt(newRow))}</td>
+                <td className="px-3 py-1.5 border-t border-border text-center font-semibold  text-gray-700">{totalM(newRow)}</td>
+                <td className="px-3 py-1.5 border-t border-border text-center font-semibold text-gray-700">{fmt(calcAmt(newRow))}</td>
               </tr>
             )}
           </tbody>

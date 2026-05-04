@@ -10,6 +10,8 @@ export default function TakhmeenTab({
   takSubHead, setTakSubHead,
   onAdd, onEdit, onDelete,
 }) {
+  const parseYear = y => Number(String(y).split('-')[0]) || 0;
+
   const filteredTakhmeen = takhmeen
     .filter(t =>
       (!takYear     || String(t.forYear)  === String(takYear)) &&
@@ -20,10 +22,10 @@ export default function TakhmeenTab({
       const aRem = Number(a.remaining) || 0;
       const bRem = Number(b.remaining) || 0;
       if ((bRem > 0) !== (aRem > 0)) return (bRem > 0) - (aRem > 0);
-      return Number(b.forYear) - Number(a.forYear);
+      return parseYear(b.forYear) - parseYear(a.forYear);
     });
 
-  const takYearOptions     = [...new Set(takhmeen.map(t => t.forYear).filter(Boolean))].sort((a, b) => b - a);
+  const takYearOptions     = [...new Set(takhmeen.map(t => t.forYear).filter(Boolean))].sort((a, b) => parseYear(b) - parseYear(a));
   const takMainHeadOptions = [...new Set(takhmeen.map(t => t.mainHead).filter(Boolean))].sort();
   const takSubHeadOptions  = [...new Set(
     takhmeen.filter(t => !takMainHead || t.mainHead === takMainHead).map(t => t.subHead).filter(Boolean)

@@ -2,8 +2,12 @@
 
 import Modal from '@/components/shared/Modal';
 import { SaveIcon } from '@/components/shared/Icons';
+import { ComboBox } from '../../utils';
 
-export default function EditFmbModal({ open, onClose, member, fmbForm, setFF, onSave }) {
+const THAALI_STATUS_OPTS = ['Regular','Temporary','Only Amount Pay','Not Taken','Temp Closed','Closed','Closed with Due','N/A'];
+const THAALI_SIZE_OPTS   = ['Full','Half','Large','Medium','Small','N/A'];
+
+export default function EditFmbModal({ open, onClose, member, fmbForm, setFF, distributorOptions, onSave }) {
   return (
     <Modal open={open} onClose={onClose} title={`Edit FMB Details — ${member?.name}`} size="lg"
       footer={
@@ -19,24 +23,30 @@ export default function EditFmbModal({ open, onClose, member, fmbForm, setFF, on
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="form-label">Thaali Status</label>
-            <select className="form-select" value={fmbForm.ThaaliStatus}
-              onChange={e => setFF('ThaaliStatus', e.target.value)}>
-              <option value="">— Select —</option>
-              {['Regular','Temporary','Only Amount Pay','Not Taken','Temp Closed','Closed','Closed with Due','N/A'].map(s => <option key={s}>{s}</option>)}
-            </select>
+            <ComboBox
+              value={fmbForm.ThaaliStatus}
+              options={THAALI_STATUS_OPTS}
+              placeholder="Type or select…"
+              onChange={(v) => setFF('ThaaliStatus', v)}
+            />
           </div>
           <div>
             <label className="form-label">Thaali Size</label>
-            <select className="form-select" value={fmbForm.ThaaliSize}
-              onChange={e => setFF('ThaaliSize', e.target.value)}>
-              <option value="">— Select —</option>
-              {['Full','Half','N/A'].map(s => <option key={s}>{s}</option>)}
-            </select>
+            <ComboBox
+              value={fmbForm.ThaaliSize}
+              options={THAALI_SIZE_OPTS}
+              placeholder="Type or select…"
+              onChange={(v) => setFF('ThaaliSize', v)}
+            />
           </div>
           <div>
             <label className="form-label">Distributor Name</label>
-            <input className="form-input" placeholder="Distributor" value={fmbForm.DistributorName}
-              onChange={e => setFF('DistributorName', e.target.value)} />
+            <ComboBox
+              value={fmbForm.DistributorName}
+              options={distributorOptions || []}
+              placeholder="Type or select…"
+              onChange={(v) => setFF('DistributorName', v)}
+            />
           </div>
         </div>
         <div className="grid grid-cols-3 gap-3">
@@ -49,11 +59,6 @@ export default function EditFmbModal({ open, onClose, member, fmbForm, setFF, on
             <label className="form-label">Close Date</label>
             <input type="date" className="form-input" value={fmbForm.ThaliCloseDate}
               onChange={e => setFF('ThaliCloseDate', e.target.value)} />
-          </div>
-          <div>
-            <label className="form-label">Reason</label>
-            <input className="form-input" placeholder="Reason for closing" value={fmbForm.Reason}
-              onChange={e => setFF('Reason', e.target.value)} />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">

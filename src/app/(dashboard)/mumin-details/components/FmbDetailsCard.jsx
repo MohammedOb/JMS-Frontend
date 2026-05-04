@@ -11,11 +11,13 @@ export default function FmbDetailsCard({ member, onEdit }) {
       </div>
       <div className="p-3.5 space-y-0">
         {[
-          ['Close Year', member.closeYear          || '—'],
+          ['FMB Status',  member.thaaliStatus || '—'],
+          ['Thaali Size', member.thaaliSize   || '—'],
+          ['Distributor', member.distributor  || '—'],
+          ['Close Year',  member.closeYear    || '—'],
           ['Close Date', fmtDate(member.closeDate)        ],
           ['Temp From',  fmtDate(member.tempFrom)         ],
           ['Temp To',    fmtDate(member.tempTo)           ],
-          ['Reason',     member.thaaliReason|| '—'],
           ['FMB Remark', member.fmbRemark   || '—'],
         ].map(([l, v]) => (
           <div key={l} className="flex gap-2 py-1.5 border-b border-surface-2 last:border-0">
