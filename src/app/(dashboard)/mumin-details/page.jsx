@@ -34,6 +34,8 @@ import VajebaatTab     from './components/tabs/VajebaatTab';
 // Modal components
 import TakhmeenModal       from './components/modals/TakhmeenModal';
 import AddReceiptModal     from './components/modals/AddReceiptModal';
+import EditReceiptModal    from './components/modals/EditReceiptModal';
+import PrintReceiptModal   from './components/modals/PrintReceiptModal';
 import ResetPasswordModal  from './components/modals/ResetPasswordModal';
 import AddFollowupModal    from './components/modals/AddFollowupModal';
 import AddSafaiModal       from './components/modals/AddSafaiModal';
@@ -117,6 +119,7 @@ function MuminDetailsInner() {
   const [sniyazList, setSniyazList] = useState([]);
   const [silaFitra,  setSilaFitra]  = useState([]);
   const [due,        setDue]        = useState(null);
+  const [familyLoading, setFamilyLoading] = useState(false);
 
   // ── Tab & modals ──────────────────────────────────────────────────────────
   const [tab, setTab] = useState(TAB_LIST[0]?.key || '');
@@ -148,6 +151,7 @@ function MuminDetailsInner() {
     lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '',
   });
   const [editTakRow,   setEditTakRow]   = useState(null);
+  const [editReceiptRow, setEditReceiptRow] = useState(null);
   const [rcItems,      setRcItems]      = useState([]);
   const [rcForm,       setRcForm]       = useState({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false });
   const [rcItem,       setRcItem]       = useState({ hubType: 'Sabeel Regular', forYear: '', amount: '' });
@@ -158,7 +162,7 @@ function MuminDetailsInner() {
   const [memberForm,   setMemberForm]   = useState({});
   const [newMemberForm, setNewMemberForm] = useState({
     AccNo: '', FullName: '', Sector: '', Mobile: '', Mobile1: '',
-    ITSNo: '', LocalHOFITSNo: '', Subsector: '', SubsectorName: '',
+    ITSNo: '', LocalHOFITSNo: '', HOFName: '', Subsector: '', SubsectorName: '',
     StayingIn: '', WorkStatus: '', SabeelRemark: '',
   });
   const setNF = (k, v) => setNewMemberForm(p => ({ ...p, [k]: v }));
@@ -254,6 +258,19 @@ function MuminDetailsInner() {
       const normalized = normalizeMemberPayload(payload);
       const memberData = normalized.member;
       if (!memberData || !memberData.accno) throw new Error('Member not found');
+
+      if (memberData.hofIts) {
+        try {
+          const hofRes = await memberService.loadFamilyMembersDetails({ HOF_ID: memberData.hofIts });
+          const hofList = Array.isArray(hofRes.data) ? hofRes.data
+            : Array.isArray(hofRes.data?.recordset) ? hofRes.data.recordset
+            : Array.isArray(hofRes.data?.recordsets?.[0]) ? hofRes.data.recordsets[0]
+            : Array.isArray(hofRes.data?.data) ? hofRes.data.data : [];
+          const hofMember = hofList.find(m => String(m.ITS_ID) === String(memberData.hofIts));
+          if (hofMember?.Full_Name) memberData.hofName = hofMember.Full_Name;
+        } catch { /* leave hofName from loadMuminDetails as fallback */ }
+      }
+
       setMember(memberData);
       setTakhmeen(normalizeArray(takRes.data).map(normalizeTakRow));
       setReceipts(normalized.receipts);
@@ -302,6 +319,24 @@ function MuminDetailsInner() {
       })
       .catch(err => console.error('LoadMuminDetails (cities) failed:', err?.response?.data ?? err.message));
   }, []); // eslint-disable-line
+
+  const loadFamilyMembers = useCallback(async () => {
+    if (!member?.hofIts) return;
+    setFamilyLoading(true);
+    try {
+      const res = await memberService.loadFamilyMembersDetails({ HOF_ID: member.hofIts });
+      setFamily(normalizeArray(res.data));
+    } catch (err) {
+      console.error('loadFamilyMembers failed', err);
+      setFamily([]);
+    } finally {
+      setFamilyLoading(false);
+    }
+  }, [member]);
+
+  useEffect(() => {
+    if (tab === 'family' && member) loadFamilyMembers();
+  }, [tab, member, loadFamilyMembers]);
 
   useEffect(() => {
     if (tab === 'vajebaat' && member) loadVajebaat();
@@ -471,6 +506,7 @@ function MuminDetailsInner() {
       ));
       toast.success('Vajebaat takhmeen saved');
       await Promise.all([reloadTakhmeen(), loadVajebaat()]);
+      setVajForm({ sf: '', vaj: '', house: '', niyaz: '', other: '' });
       openModal('addReceipt');
     } catch { toast.error('Failed to save'); }
   };
@@ -538,21 +574,21 @@ function MuminDetailsInner() {
 
   const saveNewMember = async () => {
     const f = newMemberForm;
-    if (!f.AccNo.trim())    { toast.error('Account No. is required'); return; }
-    if (!f.FullName.trim()) { toast.error('Full Name is required');   return; }
+    if (!f.AccNo?.trim())    { toast.error('Account No. is required'); return; }
+    if (!f.FullName?.trim()) { toast.error('Full Name is required');   return; }
     try {
       await memberService.addMuminDetails({
         AccNo: f.AccNo.trim(), FullName: f.FullName.trim(),
-        Sector: f.Sector || undefined, Mobile: f.Mobile || undefined,
-        Mobile1: f.Mobile1 || undefined, ITSNo: f.ITSNo || undefined,
+        Sector: f.Sector || 'N/A', Mobile: f.Mobile || '0',
+        Mobile1: f.Mobile1 || undefined, ITSNo: f.ITSNo || '0',
         LocalHOFITSNo: f.LocalHOFITSNo || undefined,
-        Subsector: f.Subsector || undefined, SubsectorName: f.SubsectorName || undefined,
-        StayingIn: f.StayingIn || undefined, WorkStatus: f.WorkStatus || undefined,
+        Subsector: f.Subsector || 'N/A', SubsectorName: f.SubsectorName || undefined,
+        StayingIn: f.StayingIn || 'N/A', WorkStatus: f.WorkStatus || undefined,
         SabeelRemark: f.SabeelRemark || undefined,
       });
       toast.success(`Member ${f.AccNo} added successfully`);
       closeModal('newMember');
-      setNewMemberForm({ AccNo: '', FullName: '', Sector: '', Mobile: '', Mobile1: '', ITSNo: '', LocalHOFITSNo: '', Subsector: '', SubsectorName: '', StayingIn: '', WorkStatus: '', SabeelRemark: '' });
+      setNewMemberForm({ AccNo: '', FullName: '', Sector: '', Mobile: '', Mobile1: '', ITSNo: '', LocalHOFITSNo: '', HOFName: '', Subsector: '', SubsectorName: '', StayingIn: '', WorkStatus: '', SabeelRemark: '' });
       setSearchVal(f.AccNo);
       await loadMember(f.AccNo);
     } catch (err) {
@@ -683,7 +719,7 @@ function MuminDetailsInner() {
           </div>
 
           {/* ── RIGHT PANEL ────────────────────────────────────────────── */}
-          <div>
+          <div className="min-w-0">
             <div className="flex gap-3 mb-3">
               {FEATURES.dueSummary && (
                 <div className="w-[35%] shrink-0">
@@ -760,13 +796,15 @@ function MuminDetailsInner() {
               {tab === 'receipts' && (
                 <ReceiptsTab
                   receipts={receipts}
+                  setReceipts={setReceipts}
+                  accno={member?.accno}
                   permissions={permissions}
                   onAddReceipt={() => openModal('addReceipt')}
-                  onEditReceipt={() => openModal('editReceipt')}
-                  onPrintReceipt={() => openModal('printReceipt')}
+                  onEditReceipt={(row) => { setEditReceiptRow(row); openModal('editReceipt'); }}
+                  onPrintReceipt={(row) => { setEditReceiptRow(row); openModal('printReceipt'); }}
                 />
               )}
-              {tab === 'family' && <FamilyTab family={family} />}
+              {tab === 'family' && <FamilyTab family={family} loading={familyLoading} />}
               {tab === 'safai' && (
                 <SafaiChitthiTab
                   safaiList={safaiList}
@@ -853,6 +891,31 @@ function MuminDetailsInner() {
         rcItem={rcItem} setRcItem={setRcItem}
         rcItems={rcItems} setRcItems={setRcItems}
         onSave={saveReceipt}
+      />
+      <EditReceiptModal
+        open={modals.editReceipt} onClose={() => closeModal('editReceipt')}
+        member={member} permissions={permissions}
+        rcForm={editReceiptRow || {}} setRcForm={setEditReceiptRow}
+        onSave={async () => {
+          if (!editReceiptRow) return;
+          try {
+            const { receiptNo, receivedDate, mainHead, subHead, forYear, amount, mode, status, remark } = editReceiptRow;
+            await receiptService.update(receiptNo, { receivedDate, mainHead, subHead, forYear, amount, mode, status, remark });
+            toast.success('Receipt updated successfully');
+            closeModal('editReceipt');
+            // Reload receipts (hacky but works if we just change accno to trigger useEffect in tab, or maybe just pass a reload callback)
+            // But since ReceiptsTab loads its own data, we might need a way to refresh it.
+            // For now, we update the local state.
+            setReceipts(p => p.map(r => r.receiptNo === receiptNo ? editReceiptRow : r));
+          } catch (err) {
+            console.error(err);
+            toast.error('Failed to update receipt');
+          }
+        }}
+      />
+      <PrintReceiptModal
+        open={modals.printReceipt} onClose={() => closeModal('printReceipt')}
+        member={member} receipt={editReceiptRow}
       />
       <ResetPasswordModal
         open={modals.resetPass} onClose={() => closeModal('resetPass')}

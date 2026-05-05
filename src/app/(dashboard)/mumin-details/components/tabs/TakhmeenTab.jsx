@@ -63,7 +63,7 @@ export default function TakhmeenTab({
             <option value="">All Sub Types</option>
             {takSubHeadOptions.map(s => <option key={s}>{s}</option>)}
           </select>
-          <span className="text-[11px] text-gray-400">
+          <span className="text-[12px] font-medium text-navy-800 ml-2 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 whitespace-nowrap">
             {filteredTakhmeen.length} record{filteredTakhmeen.length !== 1 ? 's' : ''}
           </span>
         </div>

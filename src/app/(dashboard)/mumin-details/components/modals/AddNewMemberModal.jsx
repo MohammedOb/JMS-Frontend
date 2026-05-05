@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import Modal from '@/components/shared/Modal';
 import { SaveIcon } from '@/components/shared/Icons';
 import { ComboBox } from '../../utils';
+import { memberService } from '@/services';
 
 export default function AddNewMemberModal({
   open, onClose,
@@ -10,6 +12,37 @@ export default function AddNewMemberModal({
   sectorOptions, cityOptions, subsectorOpts,
   onSave,
 }) {
+  const [hofLookupLoading, setHofLookupLoading] = useState(false);
+  const hofTimer = useRef(null);
+  const prevHofIts = useRef(newMemberForm?.LocalHOFITSNo);
+
+  useEffect(() => {
+    const its = String(newMemberForm?.LocalHOFITSNo ?? '').trim();
+    if (its === prevHofIts.current) return;
+    prevHofIts.current = its;
+
+    if (hofTimer.current) clearTimeout(hofTimer.current);
+    if (!its) { setNF('HOFName', ''); return; }
+
+    hofTimer.current = setTimeout(async () => {
+      setHofLookupLoading(true);
+      try {
+        const res = await memberService.loadFamilyMembersDetails({ HOF_ID: its });
+        const list = Array.isArray(res.data) ? res.data
+          : Array.isArray(res.data?.recordset) ? res.data.recordset
+          : Array.isArray(res.data?.recordsets?.[0]) ? res.data.recordsets[0]
+          : Array.isArray(res.data?.data) ? res.data.data : [];
+        const hof = list.find(m => String(m.ITS_ID) === its);
+        setNF('HOFName', hof?.Full_Name ?? '');
+      } catch {
+        setNF('HOFName', '');
+      } finally {
+        setHofLookupLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(hofTimer.current);
+  }, [newMemberForm?.LocalHOFITSNo]); // eslint-disable-line
   return (
     <Modal open={open} onClose={onClose} title="Add New Member" size="xl"
       footer={
@@ -21,7 +54,7 @@ export default function AddNewMemberModal({
         </>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
         <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
           <span>Identity</span><div className="flex-1 h-px bg-border" />
         </div>
@@ -33,7 +66,7 @@ export default function AddNewMemberModal({
           </div>
           <div>
             <label className="form-label">Full Name <span className="text-red-500">*</span></label>
-            <textarea className="form-input resize" rows={2} placeholder="Full name" value={newMemberForm.FullName}
+            <textarea className="form-input resize" rows={3} placeholder="Full name" value={newMemberForm.FullName}
               onChange={e => setNF('FullName', e.target.value)} />
           </div>
           <div>
@@ -42,11 +75,17 @@ export default function AddNewMemberModal({
               onChange={e => setNF('ITSNo', e.target.value)} />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
           <div>
             <label className="form-label">HOF ITS No.</label>
             <input className="form-input" placeholder="Head of Family ITS" value={newMemberForm.LocalHOFITSNo}
               onChange={e => setNF('LocalHOFITSNo', e.target.value)} />
+          </div>
+          <div>
+            <label className="form-label">HOF Name</label>
+            <input className="form-input bg-surface"
+              value={hofLookupLoading ? 'Looking up…' : (newMemberForm.HOFName || '')}
+              readOnly />
           </div>
           <div>
             <label className="form-label">Mobile</label>

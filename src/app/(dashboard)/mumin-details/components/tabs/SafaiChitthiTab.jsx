@@ -8,7 +8,12 @@ export default function SafaiChitthiTab({ safaiList, onAdd, onEdit, onPrint }) {
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-3">
-        <span className="text-[11px] text-gray-400">Clearance certificates issued to this member</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-gray-400">Clearance certificates issued to this member</span>
+          <span className="text-[12px] font-medium text-navy-800 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 whitespace-nowrap">
+            {safaiList.length} record{safaiList.length !== 1 ? 's' : ''}
+          </span>
+        </div>
         <button className="btn btn-primary btn-sm" onClick={onAdd}>+ New Safai Chitthi</button>
       </div>
       <div className="rounded-lg overflow-hidden border border-border">

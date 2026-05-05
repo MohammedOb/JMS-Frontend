@@ -19,6 +19,7 @@ export const receiptService = {
   getDailyTotals:(params)  => api.get('/receipts/daily/totals', { params }),
   getDailyItemTotals:(params)=> api.get('/receipts/daily/item-totals', { params }),
   print:         (id)      => api.get(`/receipts/${id}/print`),
+  loadTransactionDetails: (data) => api.post('/LoadTransactionDetails', data),
 };
 
 // ── Members ──────────────────────────────────────────────────────────────────
@@ -32,12 +33,13 @@ export const memberService = {
   // getItsData:    (accno)   => api.post(`/members/${accno}/its-data`),
   // getOverallDue: (accno)   => api.post(`/members/${accno}/overall-due`),
   // getSabeelDue:  (accno)   => api.post(`/members/${accno}/sabeel-due`),
-  loadMuminDetails:   (filters) => api.post('/LoadMuminDetails',    filters),
-  updateMuminDetails: (data)    => api.post('/UpdateMuminDetails',  data),
-  addMuminDetails:        (data) => api.post('/AddMuminDetails',        data),
-  updateMuminDetailsFMB:  (data) => api.post('/UpdateMuminDetailsFMB',  data),
-  updateMuminDetailsVaj:  (data) => api.post('/UpdateMuminDetailsVaj',  data),
-  loadMohallaDetails: (filters) => api.post('/LoadMohallaDetails',  filters),
+  loadMuminDetails:          (filters) => api.post('/LoadMuminDetails',          filters),
+  loadFamilyMembersDetails:  (data)    => api.post('/LoadFamilyMembersDetails',  data),
+  updateMuminDetails:        (data)    => api.post('/UpdateMuminDetails',        data),
+  addMuminDetails:           (data)    => api.post('/AddMuminDetails',           data),
+  updateMuminDetailsFMB:     (data)    => api.post('/UpdateMuminDetailsFMB',     data),
+  updateMuminDetailsVaj:     (data)    => api.post('/UpdateMuminDetailsVaj',     data),
+  loadMohallaDetails:        (filters) => api.post('/LoadMohallaDetails',        filters),
 };
 
 // ── Takhmeen ─────────────────────────────────────────────────────────────────

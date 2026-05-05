@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
 import Modal from '@/components/shared/Modal';
 import { SaveIcon } from '@/components/shared/Icons';
 import { ComboBox } from '../../utils';
+import { memberService } from '@/services';
 
 
 function SectionHeader({ title }) {
@@ -21,6 +23,38 @@ export default function EditMemberModal({
   onSave,
 }) {
   const set = (k, v) => setMemberForm(p => ({ ...p, [k]: v }));
+
+  const [hofLookupLoading, setHofLookupLoading] = useState(false);
+  const hofTimer = useRef(null);
+  const prevHofIts = useRef(memberForm?.hofIts);
+
+  useEffect(() => {
+    const its = String(memberForm?.hofIts ?? '').trim();
+    if (its === prevHofIts.current) return;
+    prevHofIts.current = its;
+
+    if (hofTimer.current) clearTimeout(hofTimer.current);
+    if (!its) { setMemberForm(p => ({ ...p, hofName: '' })); return; }
+
+    hofTimer.current = setTimeout(async () => {
+      setHofLookupLoading(true);
+      try {
+        const res = await memberService.loadFamilyMembersDetails({ HOF_ID: its });
+        const list = Array.isArray(res.data) ? res.data
+          : Array.isArray(res.data?.recordset) ? res.data.recordset
+          : Array.isArray(res.data?.recordsets?.[0]) ? res.data.recordsets[0]
+          : Array.isArray(res.data?.data) ? res.data.data : [];
+        const hof = list.find(m => String(m.ITS_ID) === its);
+        setMemberForm(p => ({ ...p, hofName: hof?.Full_Name ?? '' }));
+      } catch {
+        setMemberForm(p => ({ ...p, hofName: '' }));
+      } finally {
+        setHofLookupLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(hofTimer.current);
+  }, [memberForm?.hofIts]); // eslint-disable-line
 
   return (
     <Modal open={open} onClose={onClose} title={`Edit Member Profile — Acc# ${member?.accno}`} size="xl"
@@ -62,7 +96,11 @@ export default function EditMemberModal({
           <div className="grid grid-cols-4 gap-3">
             <div>
               <label className="form-label">HOF Name</label>
-              <input className="form-input bg-surface" value={memberForm.hofName || ''} readOnly />
+              <input
+                className="form-input bg-surface"
+                value={hofLookupLoading ? 'Looking up…' : (memberForm.hofName || '')}
+                readOnly
+              />
             </div>
             <div>
               <label className="form-label">Mobile</label>
