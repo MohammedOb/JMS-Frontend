@@ -35,6 +35,7 @@ export const memberService = {
   // getSabeelDue:  (accno)   => api.post(`/members/${accno}/sabeel-due`),
   loadMuminDetails:          (filters) => api.post('/LoadMuminDetails',          filters),
   loadFamilyMembersDetails:  (data)    => api.post('/LoadFamilyMembersDetails',  data),
+  loadFamilyMembersCount:    (data)    => api.post('/LoadFamilyMembersCount',    data),
   updateMuminDetails:        (data)    => api.post('/UpdateMuminDetails',        data),
   addMuminDetails:           (data)    => api.post('/AddMuminDetails',           data),
   updateMuminDetailsFMB:     (data)    => api.post('/UpdateMuminDetailsFMB',     data),

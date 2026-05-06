@@ -7,56 +7,75 @@ import { useRouter }     from 'next/navigation';
 import toast             from 'react-hot-toast';
 import PageHeader        from '@/components/shared/PageHeader';
 import { XIcon, RefreshIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon } from '@/components/shared/Icons';
-import { StatusBadge }   from '@/components/shared/Badge';
 
 const ACCOUNT_STATUSES = ['Active', 'Closed', 'BlackList'];
 const FMB_STATUSES     = ['Regular', 'Temporary', 'Only Amount Pay', 'Not Taken', 'Temp Closed', 'Closed', 'Closed with Due', 'N/A'];
 
 const EXPORT_COLS = [
-  { key: 'accno',      label: 'Acc#'          },
-  { key: 'name',       label: 'Full Name'      },
-  { key: 'itsNo',      label: 'ITS No.'        },
-  { key: 'mobile',     label: 'Mobile'         },
-  { key: 'mohallah',   label: 'Mohallah'       },
-  { key: 'sabeelType', label: 'Sabeel Type'    },
-  { key: 'fmbStatus',  label: 'FMB Status'     },
-  { key: 'status',     label: 'Account Status' },
+  { key: 'accno',            label: 'Acc No'         },
+  { key: 'name',             label: 'Full Name'      },
+  { key: 'sector',           label: 'Sector'         },
+  { key: 'mobile',           label: 'Mobile'         },
+  { key: 'mobile1',          label: 'Mobile 1'       },
+  { key: 'itsNo',            label: 'ITS No'         },
+  { key: 'localHofIts',      label: 'Local HOF ITS'  },
+  { key: 'subsectorWithName',label: 'Subsector'      },
+  { key: 'stayingIn',        label: 'Staying In'     },
+  { key: 'sabeelType',       label: 'Sabeel Type'    },
+  { key: 'thaliSize',        label: 'Thali Size'     },
+  { key: 'thaliStatus',      label: 'Thali Status'   },
 ];
 
-export default function MuminSearchPage() {
-  const router       = useRouter();
-  const exportBtnRef = useRef(null);
-  const exportMenuRef= useRef(null);
+const TABLE_COLS = 15;
 
-  const [allRows,    setAllRows]    = useState([]);
-  const [loading,    setLoading]    = useState(false);
-  const [loaded,     setLoaded]     = useState(false);
-  const [showExport, setShowExport] = useState(false);
-  const [exportPos,  setExportPos]  = useState({});
+export default function MuminSearchPage() {
+  const router        = useRouter();
+  const exportBtnRef  = useRef(null);
+  const exportMenuRef = useRef(null);
+
+  const [allRows,  setAllRows]  = useState([]);
+  const [loading,         setLoading]         = useState(false);
+  const [loaded,          setLoaded]          = useState(false);
+  const [showExport,      setShowExport]      = useState(false);
+  const [exportPos,       setExportPos]       = useState({});
 
   const [filters, setFilters] = useState({
-    search: '', mohallah: '', status: '', fmbStatus: '', sabeelType: '',
+    search: '', sector: '', subsector: '', stayingIn: '', status: '', fmbStatus: '', sabeelType: '',
   });
   const setF = (k, v) => setFilters(p => ({ ...p, [k]: v }));
 
   const str = (v) => String(v ?? '');
-  const normalizeRow = (m = {}) => ({
-    accno:      str(m.AccNo        ?? m.accno      ?? ''),
-    name:       str(m.FullName     ?? m.fullName   ?? ''),
-    itsNo:      str(m.ITSNo        ?? m.itsNo      ?? ''),
-    mobile:     str(m.Mobile       ?? m.mobile     ?? ''),
-    mohallah:   str(m.SubsectorName ?? m.Subsector  ?? ''),
-    sabeelType: str(m.SabeelType   ?? m.sabeelType ?? ''),
-    fmbStatus:  str(m.ThaaliStatus ?? m.FMBStatus  ?? m.fmbStatus  ?? ''),
-    status:     str(m.Status       ?? m.status     ?? m.AccountStatus ?? ''),
-  });
+  const normalizeRow = (m = {}) => {
+    const subsector     = str(m.Subsector     ?? m.subsector     ?? '');
+    const subsectorName = str(m.SubsectorName ?? m.subsectorName ?? '');
+    return {
+      accno:            str(m.AccNo        ?? m.accno        ?? ''),
+      name:             str(m.FullName     ?? m.fullName     ?? ''),
+      itsNo:            str(m.ITSNo        ?? m.itsNo        ?? ''),
+      mobile:           str(m.Mobile       ?? m.mobile       ?? ''),
+      mobile1:          str(m.Mobile1      ?? m.mobile1      ?? ''),
+      localHofIts:      str(m.LocalHOFITS  ?? m.LocalHOFITSNo ?? m.localHofIts ?? ''),
+      sector:           str(m.Sector       ?? m.sector       ?? ''),
+      subsector,
+      subsectorName,
+      subsectorWithName: subsector && subsectorName
+        ? `${subsector} - ${subsectorName}`
+        : subsectorName || subsector,
+      stayingIn:        str(m.StayingIn    ?? m.stayingIn    ?? ''),
+      sabeelType:       str(m.SabeelType   ?? m.sabeelType   ?? ''),
+      thaliSize:        str(m.ThaliSize    ?? m.ThaaliSize   ?? m.thaliSize  ?? ''),
+      thaliStatus:      str(m.ThaaliStatus ?? m.FMBStatus    ?? m.fmbStatus  ?? ''),
+      status:           str(m.Status       ?? m.status       ?? m.AccountStatus ?? ''),
+      membersCount:     m.FamilyMembersCount ?? m.familyMembersCount ?? null,
+    };
+  };
 
   const normalizeResults = (data) => {
-    if (!data)                       return [];
-    if (Array.isArray(data))         return data.map(normalizeRow);
-    if (data.recordset)              return data.recordset.map(normalizeRow);
-    if (data.recordsets)             return (data.recordsets[0] || []).map(normalizeRow);
-    if (Array.isArray(data.data))    return data.data.map(normalizeRow);
+    if (!data)                     return [];
+    if (Array.isArray(data))       return data.map(normalizeRow);
+    if (data.recordset)            return data.recordset.map(normalizeRow);
+    if (data.recordsets)           return (data.recordsets[0] || []).map(normalizeRow);
+    if (Array.isArray(data.data))  return data.data.map(normalizeRow);
     return [];
   };
 
@@ -75,7 +94,6 @@ export default function MuminSearchPage() {
 
   useEffect(() => { loadAll(); }, []);
 
-  // Close export menu on outside click
   useEffect(() => {
     const handler = (e) => {
       if (
@@ -95,7 +113,26 @@ export default function MuminSearchPage() {
     setShowExport(p => !p);
   };
 
-  const mohallahs   = useMemo(() => [...new Set(allRows.map(r => r.mohallah).filter(Boolean))].sort(),   [allRows]);
+  const sectors = useMemo(() =>
+    [...new Set(allRows.map(r => r.sector).filter(Boolean))].sort(),
+    [allRows]
+  );
+
+  const subsectorOptions = useMemo(() => {
+    const seen = new Set();
+    return allRows
+      .filter(r => !filters.sector || r.sector === filters.sector)
+      .reduce((acc, r) => {
+        if (r.subsector && !seen.has(r.subsector)) {
+          seen.add(r.subsector);
+          acc.push({ code: r.subsector, name: r.subsectorName || r.subsector });
+        }
+        return acc;
+      }, [])
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allRows, filters.sector]);
+
+  const stayingIns  = useMemo(() => [...new Set(allRows.map(r => r.stayingIn).filter(Boolean))].sort(),  [allRows]);
   const sabeelTypes = useMemo(() => [...new Set(allRows.map(r => r.sabeelType).filter(Boolean))].sort(), [allRows]);
 
   const filteredRows = useMemo(() => {
@@ -107,18 +144,20 @@ export default function MuminSearchPage() {
       r.mobile.includes(q) ||
       r.itsNo.includes(q)
     );
-    if (filters.mohallah)   rows = rows.filter(r => r.mohallah   === filters.mohallah);
-    if (filters.status)     rows = rows.filter(r => r.status     === filters.status);
-    if (filters.fmbStatus)  rows = rows.filter(r => r.fmbStatus  === filters.fmbStatus);
-    if (filters.sabeelType) rows = rows.filter(r => r.sabeelType === filters.sabeelType);
+    if (filters.sector)     rows = rows.filter(r => r.sector      === filters.sector);
+    if (filters.subsector)  rows = rows.filter(r => r.subsector   === filters.subsector);
+    if (filters.stayingIn)  rows = rows.filter(r => r.stayingIn   === filters.stayingIn);
+    if (filters.status)     rows = rows.filter(r => r.status      === filters.status);
+    if (filters.fmbStatus)  rows = rows.filter(r => r.thaliStatus === filters.fmbStatus);
+    if (filters.sabeelType) rows = rows.filter(r => r.sabeelType  === filters.sabeelType);
     return rows;
   }, [allRows, filters]);
 
-  const clearFilters = () => setFilters({ search: '', mohallah: '', status: '', fmbStatus: '', sabeelType: '' });
+  const clearFilters = () => setFilters({ search: '', sector: '', subsector: '', stayingIn: '', status: '', fmbStatus: '', sabeelType: '' });
   const hasFilters   = Object.values(filters).some(v => v !== '');
   const exportLabel  = `${filteredRows.length} ${hasFilters ? 'filtered ' : ''}members`;
 
-  // ── Export functions ──────────────────────────────────────────────────────
+  // ── Export helpers ────────────────────────────────────────────────────────
   const download = (blob, filename) => {
     const url = URL.createObjectURL(blob);
     Object.assign(document.createElement('a'), { href: url, download: filename }).click();
@@ -196,17 +235,34 @@ export default function MuminSearchPage() {
       {/* Filter bar */}
       <div className="card mb-4">
         <div className="card-body">
-          <div className="grid grid-cols-5 gap-3 mb-3">
+          <div className="grid grid-cols-4 gap-3 mb-3">
             <div>
               <label className="form-label">Search</label>
               <input className="form-input" placeholder="Name, Acc#, ITS, Mobile…"
                 value={filters.search} onChange={e => setF('search', e.target.value)} />
             </div>
             <div>
-              <label className="form-label">Mohallah</label>
-              <select className="form-select" value={filters.mohallah} onChange={e => setF('mohallah', e.target.value)}>
+              <label className="form-label">Sector</label>
+              <select className="form-select" value={filters.sector}
+                onChange={e => setFilters(p => ({ ...p, sector: e.target.value, subsector: '' }))}>
                 <option value="">All</option>
-                {mohallahs.map(m => <option key={m} value={m}>{m}</option>)}
+                {sectors.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Subsector</label>
+              <select className="form-select" value={filters.subsector} onChange={e => setF('subsector', e.target.value)}>
+                <option value="">All</option>
+                {subsectorOptions.map(s => (
+                  <option key={s.code} value={s.code}>{s.code} - {s.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Staying In</label>
+              <select className="form-select" value={filters.stayingIn} onChange={e => setF('stayingIn', e.target.value)}>
+                <option value="">All</option>
+                {stayingIns.map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
@@ -234,7 +290,9 @@ export default function MuminSearchPage() {
 
           <div className="flex items-center gap-2">
             {hasFilters && (
-              <button className="btn btn-secondary btn-sm" onClick={clearFilters}><XIcon className="w-3.5 h-3.5 mr-1.5" />Clear Filters</button>
+              <button className="btn btn-secondary btn-sm" onClick={clearFilters}>
+                <XIcon className="w-3.5 h-3.5 mr-1.5" />Clear Filters
+              </button>
             )}
             <button className="btn btn-secondary btn-sm" onClick={loadAll} disabled={loading}>
               {loading ? 'Loading…' : <><RefreshIcon className="w-3.5 h-3.5 mr-1.5" />Refresh</>}
@@ -247,8 +305,8 @@ export default function MuminSearchPage() {
             >
               <DownloadIcon className="w-3.5 h-3.5 mr-1.5" />Export
             </button>
-            <span className="text-[11px] text-gray-400 ml-auto">
-              {filteredRows.length.toLocaleString()} of {allRows.length.toLocaleString()} members
+            <span className="text-[12px] font-medium text-navy-800 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 whitespace-nowrap">
+              {filteredRows.length.toLocaleString()} records
             </span>
           </div>
         </div>
@@ -269,10 +327,10 @@ export default function MuminSearchPage() {
               Export {exportLabel}
             </div>
             {[
-              { icon: BarChartIcon,  label: 'Excel (.xlsx)', action: exportExcel },
-              { icon: FileTextIcon,  label: 'CSV (.csv)',    action: exportCSV   },
-              { icon: DownloadIcon,  label: 'PDF (.pdf)',    action: exportPDF   },
-              { icon: PrintIcon,     label: 'Print',         action: printList   },
+              { icon: BarChartIcon, label: 'Excel (.xlsx)', action: exportExcel },
+              { icon: FileTextIcon, label: 'CSV (.csv)',    action: exportCSV   },
+              { icon: DownloadIcon, label: 'PDF (.pdf)',    action: exportPDF   },
+              { icon: PrintIcon,    label: 'Print',         action: printList   },
             ].map(({ icon: Icon, label, action }) => (
               <button key={label} onClick={action}
                 className="w-full text-left px-4 py-2 text-[12.5px] hover:bg-blue-500/[0.08] flex items-center gap-2">
@@ -290,16 +348,16 @@ export default function MuminSearchPage() {
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
               <tr>
-                {['#','Acc#','Full Name','ITS No.','Mobile','Mohallah','Sabeel Type','FMB Status','Status','Action'].map(h => (
+                {['S No','Acc No','Full Name','Sector','Mobile','Mobile 1','ITS No','Local HOF ITS','Subsector','Members','Staying In','Sabeel Type','Thali Size','Thali Status','Action'].map(h => (
                   <th key={h} className="th-navy">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} className="text-center py-16 text-gray-400">Loading members…</td></tr>
+                <tr><td colSpan={TABLE_COLS} className="text-center py-16 text-gray-400">Loading members…</td></tr>
               ) : filteredRows.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-16 text-gray-400">
+                <tr><td colSpan={TABLE_COLS} className="text-center py-16 text-gray-400">
                   {hasFilters ? 'No members match the current filters' : 'No members found'}
                 </td></tr>
               ) : filteredRows.map((m, i) => (
@@ -307,12 +365,17 @@ export default function MuminSearchPage() {
                   <td className="px-3 py-2.5 border-t border-border text-gray-400">{i + 1}</td>
                   <td className="px-3 py-2.5 border-t border-border text-blue-500 font-semibold">{m.accno}</td>
                   <td className="px-3 py-2.5 border-t border-border font-medium">{m.name}</td>
-                  <td className="px-3 py-2.5 border-t border-border">{m.itsNo      || '—'}</td>
-                  <td className="px-3 py-2.5 border-t border-border">{m.mobile     || '—'}</td>
-                  <td className="px-3 py-2.5 border-t border-border">{m.mohallah   || '—'}</td>
-                  <td className="px-3 py-2.5 border-t border-border">{m.sabeelType || '—'}</td>
-                  <td className="px-3 py-2.5 border-t border-border">{m.fmbStatus  || '—'}</td>
-                  <td className="px-3 py-2.5 border-t border-border"><StatusBadge status={m.status} /></td>
+                  <td className="px-3 py-2.5 border-t border-border">{m.sector           || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{m.mobile           || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{m.mobile1          || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{m.itsNo            || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{m.localHofIts      || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{m.subsectorWithName || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border text-center">{m.membersCount ?? '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{m.stayingIn        || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{m.sabeelType       || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{m.thaliSize        || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{m.thaliStatus      || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border">
                     <button className="btn btn-primary btn-sm"
                       onClick={() => router.push(`/mumin-details?accno=${m.accno}`)}>

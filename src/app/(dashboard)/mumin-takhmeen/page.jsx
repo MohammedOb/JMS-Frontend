@@ -1,293 +1,474 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter }   from 'next/navigation';
-import toast           from 'react-hot-toast';
-import PageHeader      from '@/components/shared/PageHeader';
-import Modal           from '@/components/shared/Modal';
-import { StatusBadge } from '@/components/shared/Badge';
-import { useAuth }     from '@/context/AuthContext';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import PageHeader from '@/components/shared/PageHeader';
 import { takhmeenService } from '@/services';
-import { PlusIcon, PrintIcon, EditIcon, XIcon, SaveIcon } from '@/components/shared/Icons';
+import { RefreshIcon, XIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon } from '@/components/shared/Icons';
 
 const CY = new Date().getFullYear();
-const YEARS = Array.from({ length: 6 }, (_, i) => CY - i);
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const TYPES  = ['Sabeel','FMB','Niyaz','Nazrana','Sila','HIM','Other'];
+
+const INIT_FILTERS = {
+  forYear:      String(CY),
+  hubMainHead:  '',
+  hubSubHead:   '',
+  sector:       '',
+  subsector:    '',
+  sabeelType:   '',
+  thaaliStatus: '',
+  thaaliSize:   '',
+  amountFrom:   '',
+  amountTo:     '',
+};
+
+const TABLE_COLS = 14;
+
+const EXPORT_COLS = [
+  { key: 'accno',             label: 'Acc No'        },
+  { key: 'fullName',          label: 'Full Name'     },
+  { key: 'mobile',            label: 'Mobile'        },
+  { key: 'localHofIts',       label: 'Local HOF ITS' },
+  { key: 'sector',            label: 'Sector'        },
+  { key: 'subsectorWithName', label: 'Subsector'     },
+  { key: 'sabeelType',        label: 'Sabeel Type'   },
+  { key: 'membersCount',      label: 'Members'       },
+  { key: 'thaaliStatus',      label: 'Thali Status'  },
+  { key: 'thaaliSize',        label: 'Thali Size'    },
+  { key: 'hubSubHead',        label: 'Hub Sub Head'  },
+  { key: 'forYear',           label: 'For Year'      },
+  { key: 'takhmeen',          label: 'Takhmeen (₹)'  },
+];
+
+const str = (v) => String(v ?? '');
+const uniq = (arr) => [...new Set(arr.filter(Boolean))].sort();
+
+const normalizeRow = (r) => {
+  const subsector     = str(r.Subsector     ?? r.subsector     ?? '');
+  const subsectorName = str(r.SubsectorName ?? r.subsectorName ?? '');
+  return {
+    id:                r.ID           || r.Id          || r.id,
+    accno:             str(r.AccNo    ?? r.accno        ?? ''),
+    fullName:          str(r.FullName ?? r.fullName     ?? ''),
+    mobile:            str(r.Mobile   ?? r.mobile       ?? ''),
+    localHofIts:       str(r.LocalHOFITS ?? r.LocalHOFITSNo ?? r.localHofIts ?? ''),
+    sector:            str(r.Sector   ?? r.sector       ?? ''),
+    subsector,
+    subsectorName,
+    subsectorWithName: subsector && subsectorName
+      ? `${subsector} - ${subsectorName}`
+      : subsectorName || subsector,
+    sabeelType:        str(r.SabeelType  ?? r.sabeelType  ?? ''),
+    membersCount:      r.FamilyMembersCount ?? r.familyMembersCount ?? null,
+    thaaliStatus:      str(r.ThaaliStatus ?? r.FMBStatus  ?? r.fmbStatus  ?? ''),
+    thaaliSize:        str(r.ThaaliSize   ?? r.ThaliSize  ?? r.thaliSize  ?? ''),
+    hubSubHead:        str(r.HubSubHead   ?? r.hubSubHead ?? ''),
+    hubMainHead:       str(r.HubMainHead  ?? r.hubMainHead ?? ''),
+    forYear:           str(r.ForYear ?? r.forYear ?? ''),
+    takhmeen:          Number(r.Takhmeen  ?? r.takhmeen  ?? 0),
+  };
+};
+
+const normalizeResults = (data) => {
+  if (!data)                    return [];
+  if (Array.isArray(data))      return data.map(normalizeRow);
+  if (data.recordset)           return data.recordset.map(normalizeRow);
+  if (data.recordsets)          return (data.recordsets[0] || []).map(normalizeRow);
+  if (Array.isArray(data.data)) return data.data.map(normalizeRow);
+  return [];
+};
+
+const download = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  Object.assign(document.createElement('a'), { href: url, download: filename }).click();
+  URL.revokeObjectURL(url);
+};
 
 export default function MuminTakhmeenPage() {
-  const router = useRouter();
-  const { permissions } = useAuth();
+  const router        = useRouter();
+  const exportBtnRef  = useRef(null);
+  const exportMenuRef = useRef(null);
 
-  const [rows,    setRows]    = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [modal,   setModal]   = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [delId,   setDelId]   = useState(null);
+  const [allRows,    setAllRows]    = useState([]);
+  const [loading,    setLoading]    = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [exportPos,  setExportPos]  = useState({});
+  const [filters,    setFilters]    = useState(INIT_FILTERS);
 
-  const [filters, setFilters] = useState({
-    year:    CY,
-    month:   '',
-    mohallah:'',
-    type:    '',
-    search:  '',
-    status:  '',
-  });
-
-  const [form, setForm] = useState({
-    accno: '', year: CY, month: 1, type: 'Sabeel',
-    amount: '', paidAmount: '', status: 'Pending', notes: '',
-  });
+  const setF = useCallback((k, v) => setFilters(p => ({ ...p, [k]: v })), []);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const params = Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== ''));
-      const [rowRes, sumRes] = await Promise.all([
-        takhmeenService.getAll(params),
-        takhmeenService.getSummary(params),
-      ]);
-      setRows(rowRes.data);
-      setSummary(sumRes.data);
-    } catch { toast.error('Failed to load'); }
-    finally { setLoading(false); }
-  }, [filters]);
+      const res = await takhmeenService.loadDetails({});
+      setAllRows(normalizeResults(res.data));
+    } catch {
+      toast.error('Failed to load takhmeen data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const openAdd  = () => { setEditing(null); setForm({ accno: '', year: CY, month: 1, type: 'Sabeel', amount: '', paidAmount: '', status: 'Pending', notes: '' }); setModal(true); };
-  const openEdit = (r) => { setEditing(r); setForm({ ...r }); setModal(true); };
+  useEffect(() => {
+    const handler = (e) => {
+      if (
+        exportBtnRef.current  && !exportBtnRef.current.contains(e.target) &&
+        exportMenuRef.current && !exportMenuRef.current.contains(e.target)
+      ) setShowExport(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
-  const save = async () => {
-    if (!form.accno || !form.amount) { toast.error('Fill required fields'); return; }
-    try {
-      if (editing) {
-        await takhmeenService.update(editing.id, form);
-        toast.success('Takhmeen updated');
-      } else {
-        await takhmeenService.create(form);
-        toast.success('Takhmeen added');
-      }
-      setModal(false);
-      load();
-    } catch { toast.error('Failed to save'); }
+  // ── filter options — all derived from DB data ─────────────────────────────
+
+  const forYears = useMemo(() =>
+    uniq(allRows.map(r => r.forYear)), [allRows]);
+
+  const hubMainHeads = useMemo(() =>
+    uniq(allRows.map(r => r.hubMainHead)), [allRows]);
+
+  const hubSubHeadOptions = useMemo(() =>
+    uniq(
+      allRows
+        .filter(r => !filters.hubMainHead || r.hubMainHead === filters.hubMainHead)
+        .map(r => r.hubSubHead)
+    ), [allRows, filters.hubMainHead]);
+
+  const sectors = useMemo(() =>
+    uniq(allRows.map(r => r.sector)), [allRows]);
+
+  const subsectorOptions = useMemo(() => {
+    const seen = new Set();
+    return allRows
+      .filter(r => !filters.sector || r.sector === filters.sector)
+      .reduce((acc, r) => {
+        if (r.subsector && !seen.has(r.subsector)) {
+          seen.add(r.subsector);
+          acc.push({ code: r.subsector, name: r.subsectorName || r.subsector });
+        }
+        return acc;
+      }, [])
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [allRows, filters.sector]);
+
+  const sabeelTypes    = useMemo(() => uniq(allRows.map(r => r.sabeelType)),    [allRows]);
+  const thaaliStatuses = useMemo(() => uniq(allRows.map(r => r.thaaliStatus)),  [allRows]);
+  const thaaliSizes    = useMemo(() => uniq(allRows.map(r => r.thaaliSize)),    [allRows]);
+
+  // ── client-side filtering ─────────────────────────────────────────────────
+
+  const filteredRows = useMemo(() => {
+    let rows = allRows;
+    if (filters.forYear)           rows = rows.filter(r => r.forYear      === filters.forYear);
+    if (filters.hubMainHead)       rows = rows.filter(r => r.hubMainHead  === filters.hubMainHead);
+    if (filters.hubSubHead)        rows = rows.filter(r => r.hubSubHead   === filters.hubSubHead);
+    if (filters.sector)            rows = rows.filter(r => r.sector       === filters.sector);
+    if (filters.subsector)         rows = rows.filter(r => r.subsector    === filters.subsector);
+    if (filters.sabeelType)        rows = rows.filter(r => r.sabeelType   === filters.sabeelType);
+    if (filters.thaaliStatus)      rows = rows.filter(r => r.thaaliStatus === filters.thaaliStatus);
+    if (filters.thaaliSize)        rows = rows.filter(r => r.thaaliSize   === filters.thaaliSize);
+    if (filters.amountFrom !== '') rows = rows.filter(r => r.takhmeen >= Number(filters.amountFrom));
+    if (filters.amountTo   !== '') rows = rows.filter(r => r.takhmeen <= Number(filters.amountTo));
+    return rows;
+  }, [allRows, filters]);
+
+  const hasFilters   = Object.keys(INIT_FILTERS).some(k => String(filters[k]) !== String(INIT_FILTERS[k]));
+  const clearFilters = useCallback(() => setFilters(INIT_FILTERS), []);
+
+  const fmt         = (n) => Number(n || 0).toLocaleString('en-IN');
+  const totTakhmeen = useMemo(() => filteredRows.reduce((s, r) => s + r.takhmeen, 0), [filteredRows]);
+
+  const exportLabel = `${filteredRows.length}${hasFilters ? ' filtered' : ''} records`;
+
+  const toggleExport = () => {
+    if (!showExport && exportBtnRef.current) {
+      const rect = exportBtnRef.current.getBoundingClientRect();
+      setExportPos({ top: rect.bottom + 4, left: rect.left, minWidth: rect.width });
+    }
+    setShowExport(p => !p);
   };
 
-  const confirmDelete = async () => {
-    if (!delId) return;
-    try {
-      await takhmeenService.delete(delId);
-      toast.success('Deleted');
-      setDelId(null);
-      load();
-    } catch { toast.error('Failed to delete'); }
+  // ── export helpers ────────────────────────────────────────────────────────
+
+  const exportCSV = () => {
+    const header   = EXPORT_COLS.map(c => c.label).join(',');
+    const body     = filteredRows.map(r =>
+      EXPORT_COLS.map(c => `"${String(r[c.key] ?? '').replace(/"/g, '""')}"`).join(',')
+    );
+    const totalRow = [
+      `"Total (${filteredRows.length} records)"`,
+      ...Array(EXPORT_COLS.length - 2).fill('""'),
+      `"₹${fmt(totTakhmeen)}"`,
+    ].join(',');
+    download(
+      new Blob([header + '\n' + body.join('\n') + '\n' + totalRow], { type: 'text/csv;charset=utf-8;' }),
+      'takhmeen.csv'
+    );
+    setShowExport(false);
   };
 
-  const fmt   = (n) => Number(n || 0).toLocaleString('en-IN');
-  const due   = (r) => Math.max(0, Number(r.amount || 0) - Number(r.paidAmount || 0));
-  const setF  = (k, v) => setFilters(p => ({ ...p, [k]: v }));
+  const exportExcel = async () => {
+    const { utils, writeFile } = await import('xlsx');
+    const totalRow = [
+      `Total (${filteredRows.length} records)`,
+      ...Array(EXPORT_COLS.length - 2).fill(''),
+      totTakhmeen,
+    ];
+    const ws = utils.aoa_to_sheet([
+      EXPORT_COLS.map(c => c.label),
+      ...filteredRows.map(r => EXPORT_COLS.map(c => r[c.key] ?? '')),
+      totalRow,
+    ]);
+    const wb = utils.book_new();
+    utils.book_append_sheet(wb, ws, 'Takhmeen');
+    writeFile(wb, 'takhmeen.xlsx');
+    setShowExport(false);
+  };
+
+  const exportPDF = async () => {
+    const { default: jsPDF }     = await import('jspdf');
+    const { default: autoTable } = await import('jspdf-autotable');
+    const doc = new jsPDF({ orientation: 'landscape' });
+    doc.setFontSize(13);
+    doc.text('Mumin Takhmeen', 14, 15);
+    doc.setFontSize(9);
+    doc.text(`${exportLabel} · ${new Date().toLocaleDateString('en-GB')}`, 14, 21);
+    autoTable(doc, {
+      startY: 26,
+      head:   [EXPORT_COLS.map(c => c.label)],
+      body:   filteredRows.map(r => EXPORT_COLS.map(c => String(r[c.key] ?? '—'))),
+      foot:   [[
+        `Total (${filteredRows.length} records)`,
+        ...Array(EXPORT_COLS.length - 2).fill(''),
+        `₹${fmt(totTakhmeen)}`,
+      ]],
+      styles:            { fontSize: 7, cellPadding: 2 },
+      headStyles:        { fillColor: [15, 40, 80], textColor: 255, fontStyle: 'bold' },
+      footStyles:        { fillColor: [15, 40, 80], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles:{ fillColor: [245, 247, 250] },
+      showFoot:          'lastPage',
+    });
+    doc.save('takhmeen.pdf');
+    setShowExport(false);
+  };
+
+  const printList = () => {
+    const rows = filteredRows.map((r, i) =>
+      `<tr><td>${i + 1}</td>${EXPORT_COLS.map(c => `<td>${r[c.key] ?? '—'}</td>`).join('')}</tr>`
+    ).join('');
+    const html = `<html><head><title>Mumin Takhmeen</title><style>
+      body{font-family:sans-serif;font-size:10px}h2{margin-bottom:4px}p{margin:0 0 10px;color:#666;font-size:9px}
+      table{width:100%;border-collapse:collapse}th{background:#0f2850;color:#fff;padding:4px 6px;text-align:left;font-size:9px}
+      td{padding:3px 6px;border-bottom:1px solid #e5e7eb}tr:nth-child(even) td{background:#f8fafc}
+      tfoot td{background:#0f2850;color:#fff;font-weight:bold;padding:4px 6px}
+    </style></head><body>
+      <h2>Mumin Takhmeen</h2><p>${exportLabel} · ${new Date().toLocaleDateString('en-GB')}</p>
+      <table>
+        <thead><tr><th>#</th>${EXPORT_COLS.map(c => `<th>${c.label}</th>`).join('')}</tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr>
+          <td colspan="${EXPORT_COLS.length}">Total (${filteredRows.length} records)</td>
+          <td style="text-align:right">₹${fmt(totTakhmeen)}</td>
+        </tr></tfoot>
+      </table>
+    </body></html>`;
+    const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    const win = window.open(url, '_blank');
+    win.addEventListener('load', () => { win.print(); URL.revokeObjectURL(url); });
+    setShowExport(false);
+  };
+
+  // ── render ────────────────────────────────────────────────────────────────
 
   return (
     <div>
-      <PageHeader title="Mumin Takhmeen" subtitle="SP: TakhmeenReport — Member annual commitment ledger">
-        {permissions.MDEditTakhmeen && (
-          <button className="btn btn-primary btn-sm" onClick={openAdd}><PlusIcon className="w-3.5 h-3.5 mr-1.5" />Add Takhmeen</button>
-        )}
-        <button className="btn btn-secondary btn-sm"><PrintIcon className="w-3.5 h-3.5 mr-1.5" />Print</button>
-      </PageHeader>
-
-      {/* Summary Cards */}
-      {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          {[
-            { label: 'Total Demand',  val: `₹${fmt(summary.totalDemand)}`,  color: 'text-navy-800' },
-            { label: 'Total Paid',    val: `₹${fmt(summary.totalPaid)}`,    color: 'text-green-600' },
-            { label: 'Total Due',     val: `₹${fmt(summary.totalDue)}`,     color: 'text-red-500' },
-            { label: 'Total Records', val: summary.count || rows.length,    color: 'text-blue-500' },
-          ].map(c => (
-            <div key={c.label} className="card p-4">
-              <div className={`text-2xl font-bold ${c.color}`}>{c.val}</div>
-              <div className="text-[11px] font-semibold text-gray-600 mt-1">{c.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      <PageHeader title="Mumin Takhmeen" subtitle="Takhmeen report" />
 
       {/* Filters */}
       <div className="card mb-4">
         <div className="card-body">
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-3">
             <div>
-              <label className="form-label">Year</label>
-              <select className="form-select" value={filters.year} onChange={e => setF('year', e.target.value)}>
-                {YEARS.map(y => <option key={y}>{y}</option>)}
+              <label className="form-label">For Year</label>
+              <select className="form-select" value={filters.forYear} onChange={e => setF('forYear', e.target.value)}>
+                <option value="">All Years</option>
+                {forYears.map(y => <option key={y}>{y}</option>)}
               </select>
             </div>
             <div>
-              <label className="form-label">Month</label>
-              <select className="form-select" value={filters.month} onChange={e => setF('month', e.target.value)}>
+              <label className="form-label">Hub Main Head</label>
+              <select className="form-select" value={filters.hubMainHead}
+                onChange={e => setFilters(p => ({ ...p, hubMainHead: e.target.value, hubSubHead: '' }))}>
                 <option value="">All</option>
-                {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
+                {hubMainHeads.map(h => <option key={h}>{h}</option>)}
               </select>
             </div>
             <div>
-              <label className="form-label">Type</label>
-              <select className="form-select" value={filters.type} onChange={e => setF('type', e.target.value)}>
-                <option value="">All Types</option>
-                {TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Status</label>
-              <select className="form-select" value={filters.status} onChange={e => setF('status', e.target.value)}>
+              <label className="form-label">Hub Sub Head</label>
+              <select className="form-select" value={filters.hubSubHead} onChange={e => setF('hubSubHead', e.target.value)}>
                 <option value="">All</option>
-                {['Pending','Partial','Paid','Overdue'].map(s => <option key={s}>{s}</option>)}
+                {hubSubHeadOptions.map(h => <option key={h}>{h}</option>)}
               </select>
             </div>
             <div>
-              <label className="form-label">Mohallah</label>
-              <input className="form-input" placeholder="Mohallah…" value={filters.mohallah} onChange={e => setF('mohallah', e.target.value)} />
+              <label className="form-label">Sector</label>
+              <select className="form-select" value={filters.sector}
+                onChange={e => setFilters(p => ({ ...p, sector: e.target.value, subsector: '' }))}>
+                <option value="">All</option>
+                {sectors.map(s => <option key={s}>{s}</option>)}
+              </select>
             </div>
             <div>
-              <label className="form-label">Search</label>
-              <input className="form-input" placeholder="Acc# or Name…" value={filters.search} onChange={e => setF('search', e.target.value)} />
+              <label className="form-label">Subsector</label>
+              <select className="form-select" value={filters.subsector} onChange={e => setF('subsector', e.target.value)}>
+                <option value="">All</option>
+                {subsectorOptions.map(s => (
+                  <option key={s.code} value={s.code}>{s.code} - {s.name}</option>
+                ))}
+              </select>
             </div>
+            <div>
+              <label className="form-label">Sabeel Type</label>
+              <select className="form-select" value={filters.sabeelType} onChange={e => setF('sabeelType', e.target.value)}>
+                <option value="">All</option>
+                {sabeelTypes.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">FMB Status</label>
+              <select className="form-select" value={filters.thaaliStatus} onChange={e => setF('thaaliStatus', e.target.value)}>
+                <option value="">All</option>
+                {thaaliStatuses.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Thali Size</label>
+              <select className="form-select" value={filters.thaaliSize} onChange={e => setF('thaaliSize', e.target.value)}>
+                <option value="">All</option>
+                {thaaliSizes.map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Amount From (₹)</label>
+              <input type="number" className="form-input" placeholder="0"
+                value={filters.amountFrom} onChange={e => setF('amountFrom', e.target.value)} />
+            </div>
+            <div>
+              <label className="form-label">Amount To (₹)</label>
+              <input type="number" className="form-input" placeholder="∞"
+                value={filters.amountTo} onChange={e => setF('amountTo', e.target.value)} />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {hasFilters && (
+              <button className="btn btn-secondary btn-sm" onClick={clearFilters}>
+                <XIcon className="w-3.5 h-3.5 mr-1.5" />Clear Filters
+              </button>
+            )}
+            <button className="btn btn-secondary btn-sm" onClick={load} disabled={loading}>
+              {loading ? 'Loading…' : <><RefreshIcon className="w-3.5 h-3.5 mr-1.5" />Refresh</>}
+            </button>
+            <button
+              ref={exportBtnRef}
+              className="btn btn-secondary btn-sm"
+              onClick={toggleExport}
+              disabled={filteredRows.length === 0}
+            >
+              <DownloadIcon className="w-3.5 h-3.5 mr-1.5" />Export
+            </button>
+            <span className="text-[12px] font-medium text-navy-800 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 whitespace-nowrap">
+              {filteredRows.length.toLocaleString()} records
+            </span>
           </div>
         </div>
       </div>
 
+      {/* Export dropdown portal */}
+      {typeof document !== 'undefined' && createPortal(
+        showExport && (
+          <div
+            ref={exportMenuRef}
+            style={{
+              position: 'fixed', ...exportPos, zIndex: 9999,
+              background: '#fff', border: '1px solid var(--border,#e2e8f0)',
+              borderRadius: '0.5rem', boxShadow: '0 8px 20px rgba(0,0,0,0.13)',
+            }}
+          >
+            <div className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-border">
+              Export {exportLabel}
+            </div>
+            {[
+              { icon: BarChartIcon, label: 'Excel (.xlsx)', action: exportExcel },
+              { icon: FileTextIcon, label: 'CSV (.csv)',    action: exportCSV   },
+              { icon: DownloadIcon, label: 'PDF (.pdf)',    action: exportPDF   },
+              { icon: PrintIcon,    label: 'Print',         action: printList   },
+            ].map(({ icon: Icon, label, action }) => (
+              <button key={label} onClick={action}
+                className="w-full text-left px-4 py-2 text-[12.5px] hover:bg-blue-500/[0.08] flex items-center gap-2">
+                <Icon className="w-4 h-4 text-gray-500" />{label}
+              </button>
+            ))}
+          </div>
+        ),
+        document.body
+      )}
+
       {/* Table */}
       <div className="card">
-        <div className="card-header">
-          Takhmeen Records
-          <span className="text-[11px] text-gray-400">{rows.length} records</span>
-        </div>
         <div className="overflow-auto">
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
               <tr>
-                {['Acc#','Member Name','Mohallah','Year','Month','Type','Demand (₹)','Paid (₹)','Due (₹)','Status','Actions'].map(h =>
+                {['S No','Acc No','Full Name','Mobile','Local HOF ITS','Sector','Subsector','Sabeel Type','Members','Thali Status','Thali Size','Hub Sub Head','For Year','Takhmeen (₹)'].map(h => (
                   <th key={h} className="th-navy">{h}</th>
-                )}
+                ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={11} className="text-center py-10 text-gray-400">Loading…</td></tr>
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={11} className="text-center py-10 text-gray-400">No records found</td></tr>
-              ) : rows.map((r, i) => {
-                const dueAmt = due(r);
-                return (
-                  <tr key={i} className="hover:bg-blue-500/[0.025]">
-                    <td className="px-3 py-2.5 border-t border-border font-semibold">{r.accno}</td>
-                    <td className="px-3 py-2.5 border-t border-border font-medium text-blue-500 cursor-pointer"
-                      onClick={() => router.push(`/mumin-details?accno=${r.accno}`)}>{r.memberName}</td>
-                    <td className="px-3 py-2.5 border-t border-border">{r.mohallah}</td>
-                    <td className="px-3 py-2.5 border-t border-border text-center">{r.year}</td>
-                    <td className="px-3 py-2.5 border-t border-border text-center">{r.month ? MONTHS[r.month - 1] : '—'}</td>
-                    <td className="px-3 py-2.5 border-t border-border">
-                      <span className="badge badge-blue">{r.type}</span>
-                    </td>
-                    <td className="px-3 py-2.5 border-t border-border text-right">₹{fmt(r.amount)}</td>
-                    <td className="px-3 py-2.5 border-t border-border text-right text-green-600">₹{fmt(r.paidAmount)}</td>
-                    <td className={`px-3 py-2.5 border-t border-border text-right font-semibold ${dueAmt > 0 ? 'text-red-500' : 'text-gray-400'}`}>
-                      ₹{fmt(dueAmt)}
-                    </td>
-                    <td className="px-3 py-2.5 border-t border-border"><StatusBadge status={r.status || 'Pending'} /></td>
-                    <td className="px-3 py-2.5 border-t border-border whitespace-nowrap">
-                      {permissions.MDEditTakhmeen && (
-                        <button className="btn btn-secondary btn-sm mr-1" onClick={() => openEdit(r)}><EditIcon className="w-3.5 h-3.5" /></button>
-                      )}
-                      {permissions.MDDeleteTakhmeen && (
-                        <button className="btn btn-danger btn-sm" onClick={() => setDelId(r.id)}><XIcon className="w-3.5 h-3.5" /></button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                <tr><td colSpan={TABLE_COLS} className="text-center py-16 text-gray-400">Loading…</td></tr>
+              ) : filteredRows.length === 0 ? (
+                <tr><td colSpan={TABLE_COLS} className="text-center py-16 text-gray-400">
+                  {hasFilters ? 'No records match the current filters' : 'No records found'}
+                </td></tr>
+              ) : filteredRows.map((r, i) => (
+                <tr key={r.id ?? i} className="hover:bg-blue-500/[0.025]">
+                  <td className="px-3 py-2.5 border-t border-border text-gray-400">{i + 1}</td>
+                  <td className="px-3 py-2.5 border-t border-border text-blue-500 font-semibold cursor-pointer"
+                    onClick={() => router.push(`/mumin-details?accno=${r.accno}`)}>{r.accno || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border font-medium">{r.fullName        || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{r.mobile           || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{r.localHofIts      || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{r.sector           || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{r.subsectorWithName || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{r.sabeelType       || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border text-center">{r.membersCount ?? '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{r.thaaliStatus     || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{r.thaaliSize       || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{r.hubSubHead       || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border text-center">{r.forYear         || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border text-right font-semibold">₹{fmt(r.takhmeen)}</td>
+                </tr>
+              ))}
             </tbody>
-            {rows.length > 0 && (() => {
-              const totDemand = rows.reduce((s, r) => s + Number(r.amount     || 0), 0);
-              const totPaid   = rows.reduce((s, r) => s + Number(r.paidAmount || 0), 0);
-              const totDue    = rows.reduce((s, r) => s + due(r),                    0);
-              return (
-                <tfoot>
-                  <tr className="bg-navy-800/[0.04] font-bold text-[12px]">
-                    <td colSpan={6} className="px-3 py-2.5 border-t-2 border-navy-800/20">Total ({rows.length} records)</td>
-                    <td className="px-3 py-2.5 border-t-2 border-navy-800/20 text-right">₹{fmt(totDemand)}</td>
-                    <td className="px-3 py-2.5 border-t-2 border-navy-800/20 text-right text-green-600">₹{fmt(totPaid)}</td>
-                    <td className="px-3 py-2.5 border-t-2 border-navy-800/20 text-right text-red-500">₹{fmt(totDue)}</td>
-                    <td colSpan={2} className="px-3 py-2.5 border-t-2 border-navy-800/20" />
-                  </tr>
-                </tfoot>
-              );
-            })()}
+            {filteredRows.length > 0 && (
+              <tfoot>
+                <tr className="bg-navy-800/[0.04] font-bold text-[12px]">
+                  <td colSpan={13} className="px-3 py-2.5 border-t-2 border-navy-800/20">
+                    Total ({filteredRows.length} records)
+                  </td>
+                  <td className="px-3 py-2.5 border-t-2 border-navy-800/20 text-right">₹{fmt(totTakhmeen)}</td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
-
-      {/* Add/Edit Modal */}
-      <Modal open={modal} onClose={() => setModal(false)}
-        title={editing ? `Edit Takhmeen — ${editing.accno}` : 'Add Takhmeen'}
-        size="md"
-        footer={
-          <>
-            <button className="btn btn-secondary" onClick={() => setModal(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={save}><SaveIcon className="w-3.5 h-3.5 mr-1.5" />{editing ? 'Update' : 'Save'}</button>
-          </>
-        }
-      >
-        <div className="space-y-3">
-          {!editing && (
-            <div><label className="form-label">Account No. *</label><input className="form-input" placeholder="Acc No." value={form.accno} onChange={e => setForm(p => ({ ...p, accno: e.target.value }))} /></div>
-          )}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="form-label">Year</label>
-              <select className="form-select" value={form.year} onChange={e => setForm(p => ({ ...p, year: e.target.value }))}>
-                {YEARS.map(y => <option key={y}>{y}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Month</label>
-              <select className="form-select" value={form.month} onChange={e => setForm(p => ({ ...p, month: e.target.value }))}>
-                {MONTHS.map((m, i) => <option key={i} value={i+1}>{m}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Type</label>
-              <select className="form-select" value={form.type} onChange={e => setForm(p => ({ ...p, type: e.target.value }))}>
-                {TYPES.map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="form-label">Demand Amount (₹) *</label><input type="number" className="form-input" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} /></div>
-            <div><label className="form-label">Paid Amount (₹)</label><input type="number" className="form-input" value={form.paidAmount} onChange={e => setForm(p => ({ ...p, paidAmount: e.target.value }))} /></div>
-          </div>
-          <div>
-            <label className="form-label">Status</label>
-            <select className="form-select" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
-              {['Pending','Partial','Paid','Overdue'].map(s => <option key={s}>{s}</option>)}
-            </select>
-          </div>
-          <div><label className="form-label">Notes</label><textarea className="form-input h-16 py-2" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} /></div>
-        </div>
-      </Modal>
-
-      {/* Delete Confirm Modal */}
-      <Modal open={!!delId} onClose={() => setDelId(null)} title="Confirm Delete" size="sm"
-        footer={
-          <>
-            <button className="btn btn-secondary" onClick={() => setDelId(null)}>Cancel</button>
-            <button className="btn btn-danger" onClick={confirmDelete}>Delete</button>
-          </>
-        }
-      >
-        <p className="text-[13px] text-gray-600">Are you sure you want to delete this takhmeen record? This action cannot be undone.</p>
-      </Modal>
     </div>
   );
 }

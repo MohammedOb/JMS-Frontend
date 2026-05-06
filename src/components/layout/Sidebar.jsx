@@ -124,12 +124,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         />
       )}
 
-      {/* Desktop hover trigger strip — thin invisible zone at left edge */}
-      <div
-        className="fixed left-0 top-0 bottom-0 w-2 z-[49] hidden md:block"
-        onMouseEnter={() => setIsOpen(true)}
-      />
-
       <aside
         className={clsx(
           'fixed left-0 top-0 bottom-0 w-[228px] bg-navy-800 flex flex-col z-50',
@@ -138,8 +132,6 @@ export default function Sidebar({ isOpen, setIsOpen }) {
           'transition-transform duration-300 ease-in-out',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
-        onMouseEnter={() => setIsOpen(true)}
-        onMouseLeave={() => setIsOpen(false)}
       >
 
       {/* Brand */}
