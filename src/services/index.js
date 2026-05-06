@@ -59,6 +59,9 @@ export const takhmeenService = {
   delete:          (id)          => api.delete(`/takhmeen/${id}`),
   getNotDone:      (params)      => api.get('/takhmeen/not-done',  { params }),
   getMuminTakhmeen:(params)      => api.get('/takhmeen/mumin',     { params }),
+
+  loadTakhmeenNotDoneList: (data) => api.post('/LoadTakhmeenNotDoneList', data),
+  loadNotContributeList:   (data) => api.post('/LoadNotContributeList',   data),
 };
 
 // ── Vajebaat ─────────────────────────────────────────────────────────────────
