@@ -15,13 +15,26 @@ export default function EditTakhmeenModal({ open, onClose, member, editTakRow, s
   const takhmeenRef = useRef(null);
   const dateRef     = useRef(null);
 
+  const [headOptions,  setHeadOptions]  = useState([]);
   const [gradeOptions, setGradeOptions] = useState([]);
 
-  const mainHeadOptions = Object.keys(SUB_HEADS);
-  const subHeadOptions  = SUB_HEADS[editTakRow?.mainHead] || [];
+  const mainHeadOptions = [...new Set(headOptions.map(o => o.mainHead).filter(Boolean))];
+  const subHeadOptions  = [...new Set(headOptions.filter(o => o.mainHead === editTakRow?.mainHead).map(o => o.subHead).filter(Boolean))];
 
   useEffect(() => {
-    if (!open) { setGradeOptions([]); return; }
+    if (!open) { setHeadOptions([]); setGradeOptions([]); return; }
+    takhmeenService.loadHubHeadDetails({})
+      .then(res => {
+        const rows = normalizeArray(res?.data);
+        const seen = new Set();
+        const opts = [];
+        for (const r of rows) {
+          const key = `${r.HubMainHead}||${r.HubSubHead}`;
+          if (!seen.has(key)) { seen.add(key); opts.push({ mainHead: r.HubMainHead, subHead: r.HubSubHead }); }
+        }
+        setHeadOptions(opts.length ? opts : Object.entries(SUB_HEADS).flatMap(([mh, subs]) => subs.map(sh => ({ mainHead: mh, subHead: sh }))));
+      })
+      .catch(() => setHeadOptions(Object.entries(SUB_HEADS).flatMap(([mh, subs]) => subs.map(sh => ({ mainHead: mh, subHead: sh })))));
   }, [open]);
 
   useEffect(() => {

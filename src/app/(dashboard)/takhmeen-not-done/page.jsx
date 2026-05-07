@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
-import { takhmeenService } from '@/services';
+import { takhmeenService, memberService } from '@/services';
 import { SearchIcon, XIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon } from '@/components/shared/Icons';
 
 const INIT_FILTERS = {
@@ -120,15 +120,17 @@ export default function TakhmeenNotDonePage() {
   const exportBtnRef  = useRef(null);
   const exportMenuRef = useRef(null);
 
-  const [listType,    setListType]    = useState('notDone');
-  const [allRows,     setAllRows]     = useState([]);
-  const [refRows,     setRefRows]     = useState([]);
-  const [loading,     setLoading]     = useState(false);
-  const [showExport,  setShowExport]  = useState(false);
-  const [exportPos,   setExportPos]   = useState({});
-  const [filters,     setFilters]     = useState(INIT_FILTERS);
-  const [pageSize,    setPageSize]    = useState(100);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [listType,     setListType]     = useState('notDone');
+  const [allRows,      setAllRows]      = useState([]);
+  const [refRows,      setRefRows]      = useState([]);
+  const [hubHeadRows,  setHubHeadRows]  = useState([]);
+  const [mohallaRows,  setMohallaRows]  = useState([]);
+  const [loading,      setLoading]      = useState(false);
+  const [showExport,   setShowExport]   = useState(false);
+  const [exportPos,    setExportPos]    = useState({});
+  const [filters,      setFilters]      = useState(INIT_FILTERS);
+  const [pageSize,     setPageSize]     = useState(100);
+  const [currentPage,  setCurrentPage]  = useState(1);
 
   const setF = useCallback((k, v) => setFilters(p => ({ ...p, [k]: v })), []);
 
@@ -136,6 +138,20 @@ export default function TakhmeenNotDonePage() {
   useEffect(() => {
     takhmeenService.loadDetails({})
       .then(res => setRefRows(normalizeResults(res.data)))
+      .catch(() => {});
+    takhmeenService.loadHubHeadDetails({})
+      .then(res => {
+        const data = res.data;
+        const raw = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : data?.recordset ?? data?.recordsets?.[0] ?? [];
+        setHubHeadRows(raw);
+      })
+      .catch(() => {});
+    memberService.loadMohallaDetails({ Sector: '', Subsector: '', MohallaDescription: '' })
+      .then(res => {
+        const data = res.data;
+        const raw = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : data?.recordset ?? data?.recordsets?.[0] ?? [];
+        setMohallaRows(raw);
+      })
       .catch(() => {});
   }, []);
 
@@ -181,25 +197,28 @@ export default function TakhmeenNotDonePage() {
 
   // Dropdown options derived from master reference data
   const forYears       = useMemo(() => uniq(refRows.map(r => r.forYear)),      [refRows]);
-  const hubSubHeads    = useMemo(() => uniq(refRows.map(r => r.hubSubHead)),   [refRows]);
+  const hubSubHeads    = useMemo(() => uniq(hubHeadRows.map(r => String(r.HubSubHead ?? '').trim())), [hubHeadRows]);
   const sabeelTypes    = useMemo(() => uniq(refRows.map(r => r.sabeelType)),   [refRows]);
-  const sectors        = useMemo(() => uniq(refRows.map(r => r.sector)),       [refRows]);
+  const sectors        = useMemo(() =>
+    uniq(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim())), [mohallaRows]);
   const stayingIns     = useMemo(() => uniq(refRows.map(r => r.stayingIn)),    [refRows]);
   const thaaliStatuses = useMemo(() => uniq(refRows.map(r => r.thaaliStatus)), [refRows]);
 
   const subsectorOptions = useMemo(() => {
     const seen = new Set();
-    return refRows
-      .filter(r => !filters.sector || r.sector === filters.sector)
+    return mohallaRows
+      .filter(r => !filters.sector || String(r.Sector ?? r.sector ?? '') === filters.sector)
       .reduce((acc, r) => {
-        if (r.subsector && !seen.has(r.subsector)) {
-          seen.add(r.subsector);
-          acc.push({ code: r.subsector, name: r.subsectorName || r.subsector });
+        const code = String(r.Subsector ?? r.subsector ?? '').trim();
+        const name = String(r.MohallaDescription ?? r.SubsectorName ?? r.subsectorName ?? '').trim();
+        if (code && !seen.has(code)) {
+          seen.add(code);
+          acc.push({ code, name: name || code });
         }
         return acc;
       }, [])
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [refRows, filters.sector]);
+  }, [mohallaRows, filters.sector]);
 
   // ── pagination ─────────────────────────────────────────────────────────────
 

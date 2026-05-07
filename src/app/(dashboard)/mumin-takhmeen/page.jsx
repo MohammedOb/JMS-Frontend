@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
-import { takhmeenService } from '@/services';
+import { takhmeenService, memberService } from '@/services';
 import { RefreshIcon, XIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon } from '@/components/shared/Icons';
 
 const CY = new Date().getFullYear();
@@ -69,7 +69,7 @@ const normalizeRow = (r) => {
       ? `${subsector} - ${subsectorName}`
       : subsectorName || subsector,
     sabeelType:        str(r.SabeelType  ?? r.sabeelType  ?? ''),
-    membersCount:      r.FamilyMembersCount ?? r.familyMembersCount ?? null,
+    membersCount:      r.FamilyMembersCount ?? r.familyMembersCount ?? r.MembersCount ?? r.membersCount ?? r.Members ?? r.members ?? r.TotalMembers ?? r.totalMembers ?? r.NoOfMembers ?? r.noOfMembers ?? null,
     thaaliStatus:      str(r.ThaaliStatus ?? r.FMBStatus  ?? r.fmbStatus  ?? ''),
     thaaliSize:        str(r.ThaaliSize   ?? r.ThaliSize  ?? r.thaliSize  ?? ''),
     hubSubHead:        str(r.HubSubHead   ?? r.hubSubHead ?? ''),
@@ -135,13 +135,15 @@ export default function MuminTakhmeenPage() {
   const exportBtnRef  = useRef(null);
   const exportMenuRef = useRef(null);
 
-  const [allRows,     setAllRows]     = useState([]);
-  const [loading,     setLoading]     = useState(false);
-  const [showExport,  setShowExport]  = useState(false);
-  const [exportPos,   setExportPos]   = useState({});
-  const [filters,     setFilters]     = useState(INIT_FILTERS);
-  const [pageSize,    setPageSize]    = useState(100);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [allRows,      setAllRows]      = useState([]);
+  const [hubHeadRows,  setHubHeadRows]  = useState([]);
+  const [mohallaRows,  setMohallaRows]  = useState([]);
+  const [loading,      setLoading]      = useState(false);
+  const [showExport,   setShowExport]   = useState(false);
+  const [exportPos,    setExportPos]    = useState({});
+  const [filters,      setFilters]      = useState(INIT_FILTERS);
+  const [pageSize,     setPageSize]     = useState(100);
+  const [currentPage,  setCurrentPage]  = useState(1);
 
   const setF = useCallback((k, v) => setFilters(p => ({ ...p, [k]: v })), []);
 
@@ -160,6 +162,23 @@ export default function MuminTakhmeenPage() {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
+    takhmeenService.loadHubHeadDetails({})
+      .then(res => {
+        const data = res.data;
+        const raw = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : data?.recordset ?? data?.recordsets?.[0] ?? [];
+        setHubHeadRows(raw);
+      })
+      .catch(() => {});
+    memberService.loadMohallaDetails({ Sector: '', Subsector: '', MohallaDescription: '' })
+      .then(res => {
+        const data = res.data;
+        const raw = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : data?.recordset ?? data?.recordsets?.[0] ?? [];
+        setMohallaRows(raw);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const handler = (e) => {
       if (
         exportBtnRef.current  && !exportBtnRef.current.contains(e.target) &&
@@ -176,31 +195,33 @@ export default function MuminTakhmeenPage() {
     uniq(allRows.map(r => r.forYear)), [allRows]);
 
   const hubMainHeads = useMemo(() =>
-    uniq(allRows.map(r => r.hubMainHead)), [allRows]);
+    uniq(hubHeadRows.map(r => String(r.HubMainHead ?? '').trim())), [hubHeadRows]);
 
   const hubSubHeadOptions = useMemo(() =>
     uniq(
-      allRows
-        .filter(r => !filters.hubMainHead || r.hubMainHead === filters.hubMainHead)
-        .map(r => r.hubSubHead)
-    ), [allRows, filters.hubMainHead]);
+      hubHeadRows
+        .filter(r => !filters.hubMainHead || String(r.HubMainHead ?? '').trim() === filters.hubMainHead)
+        .map(r => String(r.HubSubHead ?? '').trim())
+    ), [hubHeadRows, filters.hubMainHead]);
 
   const sectors = useMemo(() =>
-    uniq(allRows.map(r => r.sector)), [allRows]);
+    uniq(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim())), [mohallaRows]);
 
   const subsectorOptions = useMemo(() => {
     const seen = new Set();
-    return allRows
-      .filter(r => !filters.sector || r.sector === filters.sector)
+    return mohallaRows
+      .filter(r => !filters.sector || String(r.Sector ?? r.sector ?? '') === filters.sector)
       .reduce((acc, r) => {
-        if (r.subsector && !seen.has(r.subsector)) {
-          seen.add(r.subsector);
-          acc.push({ code: r.subsector, name: r.subsectorName || r.subsector });
+        const code = String(r.Subsector ?? r.subsector ?? '').trim();
+        const name = String(r.MohallaDescription ?? r.SubsectorName ?? r.subsectorName ?? '').trim();
+        if (code && !seen.has(code)) {
+          seen.add(code);
+          acc.push({ code, name: name || code });
         }
         return acc;
       }, [])
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [allRows, filters.sector]);
+  }, [mohallaRows, filters.sector]);
 
   const sabeelTypes    = useMemo(() => uniq(allRows.map(r => r.sabeelType)),    [allRows]);
   const thaaliStatuses = useMemo(() => uniq(allRows.map(r => r.thaaliStatus)),  [allRows]);
@@ -220,7 +241,7 @@ export default function MuminTakhmeenPage() {
     if (filters.thaaliSize)        rows = rows.filter(r => r.thaaliSize   === filters.thaaliSize);
     if (filters.amountFrom !== '') rows = rows.filter(r => r.takhmeen >= Number(filters.amountFrom));
     if (filters.amountTo   !== '') rows = rows.filter(r => r.takhmeen <= Number(filters.amountTo));
-    return rows;
+    return [...rows].sort((a, b) => Number(a.accno) - Number(b.accno));
   }, [allRows, filters]);
 
   // reset to page 1 whenever filter result or page size changes

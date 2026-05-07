@@ -105,8 +105,9 @@ function MuminDetailsInner() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestLoading,  setSuggestLoading]  = useState(false);
   const [dropdownStyle,   setDropdownStyle]   = useState({});
-  const searchInputRef = useRef(null);
-  const suggestTimer   = useRef(null);
+  const searchInputRef  = useRef(null);
+  const suggestTimer    = useRef(null);
+  const initialLoadDone = useRef(false);
 
   // ── Member data ───────────────────────────────────────────────────────────
   const [member,     setMember]     = useState(null);
@@ -196,10 +197,10 @@ function MuminDetailsInner() {
     mohallaList
       .filter(m => !currentSector || String(m.Sector ?? m.sector ?? '') === currentSector)
       .map(m => ({
-        value:         String(m.Subsector     ?? m.subsector     ?? ''),
-        label:         `${m.Subsector ?? m.subsector ?? ''} — ${m.SubsectorName ?? m.subsectorName ?? ''}`,
-        sector:        String(m.Sector        ?? m.sector        ?? ''),
-        subsectorName: String(m.SubsectorName ?? m.subsectorName ?? ''),
+        value:         String(m.Subsector ?? m.subsector ?? ''),
+        label:         `${m.Subsector ?? m.subsector ?? ''} — ${m.MohallaDescription ?? m.SubsectorName ?? m.subsectorName ?? ''}`,
+        sector:        String(m.Sector ?? m.sector ?? ''),
+        subsectorName: String(m.MohallaDescription ?? m.SubsectorName ?? m.subsectorName ?? ''),
       }));
 
   // ── Search suggestion helpers ─────────────────────────────────────────────
@@ -250,10 +251,7 @@ function MuminDetailsInner() {
     if (!accno) return;
     setSearching(true);
     try {
-      const [memberRes, takRes] = await Promise.all([
-        memberService.loadMuminDetails({ Search: accno }),
-        takhmeenService.loadDetails({ AccNo: accno }),
-      ]);
+      const memberRes  = await memberService.loadMuminDetails({ Search: accno });
       const payload    = memberRes.data ?? {};
       const normalized = normalizeMemberPayload(payload);
       const memberData = normalized.member;
@@ -271,8 +269,16 @@ function MuminDetailsInner() {
         } catch { /* leave hofName from loadMuminDetails as fallback */ }
       }
 
+      let takhmeen = [];
+      try {
+        const takRes = await takhmeenService.loadDetails({ AccNo: accno });
+        takhmeen = normalizeArray(takRes.data).map(normalizeTakRow);
+      } catch (err) {
+        console.error('LoadTakhmeenDetails failed', err);
+      }
+
       setMember(memberData);
-      setTakhmeen(normalizeArray(takRes.data).map(normalizeTakRow));
+      setTakhmeen(takhmeen);
       setReceipts(normalized.receipts);
       setFamily(normalized.family);
       setSafaiList(normalized.safai);
@@ -289,16 +295,26 @@ function MuminDetailsInner() {
 
   const loadVajebaat = useCallback(async () => {
     if (!member) return;
-    const takRes = await takhmeenService.loadDetails({ AccNo: member.accno });
-    const all = normalizeArray(takRes.data).map(normalizeTakRow);
-    setVajebaat(all.filter(r => r.subHead === 'Vajebaat'));
-    setHimList(all.filter(r => r.subHead === 'HIM'));
-    setSniyazList(all.filter(r => r.subHead === 'Shehrullah Niyaz'));
-    const sfRes = await vajebaatService.loadSilaFitra({ AccNo: member.accno });
-    setSilaFitra(normalizeArray(sfRes.data).map(normalizeSfRow));
+    try {
+      const takRes = await takhmeenService.loadDetails({ AccNo: member.accno });
+      const all = normalizeArray(takRes.data).map(normalizeTakRow);
+      setVajebaat(all.filter(r => r.subHead === 'Vajebaat'));
+      setHimList(all.filter(r => r.subHead === 'HIM'));
+      setSniyazList(all.filter(r => r.subHead === 'Shehrullah Niyaz'));
+    } catch (err) {
+      console.error('loadVajebaat: LoadTakhmeenDetails failed', err);
+    }
+    try {
+      const sfRes = await vajebaatService.loadSilaFitra({ AccNo: member.accno });
+      setSilaFitra(normalizeArray(sfRes.data).map(normalizeSfRow));
+    } catch (err) {
+      console.error('loadVajebaat: LoadSilaFitraDetails failed', err);
+    }
   }, [member]);
 
   useEffect(() => {
+    if (initialLoadDone.current) return;
+    initialLoadDone.current = true;
     const a = params.get('accno');
     if (a) loadMember(a);
     const toArray = (r) =>
@@ -306,7 +322,7 @@ function MuminDetailsInner() {
       : Array.isArray(r?.data)     ? r.data
       : (r?.data?.recordset ?? r?.data?.recordsets?.[0] ?? []);
 
-    memberService.loadMohallaDetails({ ID: '', Sector: '', Subsector: '', SubsectorName: '' })
+    memberService.loadMohallaDetails({ Sector: '', Subsector: '', MohallaDescription: '' })
       .then(res => setMohallaList(toArray(res)))
       .catch(err => console.error('LoadMohallaDetails failed:', err?.response?.data ?? err.message));
 
@@ -344,8 +360,12 @@ function MuminDetailsInner() {
 
   // ── Takhmeen handlers ─────────────────────────────────────────────────────
   const reloadTakhmeen = async () => {
-    const res = await takhmeenService.loadDetails({ AccNo: member.accno });
-    setTakhmeen(normalizeArray(res.data).map(normalizeTakRow));
+    try {
+      const res = await takhmeenService.loadDetails({ AccNo: member.accno });
+      setTakhmeen(normalizeArray(res.data).map(normalizeTakRow));
+    } catch (err) {
+      console.error('reloadTakhmeen: LoadTakhmeenDetails failed', err);
+    }
   };
 
   const saveTakhmeen = async () => {

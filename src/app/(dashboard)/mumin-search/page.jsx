@@ -33,8 +33,9 @@ export default function MuminSearchPage() {
   const exportBtnRef  = useRef(null);
   const exportMenuRef = useRef(null);
 
-  const [allRows,  setAllRows]  = useState([]);
-  const [loading,         setLoading]         = useState(false);
+  const [allRows,      setAllRows]      = useState([]);
+  const [mohallaRows,  setMohallaRows]  = useState([]);
+  const [loading,      setLoading]      = useState(false);
   const [loaded,          setLoaded]          = useState(false);
   const [showExport,      setShowExport]      = useState(false);
   const [exportPos,       setExportPos]       = useState({});
@@ -95,6 +96,16 @@ export default function MuminSearchPage() {
   useEffect(() => { loadAll(); }, []);
 
   useEffect(() => {
+    memberService.loadMohallaDetails({ Sector: '', Subsector: '', MohallaDescription: '' })
+      .then(res => {
+        const data = res.data;
+        const raw = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : data?.recordset ?? data?.recordsets?.[0] ?? [];
+        setMohallaRows(raw);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const handler = (e) => {
       if (
         exportBtnRef.current  && !exportBtnRef.current.contains(e.target) &&
@@ -114,23 +125,25 @@ export default function MuminSearchPage() {
   };
 
   const sectors = useMemo(() =>
-    [...new Set(allRows.map(r => r.sector).filter(Boolean))].sort(),
-    [allRows]
+    [...new Set(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim()).filter(Boolean))].sort(),
+    [mohallaRows]
   );
 
   const subsectorOptions = useMemo(() => {
     const seen = new Set();
-    return allRows
-      .filter(r => !filters.sector || r.sector === filters.sector)
+    return mohallaRows
+      .filter(r => !filters.sector || String(r.Sector ?? r.sector ?? '') === filters.sector)
       .reduce((acc, r) => {
-        if (r.subsector && !seen.has(r.subsector)) {
-          seen.add(r.subsector);
-          acc.push({ code: r.subsector, name: r.subsectorName || r.subsector });
+        const code = String(r.Subsector ?? r.subsector ?? '').trim();
+        const name = String(r.MohallaDescription ?? r.SubsectorName ?? r.subsectorName ?? '').trim();
+        if (code && !seen.has(code)) {
+          seen.add(code);
+          acc.push({ code, name: name || code });
         }
         return acc;
       }, [])
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [allRows, filters.sector]);
+  }, [mohallaRows, filters.sector]);
 
   const stayingIns  = useMemo(() => [...new Set(allRows.map(r => r.stayingIn).filter(Boolean))].sort(),  [allRows]);
   const sabeelTypes = useMemo(() => [...new Set(allRows.map(r => r.sabeelType).filter(Boolean))].sort(), [allRows]);

@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
-import { dueService, takhmeenService } from '@/services';
+import { dueService, takhmeenService, memberService } from '@/services';
 import {
   RefreshIcon, XIcon, DownloadIcon,
   BarChartIcon, FileTextIcon, PrintIcon,
@@ -165,10 +165,11 @@ export default function DueDetailsPage() {
   const exportBtnRef  = useRef(null);
   const exportMenuRef = useRef(null);
 
-  const [allRows,     setAllRows]     = useState([]);
-  const [lookupRows,  setLookupRows]  = useState([]); // full unfiltered dataset — for option lists
-  const [hubRows,     setHubRows]     = useState([]);
-  const [loading,     setLoading]     = useState(false);
+  const [allRows,      setAllRows]      = useState([]);
+  const [lookupRows,   setLookupRows]   = useState([]); // full unfiltered dataset — for option lists
+  const [hubRows,      setHubRows]      = useState([]);
+  const [mohallaRows,  setMohallaRows]  = useState([]);
+  const [loading,      setLoading]      = useState(false);
   const [showExport,  setShowExport]  = useState(false);
   const [exportPos,   setExportPos]   = useState({});
   const [filters,     setFilters]     = useState(INIT_FILTERS);
@@ -196,7 +197,7 @@ export default function DueDetailsPage() {
 
   const loadHubOptions = useCallback(async () => {
     try {
-      const res = await takhmeenService.loadDetails({});
+      const res = await takhmeenService.loadHubHeadDetails({});
       const data = res.data;
       const raw = Array.isArray(data) ? data :
         Array.isArray(data?.data) ? data.data :
@@ -220,6 +221,16 @@ export default function DueDetailsPage() {
   }, [filters.fromYear, filters.toYear, filters.sabeelType, filters.hubMainHead, filters.hubSubHead]);
 
   useEffect(() => { loadHubOptions(); }, [loadHubOptions]);
+
+  useEffect(() => {
+    memberService.loadMohallaDetails({ Sector: '', Subsector: '', MohallaDescription: '' })
+      .then(res => {
+        const data = res.data;
+        const raw = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : data?.recordset ?? data?.recordsets?.[0] ?? [];
+        setMohallaRows(raw);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const handler = (e) => {
@@ -248,21 +259,24 @@ export default function DueDetailsPage() {
         .map(r => pick(r, 'HubSubHead', 'hubSubHead'))
     ), [hubRows, filters.hubMainHead]);
 
-  const sectors = useMemo(() => uniq(lookupRows.map(r => r.sector)), [lookupRows]);
+  const sectors = useMemo(() =>
+    uniq(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim())), [mohallaRows]);
 
   const subsectorOptions = useMemo(() => {
     const seen = new Set();
-    return lookupRows
-      .filter(r => !filters.sector || r.sector === filters.sector)
+    return mohallaRows
+      .filter(r => !filters.sector || String(r.Sector ?? r.sector ?? '') === filters.sector)
       .reduce((acc, r) => {
-        if (r.subsector && !seen.has(r.subsector)) {
-          seen.add(r.subsector);
-          acc.push({ code: r.subsector, name: r.subsectorName || r.subsector });
+        const code = String(r.Subsector ?? r.subsector ?? '').trim();
+        const name = String(r.MohallaDescription ?? r.SubsectorName ?? r.subsectorName ?? '').trim();
+        if (code && !seen.has(code)) {
+          seen.add(code);
+          acc.push({ code, name: name || code });
         }
         return acc;
       }, [])
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [lookupRows, filters.sector]);
+  }, [mohallaRows, filters.sector]);
 
   const thaaliStatuses = useMemo(() => uniq(lookupRows.map(r => r.thaaliStatus)), [lookupRows]);
   const sabeelTypes    = useMemo(() => uniq(lookupRows.map(r => r.sabeelType)),   [lookupRows]);

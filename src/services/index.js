@@ -63,6 +63,7 @@ export const takhmeenService = {
   loadTakhmeenNotDoneList: (data) => api.post('/LoadTakhmeenNotDoneList', data),
   loadNotContributeList:   (data) => api.post('/LoadNotContributeList',   data),
   loadGradeDetails:        (data) => api.post('/LoadGradeDetails',        data),
+  loadHubHeadDetails:      (data) => api.post('/LoadHubHeadDetails',      data),
 };
 
 // ── Vajebaat ─────────────────────────────────────────────────────────────────
