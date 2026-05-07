@@ -18,6 +18,15 @@ const INIT_FILTERS = {
   thaaliStatus: '',
 };
 
+const PAGE_SIZE_OPTIONS = [
+  { label: '100',    value: 100   },
+  { label: '500',    value: 500   },
+  { label: '1 000',  value: 1000  },
+  { label: '5 000',  value: 5000  },
+  { label: '10 000', value: 10000 },
+  { label: 'All',    value: 0     },
+];
+
 const EXPORT_COLS = [
   { key: 'accno',             label: 'Acc No'      },
   { key: 'fullName',          label: 'Full Name'   },
@@ -70,22 +79,60 @@ const download = (blob, filename) => {
   URL.revokeObjectURL(url);
 };
 
+function PaginationBar({ currentPage, totalPages, onPage }) {
+  if (totalPages <= 1) return null;
+
+  const pages = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (currentPage > 3) pages.push('…');
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i);
+    }
+    if (currentPage < totalPages - 2) pages.push('…');
+    pages.push(totalPages);
+  }
+
+  const btnBase  = 'min-w-[30px] h-[30px] px-1.5 rounded text-[11.5px] font-medium border transition-colors';
+  const active   = `${btnBase} bg-navy-800 text-white border-navy-800`;
+  const inactive = `${btnBase} bg-white text-gray-600 border-border hover:bg-blue-50 hover:border-blue-300`;
+  const nav      = `${btnBase} bg-white text-gray-500 border-border hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed`;
+
+  return (
+    <div className="flex items-center justify-center gap-1 py-3 flex-wrap">
+      <button className={nav} onClick={() => onPage(1)} disabled={currentPage === 1}>«</button>
+      <button className={nav} onClick={() => onPage(currentPage - 1)} disabled={currentPage === 1}>‹</button>
+      {pages.map((p, i) =>
+        p === '…'
+          ? <span key={`e${i}`} className="px-1 text-gray-400 text-[12px] select-none">…</span>
+          : <button key={p} className={p === currentPage ? active : inactive} onClick={() => onPage(p)}>{p}</button>
+      )}
+      <button className={nav} onClick={() => onPage(currentPage + 1)} disabled={currentPage === totalPages}>›</button>
+      <button className={nav} onClick={() => onPage(totalPages)} disabled={currentPage === totalPages}>»</button>
+    </div>
+  );
+}
+
 export default function TakhmeenNotDonePage() {
   const router        = useRouter();
   const exportBtnRef  = useRef(null);
   const exportMenuRef = useRef(null);
 
-  const [listType,   setListType]   = useState('notDone');
-  const [allRows,    setAllRows]    = useState([]);
-  const [refRows,    setRefRows]    = useState([]);
-  const [loading,    setLoading]    = useState(false);
-  const [showExport, setShowExport] = useState(false);
-  const [exportPos,  setExportPos]  = useState({});
-  const [filters,    setFilters]    = useState(INIT_FILTERS);
+  const [listType,    setListType]    = useState('notDone');
+  const [allRows,     setAllRows]     = useState([]);
+  const [refRows,     setRefRows]     = useState([]);
+  const [loading,     setLoading]     = useState(false);
+  const [showExport,  setShowExport]  = useState(false);
+  const [exportPos,   setExportPos]   = useState({});
+  const [filters,     setFilters]     = useState(INIT_FILTERS);
+  const [pageSize,    setPageSize]    = useState(100);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const setF = useCallback((k, v) => setFilters(p => ({ ...p, [k]: v })), []);
 
-  // Load master data once for ForYear / HubSubHead / other dropdown options
+  // Load master data once for dropdown options
   useEffect(() => {
     takhmeenService.loadDetails({})
       .then(res => setRefRows(normalizeResults(res.data)))
@@ -118,6 +165,9 @@ export default function TakhmeenNotDonePage() {
   // Re-fetch when listType changes (with reset filters)
   useEffect(() => { load(INIT_FILTERS); }, [load]);
 
+  // Reset to page 1 whenever data or page size changes
+  useEffect(() => { setCurrentPage(1); }, [allRows, pageSize]);
+
   useEffect(() => {
     const handler = (e) => {
       if (
@@ -129,7 +179,7 @@ export default function TakhmeenNotDonePage() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // All dropdown options derived from master reference data
+  // Dropdown options derived from master reference data
   const forYears       = useMemo(() => uniq(refRows.map(r => r.forYear)),      [refRows]);
   const hubSubHeads    = useMemo(() => uniq(refRows.map(r => r.hubSubHead)),   [refRows]);
   const sabeelTypes    = useMemo(() => uniq(refRows.map(r => r.sabeelType)),   [refRows]);
@@ -151,6 +201,20 @@ export default function TakhmeenNotDonePage() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [refRows, filters.sector]);
 
+  // ── pagination ─────────────────────────────────────────────────────────────
+
+  const effectivePageSize = pageSize === 0 ? allRows.length || 1 : pageSize;
+  const totalPages        = Math.max(1, Math.ceil(allRows.length / effectivePageSize));
+  const rowOffset         = (currentPage - 1) * effectivePageSize;
+  const pagedRows         = pageSize === 0
+    ? allRows
+    : allRows.slice(rowOffset, rowOffset + effectivePageSize);
+
+  const pageStart = allRows.length === 0 ? 0 : rowOffset + 1;
+  const pageEnd   = Math.min(rowOffset + effectivePageSize, allRows.length);
+
+  // ── misc ──────────────────────────────────────────────────────────────────
+
   const hasFilters   = Object.keys(INIT_FILTERS).some(k => filters[k] !== '');
   const clearFilters = useCallback(() => {
     setFilters(INIT_FILTERS);
@@ -167,6 +231,8 @@ export default function TakhmeenNotDonePage() {
     }
     setShowExport(p => !p);
   };
+
+  // ── export helpers ────────────────────────────────────────────────────────
 
   const exportCSV = () => {
     const header = EXPORT_COLS.map(c => c.label).join(',');
@@ -232,6 +298,8 @@ export default function TakhmeenNotDonePage() {
     win.addEventListener('load', () => { win.print(); URL.revokeObjectURL(url); });
     setShowExport(false);
   };
+
+  // ── render ────────────────────────────────────────────────────────────────
 
   return (
     <div>
@@ -317,7 +385,7 @@ export default function TakhmeenNotDonePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button className="btn btn-primary btn-sm" onClick={() => load(filters)} disabled={loading}>
               <SearchIcon className="w-3.5 h-3.5 mr-1.5" />{loading ? 'Loading…' : 'Search'}
             </button>
@@ -334,6 +402,21 @@ export default function TakhmeenNotDonePage() {
             >
               <DownloadIcon className="w-3.5 h-3.5 mr-1.5" />Export
             </button>
+
+            {/* Page size selector */}
+            <div className="flex items-center gap-1.5 ml-auto">
+              <span className="text-[11.5px] text-gray-500 whitespace-nowrap">Rows per page:</span>
+              <select
+                className="form-select !py-1 !text-[12px] !w-auto"
+                value={pageSize}
+                onChange={e => setPageSize(Number(e.target.value))}
+              >
+                {PAGE_SIZE_OPTIONS.map(o => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
             <span className="text-[12px] font-medium text-navy-800 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 whitespace-nowrap">
               {allRows.length.toLocaleString()} records
             </span>
@@ -386,12 +469,10 @@ export default function TakhmeenNotDonePage() {
               {loading ? (
                 <tr><td colSpan={10} className="text-center py-16 text-gray-400">Loading…</td></tr>
               ) : allRows.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-16 text-gray-400">
-                  No records found
-                </td></tr>
-              ) : allRows.map((r, i) => (
-                <tr key={i} className="hover:bg-blue-500/[0.025]">
-                  <td className="px-3 py-2.5 border-t border-border text-gray-400">{i + 1}</td>
+                <tr><td colSpan={10} className="text-center py-16 text-gray-400">No records found</td></tr>
+              ) : pagedRows.map((r, i) => (
+                <tr key={rowOffset + i} className="hover:bg-blue-500/[0.025]">
+                  <td className="px-3 py-2.5 border-t border-border text-gray-400">{rowOffset + i + 1}</td>
                   <td className="px-3 py-2.5 border-t border-border text-blue-500 font-semibold cursor-pointer"
                     onClick={() => router.push(`/mumin-details?accno=${r.accno}`)}>{r.accno || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border font-medium">{r.fullName        || '—'}</td>
@@ -407,6 +488,22 @@ export default function TakhmeenNotDonePage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination bar */}
+        {allRows.length > 0 && (
+          <div className="border-t border-border px-4">
+            <div className="flex items-center justify-between flex-wrap gap-2 pt-2">
+              <span className="text-[11.5px] text-gray-500">
+                Showing {pageStart.toLocaleString()}–{pageEnd.toLocaleString()} of {allRows.length.toLocaleString()} records
+              </span>
+              <PaginationBar
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPage={setCurrentPage}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

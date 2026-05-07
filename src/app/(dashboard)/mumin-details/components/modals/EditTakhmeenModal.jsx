@@ -1,9 +1,10 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Modal from '@/components/shared/Modal';
 import { SaveIcon } from '@/components/shared/Icons';
-import { fmt, SUB_HEADS } from '../../utils';
+import { fmt, ComboBox, SUB_HEADS, normalizeArray } from '../../utils';
+import { takhmeenService } from '@/services';
 
 export default function EditTakhmeenModal({ open, onClose, member, editTakRow, setEditTakRow, onSave }) {
   const set = (k, v) => setEditTakRow(p => ({ ...p, [k]: v }));
@@ -14,8 +15,36 @@ export default function EditTakhmeenModal({ open, onClose, member, editTakRow, s
   const takhmeenRef = useRef(null);
   const dateRef     = useRef(null);
 
+  const [gradeOptions, setGradeOptions] = useState([]);
+
+  const mainHeadOptions = Object.keys(SUB_HEADS);
+  const subHeadOptions  = SUB_HEADS[editTakRow?.mainHead] || [];
+
+  useEffect(() => {
+    if (!open) { setGradeOptions([]); return; }
+  }, [open]);
+
+  useEffect(() => {
+    if (!editTakRow?.mainHead || !editTakRow?.subHead) { setGradeOptions([]); return; }
+    const t = setTimeout(() => {
+      takhmeenService.loadGradeDetails({
+        HubMainHead: editTakRow.mainHead,
+        HubSubHead:  editTakRow.subHead,
+        Grade:       editTakRow.grade || '',
+      }).then(res => {
+        const rows = normalizeArray(res?.data);
+        setGradeOptions(rows.map(r => ({
+          value:  r.Grade,
+          label:  `${r.Grade}  ·  ₹${Number(r.Amount).toLocaleString('en-IN')}`,
+          amount: r.Amount,
+        })));
+      }).catch(() => setGradeOptions([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [editTakRow?.mainHead, editTakRow?.subHead, editTakRow?.grade]);
+
   const focusField = (ref) => {
-    ref.current?.focus();
+    (ref.current?.querySelector('input') || ref.current)?.focus();
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
@@ -44,24 +73,29 @@ export default function EditTakhmeenModal({ open, onClose, member, editTakRow, s
           <div className="bg-surface rounded-lg p-3 text-[12px] text-navy-900">
             Member: <strong>{member?.name}</strong> · Acc# <strong>{member?.accno}</strong>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
-            <div>
+            <div ref={mainHeadRef}>
               <label className="form-label">Hub Main Head</label>
-              <select ref={mainHeadRef} className="form-select" value={editTakRow.mainHead || ''}
-                onChange={e => { set('mainHead', e.target.value); set('subHead', ''); }}>
-                <option value="">-- Select --</option>
-                {Object.keys(SUB_HEADS).map(k => <option key={k}>{k}</option>)}
-              </select>
+              <ComboBox
+                value={editTakRow.mainHead || ''}
+                options={mainHeadOptions}
+                placeholder="Type or select..."
+                onChange={(v) => { set('mainHead', v); set('subHead', ''); set('grade', ''); setGradeOptions([]); }}
+              />
             </div>
-            <div>
+            <div ref={subHeadRef}>
               <label className="form-label">Hub Sub Head</label>
-              <select ref={subHeadRef} className="form-select" value={editTakRow.subHead || ''}
-                onChange={e => set('subHead', e.target.value)}>
-                <option value="">-- Select --</option>
-                {(SUB_HEADS[editTakRow.mainHead] || []).map(s => <option key={s}>{s}</option>)}
-              </select>
+              <ComboBox
+                value={editTakRow.subHead || ''}
+                options={subHeadOptions}
+                placeholder={editTakRow.mainHead ? 'Type or select...' : 'Select Main Head first'}
+                disabled={!editTakRow.mainHead}
+                onChange={(v) => { set('subHead', v); set('grade', ''); setGradeOptions([]); }}
+              />
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="form-label">For Year</label>
@@ -70,16 +104,20 @@ export default function EditTakhmeenModal({ open, onClose, member, editTakRow, s
             </div>
             <div>
               <label className="form-label">Grade</label>
-              <input className="form-input" placeholder="e.g. A, B, C" value={editTakRow.grade || ''}
-                onChange={e => set('grade', e.target.value)} />
+              <ComboBox
+                value={editTakRow.grade || ''}
+                options={gradeOptions}
+                placeholder="e.g. A, B, C+"
+                onChange={(v, o) => { set('grade', v); if (o?.amount != null) set('takhmeen', o.amount); }}
+              />
             </div>
           </div>
+
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="form-label">Takhmeen (₹)</label>
               <input ref={takhmeenRef} type="number" className="form-input"
-                value={editTakRow.takhmeen ?? ''}
-                onChange={e => set('takhmeen', e.target.value)} />
+                value={editTakRow.takhmeen ?? ''} onChange={e => set('takhmeen', e.target.value)} />
             </div>
             <div>
               <label className="form-label">Received (₹)</label>
@@ -88,9 +126,11 @@ export default function EditTakhmeenModal({ open, onClose, member, editTakRow, s
             </div>
             <div>
               <label className="form-label">Remaining (auto)</label>
-              <input className="form-input bg-surface" value={fmt(Number(editTakRow.takhmeen || 0) - Number(editTakRow.received || 0))} readOnly />
+              <input className="form-input bg-surface"
+                value={fmt(Number(editTakRow.takhmeen || 0) - Number(editTakRow.received || 0))} readOnly />
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="form-label">Takhmeen Date</label>
@@ -103,6 +143,7 @@ export default function EditTakhmeenModal({ open, onClose, member, editTakRow, s
                 onChange={e => set('place', e.target.value)} />
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="form-label">Remark</label>

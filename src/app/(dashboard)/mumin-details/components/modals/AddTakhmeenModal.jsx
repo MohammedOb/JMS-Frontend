@@ -1,9 +1,10 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Modal from '@/components/shared/Modal';
 import { SaveIcon } from '@/components/shared/Icons';
-import { SUB_HEADS } from '../../utils';
+import { ComboBox, SUB_HEADS, normalizeArray } from '../../utils';
+import { takhmeenService } from '@/services';
 
 export default function AddTakhmeenModal({ open, onClose, member, permissions, takForm, setTakForm, onSave }) {
   const set = (k, v) => setTakForm(p => ({ ...p, [k]: v }));
@@ -14,17 +15,45 @@ export default function AddTakhmeenModal({ open, onClose, member, permissions, t
   const takhmeenRef = useRef(null);
   const dateRef     = useRef(null);
 
+  const [gradeOptions, setGradeOptions] = useState([]);
+
+  const mainHeadOptions = Object.keys(SUB_HEADS);
+  const subHeadOptions  = SUB_HEADS[takForm.mainHead] || [];
+
+  useEffect(() => {
+    if (!open) { setGradeOptions([]); return; }
+  }, [open]);
+
+  useEffect(() => {
+    if (!takForm.mainHead || !takForm.subHead) { setGradeOptions([]); return; }
+    const t = setTimeout(() => {
+      takhmeenService.loadGradeDetails({
+        HubMainHead: takForm.mainHead,
+        HubSubHead:  takForm.subHead,
+        Grade:       takForm.grade || '',
+      }).then(res => {
+        const rows = normalizeArray(res?.data);
+        setGradeOptions(rows.map(r => ({
+          value:  r.Grade,
+          label:  `${r.Grade}  ·  ₹${Number(r.Amount).toLocaleString('en-IN')}`,
+          amount: r.Amount,
+        })));
+      }).catch(() => setGradeOptions([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [takForm.mainHead, takForm.subHead, takForm.grade]);
+
   const focusField = (ref) => {
-    ref.current?.focus();
+    (ref.current?.querySelector('input') || ref.current)?.focus();
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const handleSave = () => {
-    if (!takForm.mainHead)                                          { focusField(mainHeadRef); return; }
-    if (!takForm.subHead)                                           { focusField(subHeadRef);  return; }
-    if (!takForm.forYear)                                           { focusField(forYearRef);  return; }
-    if (takForm.takhmeen === '' || takForm.takhmeen == null)        { focusField(takhmeenRef); return; }
-    if (!takForm.date)                                              { focusField(dateRef);     return; }
+    if (!takForm.mainHead)                                   { focusField(mainHeadRef); return; }
+    if (!takForm.subHead)                                    { focusField(subHeadRef);  return; }
+    if (!takForm.forYear)                                    { focusField(forYearRef);  return; }
+    if (takForm.takhmeen === '' || takForm.takhmeen == null) { focusField(takhmeenRef); return; }
+    if (!takForm.date)                                       { focusField(dateRef);     return; }
     onSave();
   };
 
@@ -42,70 +71,81 @@ export default function AddTakhmeenModal({ open, onClose, member, permissions, t
       <div className="bg-surface rounded-lg p-3 mb-4 text-[12px] text-navy-900">
         Member: <strong>{member?.name}</strong> · Acc# <strong>{member?.accno}</strong>
       </div>
+
       <div className="grid grid-cols-2 gap-3 mb-3">
-        <div>
+        <div ref={mainHeadRef}>
           <label className="form-label">Hub Main Head</label>
-          <select ref={mainHeadRef} className="form-select" value={takForm.mainHead}
-            onChange={e => set('mainHead', e.target.value) || set('subHead', '')}>
-            <option value="">-- Select --</option>
-            {Object.keys(SUB_HEADS).map(k => <option key={k}>{k}</option>)}
-          </select>
+          <ComboBox
+            value={takForm.mainHead}
+            options={mainHeadOptions}
+            placeholder="Type or select..."
+            onChange={(v) => { set('mainHead', v); set('subHead', ''); set('grade', ''); setGradeOptions([]); }}
+          />
         </div>
-        <div>
+        <div ref={subHeadRef}>
           <label className="form-label">Hub Sub Head</label>
-          <select ref={subHeadRef} className="form-select" value={takForm.subHead}
-            onChange={e => set('subHead', e.target.value)}>
-            <option value="">-- Select Main Head First --</option>
-            {(SUB_HEADS[takForm.mainHead] || []).map(s => <option key={s}>{s}</option>)}
-          </select>
+          <ComboBox
+            value={takForm.subHead}
+            options={subHeadOptions}
+            placeholder={takForm.mainHead ? 'Type or select...' : 'Select Main Head first'}
+            disabled={!takForm.mainHead}
+            onChange={(v) => { set('subHead', v); set('grade', ''); setGradeOptions([]); }}
+          />
         </div>
       </div>
+
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
           <label className="form-label">For Year</label>
-          <input ref={forYearRef} className="form-input" placeholder={permissions?.ForYearAll} value={takForm.forYear}
-            onChange={e => set('forYear', e.target.value)} />
+          <input ref={forYearRef} className="form-input" placeholder={permissions?.ForYearAll}
+            value={takForm.forYear} onChange={e => set('forYear', e.target.value)} />
         </div>
         <div>
           <label className="form-label">Grade</label>
-          <input className="form-input" placeholder="e.g. A, B, C" value={takForm.grade}
-            onChange={e => set('grade', e.target.value)} />
+          <ComboBox
+            value={takForm.grade}
+            options={gradeOptions}
+            placeholder="e.g. A, B, C+"
+            onChange={(v, o) => { set('grade', v); if (o?.amount != null) set('takhmeen', o.amount); }}
+          />
         </div>
       </div>
+
       <div className="grid grid-cols-3 gap-3 mb-3">
         <div>
           <label className="form-label">Takhmeen (₹) *</label>
           <input ref={takhmeenRef} type="number" className="form-input" placeholder="enter value 0 and above"
-            value={takForm.takhmeen ?? ''}
-            onChange={e => set('takhmeen', e.target.value)} />
+            value={takForm.takhmeen ?? ''} onChange={e => set('takhmeen', e.target.value)} />
         </div>
         <div>
           <label className="form-label">Paid In (₹)</label>
-          <input type="number" className="form-input" placeholder="enter value 0 and above" value={takForm.paidin}
-            onChange={e => set('paidin', e.target.value)} />
+          <input type="number" className="form-input" placeholder="enter value 0 and above"
+            value={takForm.paidin} onChange={e => set('paidin', e.target.value)} />
         </div>
         <div>
           <label className="form-label">Takhmeen Date</label>
-          <input ref={dateRef} type="date" className="form-input" value={takForm.date}
-            onChange={e => set('date', e.target.value)} />
+          <input ref={dateRef} type="date" className="form-input"
+            value={takForm.date} onChange={e => set('date', e.target.value)} />
         </div>
       </div>
+
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
           <label className="form-label">Place</label>
-          <input className="form-input" placeholder="e.g. Office, Home" value={takForm.place}
-            onChange={e => set('place', e.target.value)} />
+          <input className="form-input" placeholder="e.g. Office, Home"
+            value={takForm.place} onChange={e => set('place', e.target.value)} />
         </div>
         <div>
           <label className="form-label">Remark</label>
-          <input className="form-input" placeholder="Optional remark" value={takForm.remark}
-            onChange={e => set('remark', e.target.value)} />
+          <input className="form-input" placeholder="Optional remark"
+            value={takForm.remark} onChange={e => set('remark', e.target.value)} />
         </div>
       </div>
+
       <div>
         <label className="form-label">Vajebaat Remark</label>
-        <input className="form-input" placeholder="Optional vajebaat remark" value={takForm.vajRemark}
-          onChange={e => set('vajRemark', e.target.value)} />
+        <input className="form-input" placeholder="Optional vajebaat remark"
+          value={takForm.vajRemark} onChange={e => set('vajRemark', e.target.value)} />
       </div>
     </Modal>
   );

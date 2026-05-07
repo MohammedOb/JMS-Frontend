@@ -1,8 +1,10 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Modal from '@/components/shared/Modal';
 import { SaveIcon } from '@/components/shared/Icons';
-import { fmt, SUB_HEADS } from '../../utils';
+import { fmt, SUB_HEADS, ComboBox, normalizeArray } from '../../utils';
+import { takhmeenService } from '@/services';
 
 export default function TakhmeenModal({
   open, onClose,
@@ -11,18 +13,69 @@ export default function TakhmeenModal({
   row, setRow,
   onSave,
 }) {
+  const [headOptions, setHeadOptions] = useState([]);
+  const [gradeOptions, setGradeOptions] = useState([]);
+
+  // Load HubMainHead / HubSubHead options from API, fall back to static SUB_HEADS
+  useEffect(() => {
+    if (!open) { setHeadOptions([]); setGradeOptions([]); return; }
+    takhmeenService.loadDetails({})
+      .then(res => {
+        const rows = normalizeArray(res?.data);
+        const seen = new Set();
+        const opts = [];
+        for (const r of rows) {
+          const key = `${r.HubMainHead}||${r.HubSubHead}`;
+          if (!seen.has(key)) { seen.add(key); opts.push({ mainHead: r.HubMainHead, subHead: r.HubSubHead }); }
+        }
+        if (opts.length) {
+          setHeadOptions(opts);
+        } else {
+          setHeadOptions(Object.entries(SUB_HEADS).flatMap(([mh, subs]) => subs.map(sh => ({ mainHead: mh, subHead: sh }))));
+        }
+      })
+      .catch(() => {
+        setHeadOptions(Object.entries(SUB_HEADS).flatMap(([mh, subs]) => subs.map(sh => ({ mainHead: mh, subHead: sh }))));
+      });
+  }, [open]);
+
+  // Load Grade suggestions from API
+  useEffect(() => {
+    if (!row?.mainHead || !row?.subHead) { setGradeOptions([]); return; }
+    const t = setTimeout(() => {
+      takhmeenService.loadGradeDetails({
+        HubMainHead: row.mainHead,
+        HubSubHead:  row.subHead,
+        Grade:       row.grade || '',
+      })
+        .then(res => {
+          const rows = normalizeArray(res?.data);
+          setGradeOptions(rows.map(r => ({
+            value:  r.Grade,
+            label:  `${r.Grade}  ·  ₹${Number(r.Amount).toLocaleString('en-IN')}`,
+            amount: r.Amount,
+          })));
+        })
+        .catch(() => setGradeOptions([]));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [row?.mainHead, row?.subHead, row?.grade]);
+
   if (!row) return null;
 
   const set = (k, v) => setRow(p => ({ ...p, [k]: v }));
-  const remaining = Number(row.takhmeen || 0) - Number(row.received || 0);
+  const remaining  = Number(row.takhmeen || 0) - Number(row.received || 0);
   const isVajebaat = row.mainHead === 'Vajebaat';
-  const isEdit = mode === 'edit';
+  const isEdit     = mode === 'edit';
+
+  const mainHeadOpts = [...new Set(headOptions.map(o => o.mainHead).filter(Boolean))];
+  const subHeadOpts  = [...new Set(headOptions.filter(o => o.mainHead === row.mainHead).map(o => o.subHead).filter(Boolean))];
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={isEdit ? `Edit Takhmeen — ${row.subHead}  ·  ${row.forYear} ` : 'Add Takhmeen Entry'}
+      title={isEdit ? `Edit Takhmeen — ${row.subHead}  ·  ${row.forYear}` : 'Add Takhmeen Entry'}
       size="md"
       footer={
         <>
@@ -43,19 +96,22 @@ export default function TakhmeenModal({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="form-label">Hub Main Head *</label>
-            <select className="form-select" value={row.mainHead || ''}
-              onChange={e => { set('mainHead', e.target.value); set('subHead', ''); }}>
-              <option value="">-- Select --</option>
-              {Object.keys(SUB_HEADS).map(k => <option key={k}>{k}</option>)}
-            </select>
+            <ComboBox
+              value={row.mainHead || ''}
+              options={mainHeadOpts}
+              placeholder="Type or select..."
+              onChange={(v) => { set('mainHead', v); set('subHead', ''); set('grade', ''); setGradeOptions([]); }}
+            />
           </div>
           <div>
             <label className="form-label">Hub Sub Head</label>
-            <select className="form-select" value={row.subHead || ''}
-              onChange={e => set('subHead', e.target.value)}>
-              <option value="">-- Select Main Head First --</option>
-              {(SUB_HEADS[row.mainHead] || []).map(s => <option key={s}>{s}</option>)}
-            </select>
+            <ComboBox
+              value={row.subHead || ''}
+              options={subHeadOpts}
+              placeholder={row.mainHead ? 'Type or select...' : 'Select Main Head first'}
+              disabled={!row.mainHead}
+              onChange={(v) => { set('subHead', v); set('grade', ''); setGradeOptions([]); }}
+            />
           </div>
         </div>
 
@@ -68,8 +124,12 @@ export default function TakhmeenModal({
           </div>
           <div>
             <label className="form-label">Grade</label>
-            <input className="form-input" placeholder="e.g. A, B, C" value={row.grade || ''}
-              onChange={e => set('grade', e.target.value)} />
+            <ComboBox
+              value={row.grade || ''}
+              options={gradeOptions}
+              placeholder="e.g. A, B, C+"
+              onChange={(v, o) => { set('grade', v); if (o?.amount != null) set('takhmeen', o.amount); }}
+            />
           </div>
         </div>
 
@@ -87,11 +147,7 @@ export default function TakhmeenModal({
           </div>
           <div>
             <label className="form-label">Remaining (auto)</label>
-            <input
-              className="form-input bg-surface font-semibold text-right"
-              value={fmt(remaining)}
-              readOnly
-            />
+            <input className="form-input bg-surface font-semibold text-right" value={fmt(remaining)} readOnly />
           </div>
         </div>
 
@@ -109,7 +165,7 @@ export default function TakhmeenModal({
           </div>
         </div>
 
-        {/* ── Vajebaat-only fields ───────────────────────────────────────── */}
+        {/* Vajebaat-only fields */}
         {isVajebaat && (
           <>
             <div className="flex items-center gap-2 pt-1">
@@ -119,7 +175,6 @@ export default function TakhmeenModal({
               <div className="flex-1 h-px bg-blue-100" />
             </div>
 
-            {/* Last Takhmeen + Current Takhmeen */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="form-label">Last Takhmeen (₹)</label>
@@ -133,7 +188,6 @@ export default function TakhmeenModal({
               </div>
             </div>
 
-            {/* Paid In + Paid In Place */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="form-label">Paid In</label>

@@ -62,6 +62,7 @@ export const takhmeenService = {
 
   loadTakhmeenNotDoneList: (data) => api.post('/LoadTakhmeenNotDoneList', data),
   loadNotContributeList:   (data) => api.post('/LoadNotContributeList',   data),
+  loadGradeDetails:        (data) => api.post('/LoadGradeDetails',        data),
 };
 
 // ── Vajebaat ─────────────────────────────────────────────────────────────────
@@ -90,9 +91,10 @@ export const safaiService = {
 
 // ── Due ──────────────────────────────────────────────────────────────────────
 export const dueService = {
-  getGeneralDue: (params)  => api.get('/due/general', { params }),
-  sendBulkSMS:   (ids)     => api.post('/due/bulk-sms', { ids }),
-  export:        (params)  => api.get('/due/export', { params, responseType: 'blob' }),
+  getGeneralDue:         (params) => api.get('/due/general', { params }),
+  loadGeneralDueDetails: (data)   => api.post('/LoadGeneralDueDetails', data),
+  sendBulkSMS:           (ids)    => api.post('/due/bulk-sms', { ids }),
+  export:                (params) => api.get('/due/export', { params, responseType: 'blob' }),
 };
 
 // ── Follow Up ────────────────────────────────────────────────────────────────

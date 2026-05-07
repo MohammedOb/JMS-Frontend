@@ -42,9 +42,10 @@ export function ComboBox({ value, onChange, options = [], placeholder, disabled,
   const wrapRef         = useRef(null);
 
   const q        = String(value || '').toLowerCase();
+  const valid    = (options || []).filter(o => o != null);
   const filtered = q
-    ? options.filter(o => String(o.value ?? o).toLowerCase().includes(q) || String(o.label ?? '').toLowerCase().includes(q))
-    : options;
+    ? valid.filter(o => String(o.value ?? o).toLowerCase().includes(q) || String(o.label ?? '').toLowerCase().includes(q))
+    : valid;
 
   useEffect(() => {
     const h = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };

@@ -21,6 +21,7 @@ const REQUIRED_TAKHMEEN = {
     { label: 'Shehrullah Niyaz not entered',    main: 'Vajebaat', sub: 'Shehrullah Niyaz',  btn: 'Enter S. Niyaz',       checkBy: 'subHead'  },
     { label: 'Security Guard not entered',      main: 'Other',    sub: 'Security Guards',    btn: 'Enter Security Guard', checkBy: 'subHead', year: '1445'  },
     { label: 'Vajebaat not entered',    main: 'Vajebaat', sub: 'Vajebaat',  btn: 'Enter Vajebaat',       checkBy: 'subHead'  },
+    // { label: 'Taherabad Safar 1447 not entered',      main: 'Other',    sub: '1447 - Taherabad Safar',    btn: 'Enter Taherabad Safar 1447', checkBy: 'subHead', year: '1447'  },
   ],
   Mutaveteen: [
     { label: 'Sabeel Mutaveteen not entered',   main: 'Sabeel',   sub: 'Sabeel Mutaveteen', btn: 'Enter Mutaveteen',     checkBy: 'subHead'  },
