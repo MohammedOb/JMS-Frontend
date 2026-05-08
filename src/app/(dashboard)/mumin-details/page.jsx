@@ -38,7 +38,7 @@ import EditReceiptModal    from './components/modals/EditReceiptModal';
 import PrintReceiptModal   from './components/modals/PrintReceiptModal';
 import ResetPasswordModal  from './components/modals/ResetPasswordModal';
 import AddFollowupModal    from './components/modals/AddFollowupModal';
-import AddSafaiModal       from './components/modals/AddSafaiModal';
+
 import OverallDueModal     from './components/modals/OverallDueModal';
 import TakhmeenPreviewModal from './components/modals/TakhmeenPreviewModal';
 import EditMemberModal     from './components/modals/EditMemberModal';
@@ -115,6 +115,7 @@ function MuminDetailsInner() {
   const [receipts,   setReceipts]   = useState([]);
   const [family,     setFamily]     = useState([]);
   const [safaiList,  setSafaiList]  = useState([]);
+  const [safaiCount, setSafaiCount] = useState(0);
   const [vajebaat,   setVajebaat]   = useState([]);
   const [himList,    setHimList]    = useState([]);
   const [sniyazList, setSniyazList] = useState([]);
@@ -656,7 +657,7 @@ function MuminDetailsInner() {
     takhmeen: takhmeen.length,
     receipts: receipts.length,
     family:   family.length,
-    safai:    safaiList.length,
+    safai:    safaiCount,
     vajebaat: vajebaat.length + himList.length,
   };
 
@@ -826,12 +827,7 @@ function MuminDetailsInner() {
               )}
               {tab === 'family' && <FamilyTab family={family} loading={familyLoading} />}
               {tab === 'safai' && (
-                <SafaiChitthiTab
-                  safaiList={safaiList}
-                  onAdd={() => openModal('addSafai')}
-                  onEdit={() => openModal('editSafai')}
-                  onPrint={() => openModal('printSafai')}
-                />
+                <SafaiChitthiTab member={member} onCountChange={setSafaiCount} />
               )}
               {tab === 'vajebaat' && permissions.MDVajebaatTabView && (
                 <VajebaatTab
@@ -946,11 +942,7 @@ function MuminDetailsInner() {
         followupForm={followupForm} setFollowupForm={setFollowupForm}
         onSave={saveFollowup}
       />
-      <AddSafaiModal
-        open={modals.addSafai} onClose={() => closeModal('addSafai')}
-        member={member} safaiForm={safaiForm} setSafaiForm={setSafaiForm}
-        onSave={saveSafai}
-      />
+      
 
 
       <OverallDueModal

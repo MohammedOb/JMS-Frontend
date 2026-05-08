@@ -1,18 +1,46 @@
 // src/lib/api.js
-// Axios instance — all requests go through here.
+// Axios instance for all frontend API calls.
 // Automatically attaches JWT from localStorage.
-// Handles 401 (redirect to login) and 403 (permission denied).
+// Handles common auth and server-side failures.
 
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+function resolveApiBaseUrl() {
+  const fallback = 'http://localhost:5000/';
+  const configured = process.env.NEXT_PUBLIC_API_URL || fallback;
+
+  if (typeof window === 'undefined') {
+    return configured;
+  }
+
+  try {
+    const url = new URL(configured, window.location.origin);
+    const configHost = url.hostname;
+    const pageHost = window.location.hostname;
+
+    // If the app is opened via LAN IP, don't keep sending API traffic to the
+    // browser's own localhost. Reuse the current hostname and preserve port/path.
+    if (
+      pageHost &&
+      !['localhost', '127.0.0.1', '::1'].includes(pageHost) &&
+      ['localhost', '127.0.0.1', '::1'].includes(configHost)
+    ) {
+      url.hostname = pageHost;
+    }
+
+    return url.toString();
+  } catch {
+    return configured;
+  }
+}
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/',
+  baseURL: resolveApiBaseUrl(),
   headers: { 'Content-Type': 'application/json' },
-  timeout: 60000, // 60s — some SP calls are slow
+  timeout: 60000,
 });
 
-// ── Request interceptor: attach JWT ──────────────────────────────────────
 api.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
@@ -26,7 +54,6 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ── Response interceptor: handle auth errors ──────────────────────────────
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -34,7 +61,6 @@ api.interceptors.response.use(
     const message = error.response?.data?.message || 'Something went wrong.';
 
     if (status === 401) {
-      // Token expired or invalid — clear and redirect to login
       if (typeof window !== 'undefined') {
         localStorage.removeItem('jms_token');
         localStorage.removeItem('jms_user');

@@ -88,6 +88,12 @@ export const safaiService = {
   create:        (data)    => api.post('/safai-chitthi', data),
   update:        (id, data)=> api.put(`/safai-chitthi/${id}`, data),
   cancel:        (id)      => api.put(`/safai-chitthi/${id}/cancel`),
+
+  loadRazaDetails:        (data) => api.post('/LoadRazaDetails',        data),
+  addRazaDetails:         (data) => api.post('/AddRazaDetails',         data),
+  updateRazaDetails:      (data) => api.post('/UpdateRazaDetails',      data),
+  deleteRazaDetails:      (data) => api.delete('/DeleteRazaDetails',    { data }),
+  loadRazaDropdownDetails:(data) => api.post('/LoadRazaDropdownDetails', data),
 };
 
 // ── Due ──────────────────────────────────────────────────────────────────────
