@@ -2,13 +2,20 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
+import { useAuth } from '@/context/AuthContext';
 import { safaiService } from '@/services';
 import Modal from '@/components/shared/Modal';
 import { EditIcon, PrintIcon, TrashIcon, CheckIcon, RefreshIcon } from '@/components/shared/Icons';
 import AddSafaiChitthiModal  from '../modals/AddSafaiChitthiModal';
 import EditSafaiChitthiModal from '../modals/EditSafaiChitthiModal';
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 const EMPTY = {
   RequestDate: todayStr(), EventDate: '', HijriDate: '', RazaStatus: 'Raza Pending',
@@ -67,6 +74,7 @@ function ActionBtn({ label, onClick, className, children, disabled }) {
 // ── Main Tab ─────────────────────────────────────────────────────────────────
 export default function SafaiChitthiTab({ member, onCountChange }) {
   const accNo = member?.accno || member?.AccNo || '';
+  const { user } = useAuth();
 
   const [rows,          setRows]          = useState([]);
   const [loading,       setLoading]       = useState(false);
@@ -87,18 +95,7 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
   const [allRazafor,    setAllRazafor]    = useState([]);
   const [allPlace,      setAllPlace]      = useState([]);
   const [allTime,       setAllTime]       = useState([]);
-  const [loggedInUser,  setLoggedInUser]  = useState('');
-
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const u = JSON.parse(localStorage.getItem('jms_user') || '{}');
-        setLoggedInUser(u.name || u.username || u.Name || u.Username || '');
-      } catch {}
-    }
-  }, []);
 
   useEffect(() => {
     Promise.allSettled([
@@ -155,7 +152,7 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
       Mobile1:   member?.Mobile1   || member?.mobile1 || '',
       ITSNo:     member?.ITSNo     || member?.itsNo   || member?.itsno || '',
       Address:   member?.Address   || member?.address || member?.mohallah || '',
-      Createdby: loggedInUser,
+      Createdby: user?.username || '',
     });
     setAddModal(true);
   };
