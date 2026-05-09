@@ -20,6 +20,8 @@ export const receiptService = {
   getDailyItemTotals:(params)=> api.get('/receipts/daily/item-totals', { params }),
   print:         (id)      => api.get(`/receipts/${id}/print`),
   loadTransactionDetails: (data) => api.post('/LoadTransactionDetails', data),
+  addTransaction:         (data) => api.post('/AddTransactionDetails',     data),
+  addTransactionItem:     (data) => api.post('/AddTransactionItemDetails', data),
 };
 
 // ── Members ──────────────────────────────────────────────────────────────────
@@ -60,10 +62,11 @@ export const takhmeenService = {
   getNotDone:      (params)      => api.get('/takhmeen/not-done',  { params }),
   getMuminTakhmeen:(params)      => api.get('/takhmeen/mumin',     { params }),
 
-  loadTakhmeenNotDoneList: (data) => api.post('/LoadTakhmeenNotDoneList', data),
-  loadNotContributeList:   (data) => api.post('/LoadNotContributeList',   data),
-  loadGradeDetails:        (data) => api.post('/LoadGradeDetails',        data),
-  loadHubHeadDetails:      (data) => api.post('/LoadHubHeadDetails',      data),
+  loadTakhmeenNotDoneList:   (data) => api.post('/LoadTakhmeenNotDoneList',   data),
+  loadNotContributeList:     (data) => api.post('/LoadNotContributeList',     data),
+  loadGradeDetails:          (data) => api.post('/LoadGradeDetails',          data),
+  loadHubHeadDetails:        (data) => api.post('/LoadHubHeadDetails',        data),
+  updateTakhmeenReceived:    (data) => api.post('/UpdateTakhmeenReceived',    data),
 };
 
 // ── Vajebaat ─────────────────────────────────────────────────────────────────

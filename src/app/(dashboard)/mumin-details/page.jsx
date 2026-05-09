@@ -13,7 +13,38 @@ import clsx   from 'clsx';
 import {
   today, toInputDate,
   normalizeArray, normalizeTakRow, normalizeSfRow, normalizeMemberPayload,
+  SUB_HEADS,
 } from './utils';
+
+// ── Receipt save helpers ──────────────────────────────────────────────────────
+function getMainHead(subHead) {
+  for (const [main, subs] of Object.entries(SUB_HEADS)) {
+    if (subs.includes(subHead)) return main;
+  }
+  return 'Other';
+}
+
+// Distribute items greedily across split receipts so each receipt's items sum = receipt amount
+function distributeItems(items, splitRows) {
+  const pool = items.map(it => ({ ...it, amount: Number(it.amount) }));
+  return splitRows.map(row => {
+    let budget = Number(row.amount);
+    const receiptItems = [];
+    while (budget > 0.005 && pool.length > 0) {
+      const head = pool[0];
+      if (head.amount <= budget + 0.005) {
+        receiptItems.push({ ...head });
+        budget -= head.amount;
+        pool.shift();
+      } else {
+        receiptItems.push({ ...head, amount: Number(budget.toFixed(2)) });
+        head.amount = Number((head.amount - budget).toFixed(2));
+        budget = 0;
+      }
+    }
+    return { ...row, items: receiptItems };
+  });
+}
 
 // Layout components
 import MuminSearchBar   from './components/MuminSearchBar';
@@ -96,7 +127,7 @@ const TAB_LIST = [
 function MuminDetailsInner() {
   const params          = useSearchParams();
   const router          = useRouter();
-  const { permissions } = useAuth();
+  const { permissions, user } = useAuth();
 
   // ── Search state ──────────────────────────────────────────────────────────
   const [searchVal,       setSearchVal]       = useState(params.get('accno') || '');
@@ -156,7 +187,7 @@ function MuminDetailsInner() {
   const [editReceiptRow, setEditReceiptRow] = useState(null);
   const [rcItems,      setRcItems]      = useState([]);
   const [rcForm,       setRcForm]       = useState({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false });
-  const [rcItem,       setRcItem]       = useState({ hubType: 'Sabeel Regular', forYear: '', amount: '' });
+  const [rcItem,       setRcItem]       = useState({ hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', amount: '', remark: '' });
   const [safaiForm,    setSafaiForm]    = useState({ issueDate: today(), validTill: '', reason: '', remark: '' });
   const [vajForm,      setVajForm]      = useState({ sf: '', vaj: '', house: '', niyaz: '', other: '' });
   const [himForm,      setHimForm]      = useState({ forYear: '', override: '' });
@@ -285,6 +316,7 @@ function MuminDetailsInner() {
       setSafaiList(normalized.safai);
       setMemberForm(memberData);
       router.replace(`/mumin-details?accno=${accno}`, { scroll: false });
+      takhmeenService.updateTakhmeenReceived({ AccNo: accno }).catch(() => {});
     } catch (err) {
       console.error('loadMember failed', err);
       toast.error('Member not found');
@@ -478,16 +510,80 @@ function MuminDetailsInner() {
   };
 
   // ── Receipt handlers ──────────────────────────────────────────────────────
-  const saveReceipt = async () => {
+  const saveReceipt = async ({ profile, rcForm, rcItems, splitRows, printOnly }) => {
     if (rcItems.length === 0) { toast.error('Add at least one item'); return; }
+
+    const grandTotal  = rcItems.reduce((s, i) => s + Number(i.amount), 0);
+    const createdBy   = user?.username || user?.UserName || user?.name || '';
+    const baseParams  = {
+      AccNo:            profile.accno,
+      Mobile:           profile.mobile,
+      ITSNo:            profile.itsNo,
+      ReceivedDate:     rcForm.date,
+      Mode:             rcForm.mode,
+      Remark:           rcForm.remark,
+      Createdby:        createdBy,
+      ContributionType: rcForm.transType || 'VOLUNTARY CONTRIBUTION',
+    };
+
+    // Build list of receipt envelopes: [{familyMemberName, amount, items[]}]
+    const envelopes = splitRows.length > 0
+      ? distributeItems(rcItems, splitRows)
+      : [{ familyMemberName: profile.fullName, amount: grandTotal, items: rcItems }];
+
     try {
-      const res = await receiptService.save({ accno: member.accno, ...rcForm, items: rcItems });
-      toast.success(`Receipt #${res.data.receiptNo} saved`);
+      const savedNos = [];
+
+      for (const env of envelopes) {
+        const firstItem  = env.items[0] || {};
+        const subHead    = firstItem.hubSubHead || firstItem.hubType || '';
+        const mainHead   = firstItem.hubMainHead || getMainHead(subHead);
+
+        // 1️⃣ Create transaction header → get receiptNo + insertId (TransID)
+        const txRes = await receiptService.addTransaction({
+          ...baseParams,
+          ReceivedFrom:   env.familyMemberName || profile.fullName,
+          ITSNo:          env.itsId            || baseParams.ITSNo,
+          Mobile:         env.mobile           || baseParams.Mobile,
+          ReceivedAmount: env.amount,
+          HubMainHead:    mainHead,
+          HubSubHead:     subHead,
+        });
+
+        const { insertId, receiptNo } = txRes.data;
+
+        // 2️⃣ Create one item row per item in this envelope
+        for (const item of env.items) {
+          const itemSubHead  = item.hubSubHead || item.hubType || subHead;
+          await receiptService.addTransactionItem({
+            AccNo:        profile.accno,
+            newReceiptNo: receiptNo,
+            HubMainHead:  item.hubMainHead || getMainHead(itemSubHead),
+            HubSubHead:   itemSubHead,
+            ForYear:      item.forYear || '',
+            Grade:        item.grade   || profile.grade || '',
+            Amount:       item.amount,
+            Remark:       item.remark  || '',
+            Status:       'Active',
+            insertId,
+          });
+        }
+
+        savedNos.push(receiptNo);
+      }
+
+      toast.success(`${savedNos.length} receipt(s) saved: ${savedNos.join(', ')}`);
       closeModal('addReceipt');
       setRcItems([]);
+
+      // Update takhmeen received totals for this member
+      await takhmeenService.updateTakhmeenReceived({ AccNo: profile.accno }).catch(() => {});
+
       const rRes = await receiptService.getDailyReport({ accno: member.accno });
       setReceipts(rRes.data);
-    } catch { toast.error('Failed to save receipt'); }
+    } catch (err) {
+      toast.error('Failed to save: ' + (err?.response?.data?.message || err?.message || 'Unknown error'));
+    }
   };
 
   // ── Safai handler ─────────────────────────────────────────────────────────

@@ -22,10 +22,13 @@
     @apply bg-surface text-gray-700;
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  /* Custom scrollbar — thin by default, thicker + darker on hover */
+  ::-webkit-scrollbar { width: 4px; height: 4px; transition: width 0.2s, height 0.2s; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-border rounded; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded; transition: background 0.2s; }
+
+  *:hover::-webkit-scrollbar { width: 8px; height: 8px; }
+  *:hover::-webkit-scrollbar-thumb { @apply bg-slate-400; }
 }
 
 @layer utilities {

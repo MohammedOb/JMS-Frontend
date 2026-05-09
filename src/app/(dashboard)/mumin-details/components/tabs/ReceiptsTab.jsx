@@ -50,12 +50,14 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, permissions,
 
   const filteredReceipts = useMemo(() => {
     if (!Array.isArray(receipts)) return [];
-    return receipts.filter(r => {
-      const matchHub = !filterHubType || r.mainHead === filterHubType;
-      const matchSub = !filterSubType || r.subHead === filterSubType;
-      const matchYear = !filterForYear || String(r.forYear) === String(filterForYear);
-      return matchHub && matchSub && matchYear;
-    });
+    return receipts
+      .filter(r => {
+        const matchHub = !filterHubType || r.mainHead === filterHubType;
+        const matchSub = !filterSubType || r.subHead === filterSubType;
+        const matchYear = !filterForYear || String(r.forYear) === String(filterForYear);
+        return matchHub && matchSub && matchYear;
+      })
+      .sort((a, b) => new Date(b.receivedDate) - new Date(a.receivedDate));
   }, [receipts, filterHubType, filterSubType, filterForYear]);
 
   // Derived filter options based on cascaded filtering
