@@ -5,6 +5,7 @@ import Modal from '@/components/shared/Modal';
 import { SaveIcon, PrintIcon, EditIcon, TrashIcon } from '@/components/shared/Icons';
 import { fmt, today } from '../../utils';
 import { memberService, takhmeenService } from '@/services';
+import toast from 'react-hot-toast';
 
 const CASH_LIMIT_PER_RECEIPT = 9500;
 
@@ -17,12 +18,20 @@ function normList(data) {
   return [];
 }
 
-function extractMuminRow(data) {
-  const raw = data?.recordsets?.[0]?.[0]
-    ?? data?.recordset?.[0]
-    ?? data?.[0]
-    ?? data?.member
-    ?? data;
+function extractMuminRow(data, searchAccno) {
+  let list = [];
+  if (Array.isArray(data?.recordsets?.[0])) list = data.recordsets[0];
+  else if (Array.isArray(data?.recordset))  list = data.recordset;
+  else if (Array.isArray(data?.data))       list = data.data;
+  else if (Array.isArray(data))             list = data;
+  else if (data)                            list = [data?.member ?? data];
+
+  // Prefer exact acc# match over first result
+  const exact = searchAccno
+    ? list.find(r => String(r?.AccNo || r?.accno || '') === String(searchAccno))
+    : null;
+  const raw = exact ?? list[0];
+
   if (!raw || !(raw.AccNo || raw.accno || raw.FullName)) return null;
   return {
     accno:       raw.AccNo        || raw.accno        || '',
@@ -105,14 +114,14 @@ export default function AddReceiptModal({
     // Reset form fields so reopening the modal always starts clean
     setRcItems([]);
     setRcForm({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false });
-    setRcItem({ hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', amount: '', remark: '' });
+    setRcItem({ hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', grade: member?.grade || '', amount: '', remark: '' });
   }, [open, member]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load hub heads on open
   useEffect(() => {
     if (!open) return;
     takhmeenService.loadHubHeadDetails({})
-      .then(res => setHubHeads(normList(res.data).filter(h => h && h.HubSubHead)))
+      .then(res => setHubHeads(normList(res.data).filter(h => h && h.HubSubHead).sort((a, b) => a.HubSubHead.localeCompare(b.HubSubHead))))
       .catch(() => setHubHeads([]));
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -173,6 +182,7 @@ export default function AddReceiptModal({
             sector:      rec.Sector    || rec.sector                       || p.sector,
             grade:       rec.CurrentGrade || rec.grade                     || p.grade,
           }));
+          setRcItem(p => ({ ...p, grade: rec.CurrentGrade || rec.grade || p.grade }));
         }
       } catch { /* silent */ } finally { setProfileLoading(false); }
     }, 500);
@@ -182,20 +192,23 @@ export default function AddReceiptModal({
   const onAccNoChange = (val) => {
     setProfile(p => ({ ...p, accno: val }));
     clearTimeout(accTimer.current);
-    if (!val || val.length < 3) return;
+    if (!val || val.length < 1) return;
     accTimer.current = setTimeout(async () => {
       setProfileLoading(true);
       try {
         const res  = await memberService.loadMuminDetails({ Search: val });
-        const norm = extractMuminRow(res.data);
+        const norm = extractMuminRow(res.data, val);
         if (norm) {
           setProfile(norm);
           if (norm.localHofIts) {
             const fr = await memberService.loadFamilyMembersDetails({ HOF_ID: norm.localHofIts });
             setFamilyMembers(normList(fr.data));
           }
+        } else {
+          toast.error(`No member found for Acc# ${val}`);
         }
-      } catch { /* silent */ } finally { setProfileLoading(false); }
+      } catch { toast.error('Failed to look up member'); }
+      finally  { setProfileLoading(false); }
     }, 700);
   };
 
@@ -233,6 +246,8 @@ export default function AddReceiptModal({
       const rec  = list[0];
       const amt  = rec?.RemainingAmount ?? rec?.Remaining ?? rec?.remaining ?? null;
       setRemainingAmt(amt);
+      const grade = rec?.Grade || rec?.grade || rec?.CurrentGrade || '';
+      if (grade) setRcItem(p => ({ ...p, grade }));
     } catch { setRemainingAmt(null); }
     finally  { setRemainingLoad(false); }
   };
@@ -261,7 +276,7 @@ export default function AddReceiptModal({
       hubMainHead: rcItem.hubMainHead || '',
       fundType:    rcItem.fundType    || '',
       amount:      Number(rcItem.amount),
-      grade:       profile?.grade || '',
+      grade:       rcItem.grade || '',
     }]);
     setRcItem(p => ({ ...p, amount: '', remark: '' }));
     setRemainingAmt(null);
@@ -474,7 +489,7 @@ export default function AddReceiptModal({
               </span>
             )}
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-5 gap-3">
             <div>
               <label className="form-label">Hub Sub Head</label>
               <select
@@ -495,6 +510,15 @@ export default function AddReceiptModal({
                 placeholder={String(permissions?.ForYearAll || new Date().getFullYear())}
                 value={rcItem.forYear || ''}
                 onChange={e => onForYearChange(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="form-label">Grade</label>
+              <input
+                className="form-input"
+                placeholder="e.g. A"
+                value={rcItem.grade || ''}
+                onChange={e => setRcItem(p => ({ ...p, grade: e.target.value }))}
               />
             </div>
             <div>
@@ -587,8 +611,12 @@ export default function AddReceiptModal({
                         onChange={e => setEditBuf(p => ({ ...p, forYear: e.target.value }))}
                       />
                     </td>
-                    <td className="px-2 py-1.5 border-t border-border text-gray-400">
-                      {editBuf.grade || '—'}
+                    <td className="px-2 py-1.5 border-t border-border">
+                      <input
+                        className="form-input text-[11px] w-16"
+                        value={editBuf.grade || ''}
+                        onChange={e => setEditBuf(p => ({ ...p, grade: e.target.value }))}
+                      />
                     </td>
                     <td className="px-2 py-1.5 border-t border-border">
                       <input

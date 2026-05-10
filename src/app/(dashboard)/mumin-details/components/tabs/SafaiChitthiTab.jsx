@@ -78,6 +78,8 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
 
   const [rows,          setRows]          = useState([]);
   const [loading,       setLoading]       = useState(false);
+  const [pageSize,      setPageSize]      = useState(20);
+  const [currentPage,   setCurrentPage]   = useState(1);
   const [addModal,      setAddModal]      = useState(false);
   const [editModal,     setEditModal]     = useState(false);
   const [deleteModal,   setDeleteModal]   = useState(false);
@@ -288,6 +290,11 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
     finally { setDeleting(false); }
   };
 
+  const totalPages = pageSize === 'All' ? 1 : Math.ceil(rows.length / pageSize);
+  const paginatedRows = pageSize === 'All'
+    ? rows
+    : rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   const COLS = [
     'Action', 'Serial No', 'Request Date', 'Full Name', 'Mobile', 'Mobile1',
     'ITS No', 'Address', 'Event Date', 'Hijri Date', 'Raza for', 'Place',
@@ -313,6 +320,13 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
               {rows.length} record{rows.length !== 1 ? 's' : ''}
             </span>
           )}
+          <select
+            className="form-input py-1 text-[12px] w-[80px]"
+            value={pageSize}
+            onChange={e => { setPageSize(e.target.value === 'All' ? 'All' : Number(e.target.value)); setCurrentPage(1); }}
+          >
+            {[20, 50, 100, 200, 500, 1000, 'All'].map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
         </div>
         <button className="btn btn-primary btn-sm" onClick={openAdd}>+ Add Raza</button>
       </div>
@@ -327,7 +341,7 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
               <tr><td colSpan={COLS.length} className="text-center py-8 text-gray-400">Loading…</td></tr>
             ) : rows.length === 0 ? (
               <tr><td colSpan={COLS.length} className="text-center py-8 text-gray-400">No Raza records found</td></tr>
-            ) : rows.map((r, i) => (
+            ) : paginatedRows.map((r, i) => (
               <tr key={i} className="hover:bg-blue-500/[0.025]">
                 <td className="px-2 py-2 border-t border-border">
                   <div className="flex gap-1">
@@ -390,6 +404,20 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
           </tbody>
         </table>
       </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-3 px-1">
+          <span className="text-[11px] text-gray-500">
+            Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, rows.length)} of {rows.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button className="btn btn-secondary btn-sm px-2 disabled:opacity-40" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>«</button>
+            <button className="btn btn-secondary btn-sm px-2 disabled:opacity-40" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>‹</button>
+            <span className="text-[11px] text-gray-500 px-2">Page {currentPage} of {totalPages}</span>
+            <button className="btn btn-secondary btn-sm px-2 disabled:opacity-40" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>›</button>
+            <button className="btn btn-secondary btn-sm px-2 disabled:opacity-40" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>»</button>
+          </div>
+        </div>
+      )}
 
       {/* Add Modal */}
       <AddSafaiChitthiModal

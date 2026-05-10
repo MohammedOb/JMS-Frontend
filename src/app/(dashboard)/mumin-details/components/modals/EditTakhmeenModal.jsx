@@ -6,14 +6,25 @@ import { SaveIcon } from '@/components/shared/Icons';
 import { fmt, ComboBox, SUB_HEADS, normalizeArray } from '../../utils';
 import { takhmeenService } from '@/services';
 
+function fmtDateTime(val) {
+  if (!val) return '—';
+  try {
+    return new Date(val).toLocaleString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch { return String(val); }
+}
+
 export default function EditTakhmeenModal({ open, onClose, member, editTakRow, setEditTakRow, onSave }) {
   const set = (k, v) => setEditTakRow(p => ({ ...p, [k]: v }));
 
-  const mainHeadRef = useRef(null);
-  const subHeadRef  = useRef(null);
-  const forYearRef  = useRef(null);
-  const takhmeenRef = useRef(null);
-  const dateRef     = useRef(null);
+  const mainHeadRef     = useRef(null);
+  const subHeadRef      = useRef(null);
+  const forYearRef      = useRef(null);
+  const takhmeenRef     = useRef(null);
+  const dateRef         = useRef(null);
+  const updateReasonRef = useRef(null);
 
   const [headOptions,  setHeadOptions]  = useState([]);
   const [gradeOptions, setGradeOptions] = useState([]);
@@ -62,11 +73,12 @@ export default function EditTakhmeenModal({ open, onClose, member, editTakRow, s
   };
 
   const handleSave = () => {
-    if (!editTakRow?.mainHead)                                              { focusField(mainHeadRef); return; }
-    if (!editTakRow?.subHead)                                               { focusField(subHeadRef);  return; }
-    if (!editTakRow?.forYear)                                               { focusField(forYearRef);  return; }
-    if (editTakRow?.takhmeen === '' || editTakRow?.takhmeen == null)        { focusField(takhmeenRef); return; }
-    if (!editTakRow?.date)                                                  { focusField(dateRef);     return; }
+    if (!editTakRow?.mainHead)                                              { focusField(mainHeadRef);     return; }
+    if (!editTakRow?.subHead)                                               { focusField(subHeadRef);      return; }
+    if (!editTakRow?.forYear)                                               { focusField(forYearRef);      return; }
+    if (editTakRow?.takhmeen === '' || editTakRow?.takhmeen == null)        { focusField(takhmeenRef);     return; }
+    if (!editTakRow?.date)                                                  { focusField(dateRef);         return; }
+    if (!editTakRow?.updateReason?.trim())                                  { focusField(updateReasonRef); return; }
     onSave();
   };
 
@@ -167,6 +179,38 @@ export default function EditTakhmeenModal({ open, onClose, member, editTakRow, s
               <label className="form-label">Vajebaat Remark</label>
               <input className="form-input" placeholder="Optional vajebaat remark" value={editTakRow.vajRemark || ''}
                 onChange={e => set('vajRemark', e.target.value)} />
+            </div>
+          </div>
+
+          {/* ── Update Record ─────────────────────────────────────────────── */}
+          <div className="border border-amber-200 bg-amber-50/40 rounded-lg p-3">
+            <div className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider mb-2.5">
+              Update Record
+            </div>
+
+            {(editTakRow.recordUpdateReason || editTakRow.recordUpdateDate) && (
+              <div className="flex items-start gap-6 mb-3 pb-3 border-b border-amber-200">
+                <div className="flex-1 min-w-0">
+                  <label className="form-label text-gray-400">Last Update Reason</label>
+                  <p className="text-[12px] text-gray-600 leading-relaxed">{editTakRow.recordUpdateReason || '—'}</p>
+                </div>
+                <div className="shrink-0">
+                  <label className="form-label text-gray-400">Last Update Date</label>
+                  <p className="text-[12px] text-gray-600 whitespace-nowrap">{fmtDateTime(editTakRow.recordUpdateDate)}</p>
+                </div>
+              </div>
+            )}
+
+            <div ref={updateReasonRef}>
+              <label className="form-label">
+                Reason for this Update <span className="text-red-500">*</span>
+              </label>
+              <input
+                className="form-input"
+                placeholder="Enter reason for this change…"
+                value={editTakRow.updateReason || ''}
+                onChange={e => set('updateReason', e.target.value)}
+              />
             </div>
           </div>
         </div>

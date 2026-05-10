@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { fmt, fmtDate, toInputDate } from '../../utils';
 
@@ -11,6 +12,11 @@ export default function TakhmeenTab({
   onAdd, onEdit, onDelete,
 }) {
   const parseYear = y => Number(String(y).split('-')[0]) || 0;
+  const [pageSize, setPageSize] = useState(20);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showUpdateInfo, setShowUpdateInfo] = useState(false);
+
+  useEffect(() => { setCurrentPage(1); }, [takYear, takMainHead, takSubHead]);
 
   const filteredTakhmeen = takhmeen
     .filter(t =>
@@ -30,6 +36,11 @@ export default function TakhmeenTab({
   const takSubHeadOptions  = [...new Set(
     takhmeen.filter(t => !takMainHead || t.mainHead === takMainHead).map(t => t.subHead).filter(Boolean)
   )].sort();
+
+  const totalPages = pageSize === 'All' ? 1 : Math.ceil(filteredTakhmeen.length / pageSize);
+  const paginatedTakhmeen = pageSize === 'All'
+    ? filteredTakhmeen
+    : filteredTakhmeen.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const totTak = filteredTakhmeen.reduce((s, t) => s + (Number(t.takhmeen) || 0), 0);
   const totRec = filteredTakhmeen.reduce((s, t) => s + (Number(t.received) || 0), 0);
@@ -66,6 +77,23 @@ export default function TakhmeenTab({
           <span className="text-[12px] font-medium text-navy-800 ml-2 bg-blue-50 px-2 py-1 rounded-md border border-blue-100 whitespace-nowrap">
             {filteredTakhmeen.length} record{filteredTakhmeen.length !== 1 ? 's' : ''}
           </span>
+          <select
+            className="form-select h-[32px] text-[12px] w-[80px]"
+            value={pageSize}
+            onChange={e => { setPageSize(e.target.value === 'All' ? 'All' : Number(e.target.value)); setCurrentPage(1); }}
+          >
+            {[20, 50, 100, 200, 500, 1000, 'All'].map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+
+          <label className="flex items-center gap-1.5 cursor-pointer whitespace-nowrap ml-1">
+            <input
+              type="checkbox"
+              checked={showUpdateInfo}
+              onChange={e => setShowUpdateInfo(e.target.checked)}
+              className="w-3.5 h-3.5 accent-blue-600"
+            />
+            <span className="text-[11px] text-gray-600">Update info</span>
+          </label>
         </div>
         {permissions.MDNewInsert && (
           <button className="btn btn-primary btn-sm" onClick={onAdd}>+ Add Takhmeen</button>
@@ -79,12 +107,16 @@ export default function TakhmeenTab({
               {['Actions','For Year','Hub Type','Sub Type','Grade','Takhmeen','Received','Remaining','Date','Remark'].map(h => (
                 <th key={h} className="th-navy text-center">{h}</th>
               ))}
+              {showUpdateInfo && <>
+                <th className="th-navy text-center">Update Reason</th>
+                <th className="th-navy text-center">Update Date</th>
+              </>}
             </tr>
           </thead>
           <tbody>
             {filteredTakhmeen.length === 0 ? (
-              <tr><td colSpan={11} className="text-center py-8 text-gray-400">No takhmeen records</td></tr>
-            ) : filteredTakhmeen.map(t => {
+              <tr><td colSpan={showUpdateInfo ? 12 : 10} className="text-center py-8 text-gray-400">No takhmeen records</td></tr>
+            ) : paginatedTakhmeen.map(t => {
               const rem = Number(t.remaining) || 0;
               return (
                 <tr key={t.id} className="hover:bg-blue-500/[0.025]">
@@ -129,6 +161,14 @@ export default function TakhmeenTab({
                   )}>{fmt(t.remaining)}</td>
                   <td className="px-2 py-2.5 border-t border-border text-center whitespace-nowrap text-gray-500">{fmtDate(t.date)}</td>
                   <td className="px-2 py-2.5 border-t border-border text-center text-gray-500">{t.remark || '—'}</td>
+                  {showUpdateInfo && <>
+                    <td className="px-2 py-2.5 border-t border-border text-center text-gray-500 max-w-[180px] truncate" title={t.recordUpdateReason || ''}>
+                      {t.recordUpdateReason || '—'}
+                    </td>
+                    <td className="px-2 py-2.5 border-t border-border text-center text-gray-500 whitespace-nowrap">
+                      {t.recordUpdateDate ? fmtDate(t.recordUpdateDate) : '—'}
+                    </td>
+                  </>}
                 </tr>
               );
             })}
@@ -144,12 +184,26 @@ export default function TakhmeenTab({
                 <td className={clsx('px-3 py-2.5 border-t-2 border-navy-800/20 text-center font-bold',
                   totRem > 0 ? 'bg-red-500 text-white' : 'text-green-600'
                 )}>{fmt(totRem)}</td>
-                <td colSpan={2} className="px-3 py-2.5 border-t-2 border-navy-800/20" />
+                <td colSpan={showUpdateInfo ? 4 : 2} className="px-3 py-2.5 border-t-2 border-navy-800/20" />
               </tr>
             </tfoot>
           )}
         </table>
       </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-3 px-1">
+          <span className="text-[11px] text-gray-500">
+            Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredTakhmeen.length)} of {filteredTakhmeen.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button className="btn btn-secondary btn-sm px-2 disabled:opacity-40" disabled={currentPage === 1} onClick={() => setCurrentPage(1)}>«</button>
+            <button className="btn btn-secondary btn-sm px-2 disabled:opacity-40" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>‹</button>
+            <span className="text-[11px] text-gray-500 px-2">Page {currentPage} of {totalPages}</span>
+            <button className="btn btn-secondary btn-sm px-2 disabled:opacity-40" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>›</button>
+            <button className="btn btn-secondary btn-sm px-2 disabled:opacity-40" disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)}>»</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

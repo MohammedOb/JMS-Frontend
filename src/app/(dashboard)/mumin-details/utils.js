@@ -127,6 +127,8 @@ export const normalizeTakRow = (r) => ({
   hamal:     r.H         || r.Hamal     || r.hamal     || 0,
   amwaat:    r.AM        || r.Amwaat    || r.amwaat    || 0,
   sfAmount:  r.SFAmount  || r.sfAmount  || 0,
+  recordUpdateReason: r.RecordUpdateReason || r.recordUpdateReason || '',
+  recordUpdateDate:   r.RecordUpdateDate   || r.recordUpdateDate   || '',
 });
 
 export const normalizeSfRow = (r) => ({

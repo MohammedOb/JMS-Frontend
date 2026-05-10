@@ -22,6 +22,9 @@ export const receiptService = {
   loadTransactionDetails: (data) => api.post('/LoadTransactionDetails', data),
   addTransaction:         (data) => api.post('/AddTransactionDetails',     data),
   addTransactionItem:     (data) => api.post('/AddTransactionItemDetails', data),
+  loadTransactionItemDetails:  (data) => api.post('/LoadTransactionItemDetails',   data),
+  updateTransaction:           (data) => api.post('/UpdateTransactionDetails',     data),
+  updateTransactionItem:       (data) => api.post('/UpdateTransactionItemsDetails',data),
 };
 
 // ── Members ──────────────────────────────────────────────────────────────────

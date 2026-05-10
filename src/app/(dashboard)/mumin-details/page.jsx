@@ -64,6 +64,7 @@ import VajebaatTab     from './components/tabs/VajebaatTab';
 
 // Modal components
 import TakhmeenModal       from './components/modals/TakhmeenModal';
+import EditTakhmeenModal   from './components/modals/EditTakhmeenModal';
 import AddReceiptModal     from './components/modals/AddReceiptModal';
 import EditReceiptModal    from './components/modals/EditReceiptModal';
 import PrintReceiptModal   from './components/modals/PrintReceiptModal';
@@ -430,18 +431,28 @@ function MuminDetailsInner() {
 
   const updateTakhmeen = async () => {
     if (!editTakRow) return;
+    if (!editTakRow.updateReason?.trim()) {
+      toast.error('Please enter a reason for this update');
+      return;
+    }
     try {
+      const recordUpdateDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+      const updatedBy        = user?.username || user?.UserName || user?.name || 'Unknown';
+      const fullReason       = `${editTakRow.updateReason.trim()} - Updated by: ${updatedBy}`;
+
       await takhmeenService.updateDetails({
-        ID:           editTakRow.id,
-        AccNo:        member.accno,
-        ForYear:      editTakRow.forYear,
-        HubMainHead:  editTakRow.mainHead,
-        HubSubHead:   editTakRow.subHead,
-        Grade:        editTakRow.grade,
-        Takhmeen:     Number(editTakRow.takhmeen) || 0,
-        Received:     Number(editTakRow.received) || 0,
-        TakhmeenDate: editTakRow.date,
-        Remark:       editTakRow.remark,
+        ID:                 editTakRow.id,
+        AccNo:              member.accno,
+        ForYear:            editTakRow.forYear,
+        HubMainHead:        editTakRow.mainHead,
+        HubSubHead:         editTakRow.subHead,
+        Grade:              editTakRow.grade,
+        Takhmeen:           Number(editTakRow.takhmeen) || 0,
+        Received:           Number(editTakRow.received) || 0,
+        TakhmeenDate:       editTakRow.date,
+        Remark:             editTakRow.remark,
+        RecordUpdateReason: fullReason,
+        RecordUpdateDate:   recordUpdateDate,
         ...(editTakRow.mainHead === 'Vajebaat' && {
           LastTakhmeen:    Number(editTakRow.lastTakhmeen) || 0,
           CurrentTakhmeen: Number(editTakRow.currentTakhmeen) || 0,
@@ -873,7 +884,7 @@ function MuminDetailsInner() {
 
             {/* Tab panel */}
             <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
-              <div className="flex border-b-2 border-border bg-surface overflow-x-auto">
+              <div className="flex border-b-2 border-border bg-surface overflow-x-hidden">
                 {TAB_LIST.map(t => (
                   <button
                     key={t.key}
@@ -917,7 +928,46 @@ function MuminDetailsInner() {
                   accno={member?.accno}
                   permissions={permissions}
                   onAddReceipt={() => openModal('addReceipt')}
-                  onEditReceipt={(row) => { setEditReceiptRow(row); openModal('editReceipt'); }}
+                  onEditReceipt={async (row) => {
+                    // New data: TransactionsDetail.ID = transactionitemsdetail.TransID
+                    // Old data: TransactionsDetail.(AccNo, HubSubHead, ReceiptNo) = transactionitemsdetail.(AccNo, HubSubHead, ReceiptNo)
+                    const transId   = row.TransID ?? row.transID ?? row.transId ?? row.ID ?? row.Id ?? row.id;
+                    const accNo     = row.AccNo      || row.accno    || member?.accno || '';
+                    const hubSubHead= row.HubSubHead || row.subHead  || '';
+                    const receiptNo = row.ReceiptNo  || row.receiptNo|| '';
+                    const fallbackItem = {
+                      subHead:  row.subHead  || '',
+                      mainHead: row.mainHead || '',
+                      forYear:  row.forYear  || '',
+                      amount:   Number(row.amount) || 0,
+                      remark:   row.remark   || '',
+                      grade:    row.grade    || '',
+                    };
+                    try {
+                      const res = await receiptService.loadTransactionItemDetails({
+                        TransID:    transId,
+                        AccNo:      accNo,
+                        HubSubHead: hubSubHead,
+                        ReceiptNo:  receiptNo,
+                      });
+                      const rawItems = normalizeArray(res.data);
+                      const items = rawItems.length > 0
+                        ? rawItems.map(it => ({
+                            id:       it.ID      || it.Id      || null,
+                            subHead:  it.HubSubHead  || it.subHead  || it.SubHead  || '',
+                            mainHead: it.HubMainHead || it.mainHead || it.MainHead || '',
+                            forYear:  it.ForYear     || it.forYear  || '',
+                            amount:   Number(it.Amount || it.amount) || 0,
+                            remark:   it.Remark      || it.remark   || '',
+                            grade:    it.Grade       || it.grade    || '',
+                          }))
+                        : [fallbackItem];
+                      setEditReceiptRow({ ...row, items });
+                    } catch {
+                      setEditReceiptRow({ ...row, items: [fallbackItem] });
+                    }
+                    openModal('editReceipt');
+                  }}
                   onPrintReceipt={(row) => { setEditReceiptRow(row); openModal('printReceipt'); }}
                 />
               )}
@@ -989,11 +1039,10 @@ function MuminDetailsInner() {
         row={takForm} setRow={setTakForm}
         onSave={saveTakhmeen}
       />
-      <TakhmeenModal
-        mode="edit"
+      <EditTakhmeenModal
         open={modals.editTakhmeen} onClose={() => closeModal('editTakhmeen')}
-        member={member} permissions={permissions}
-        row={editTakRow} setRow={setEditTakRow}
+        member={member}
+        editTakRow={editTakRow} setEditTakRow={setEditTakRow}
         onSave={updateTakhmeen}
       />
       <AddReceiptModal
@@ -1008,17 +1057,80 @@ function MuminDetailsInner() {
         open={modals.editReceipt} onClose={() => closeModal('editReceipt')}
         member={member} permissions={permissions}
         rcForm={editReceiptRow || {}} setRcForm={setEditReceiptRow}
+        onPrint={() => { closeModal('editReceipt'); openModal('printReceipt'); }}
         onSave={async () => {
           if (!editReceiptRow) return;
+          if (!editReceiptRow.updateReason?.trim()) {
+            toast.error('Please enter a reason for this update');
+            return;
+          }
           try {
-            const { receiptNo, receivedDate, mainHead, subHead, forYear, amount, mode, status, remark } = editReceiptRow;
-            await receiptService.update(receiptNo, { receivedDate, mainHead, subHead, forYear, amount, mode, status, remark });
+            const { receiptNo, receivedDate, mode, status, updateReason, items } = editReceiptRow;
+            const transId      = editReceiptRow.ID || editReceiptRow.Id || editReceiptRow.id;
+            if (!transId) {
+              toast.error('Receipt ID not found — please close this modal, refresh the Receipt History tab, and try again.');
+              return;
+            }
+            const receivedFrom = editReceiptRow.fullName     || editReceiptRow.ReceivedFrom || '';
+            const mobileVal    = editReceiptRow.mobile       || editReceiptRow.Mobile       || '';
+            const itsNoVal     = editReceiptRow.itsNo        || editReceiptRow.ITSNo        || '';
+            const totalAmt     = (items || []).reduce((s, it) => s + Number(it.amount || 0), 0);
+            // MySQL DATETIME format: 'YYYY-MM-DD HH:MM:SS'
+            const recordUpdateDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
+            const updatedBy        = user?.username || user?.UserName || user?.name || 'Unknown';
+            const fullReason       = `${updateReason.trim()} - Updated by: ${updatedBy}`;
+
+            // Step 1 — update TransactionsDetail header
+            await receiptService.updateTransaction({
+              ID:                 transId,
+              ReceivedFrom:       receivedFrom,
+              Mobile:             mobileVal,
+              ITSNo:              itsNoVal,
+              ReceivedDate:       receivedDate,
+              ReceivedAmount:     totalAmt,
+              Mode:               mode,
+              Remark:             editReceiptRow.remark || '',
+              RecordUpdateReason: fullReason,
+              RecordUpdateDate:   recordUpdateDate,
+              Status:             status,
+            });
+
+            // Step 2 — update each item in transactionitemsdetail
+            for (const item of (items || [])) {
+              if (!item.id) continue;
+              await receiptService.updateTransactionItem({
+                ID:      item.id,
+                ForYear: item.forYear,
+                Grade:   item.grade,
+                Amount:  item.amount,
+                Remark:  item.remark,
+                Status:  status,
+              });
+            }
+
+            // Step 3 — recalculate takhmeen received totals
+            await takhmeenService.updateTakhmeenReceived({ AccNo: member?.accno });
+
             toast.success('Receipt updated successfully');
             closeModal('editReceipt');
-            // Reload receipts (hacky but works if we just change accno to trigger useEffect in tab, or maybe just pass a reload callback)
-            // But since ReceiptsTab loads its own data, we might need a way to refresh it.
-            // For now, we update the local state.
-            setReceipts(p => p.map(r => r.receiptNo === receiptNo ? editReceiptRow : r));
+            setReceipts(p => p.map(r => {
+              if (String(r.receiptNo) !== String(receiptNo)) return r;
+              const matchingItem = (items || []).find(it =>
+                String(it.subHead) === String(r.subHead) && String(it.forYear) === String(r.forYear)
+              ) || items?.[0];
+              return {
+                ...r,
+                receivedDate: receivedDate || r.receivedDate,
+                mode, status,
+                fullName:      receivedFrom || r.fullName,
+                itsNo:         itsNoVal     || r.itsNo,
+                mobile:        mobileVal    || r.mobile,
+                ...(matchingItem ? { forYear: matchingItem.forYear, amount: matchingItem.amount, remark: matchingItem.remark } : {}),
+                RecordUpdateReason: fullReason,
+                RecordUpdateDate:   recordUpdateDate,
+                updateReason: '',
+              };
+            }));
           } catch (err) {
             console.error(err);
             toast.error('Failed to update receipt');

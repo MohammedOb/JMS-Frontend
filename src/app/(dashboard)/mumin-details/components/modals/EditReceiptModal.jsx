@@ -1,71 +1,446 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Modal from '@/components/shared/Modal';
-import { SaveIcon } from '@/components/shared/Icons';
+import { SaveIcon, PrintIcon, EditIcon } from '@/components/shared/Icons';
+import { fmt } from '../../utils';
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+// Set to true to allow editing the received date on back-dated (past) receipts
+const ALLOW_BACKDATE_EDIT = false;
+
+const CASH_LIMIT = 9500;
+
+function toDateStr(val) {
+  if (!val) return '';
+  if (typeof val === 'string') return val.split('T')[0];
+  try { return new Date(val).toISOString().split('T')[0]; } catch { return ''; }
+}
+
+function fmtDateTime(val) {
+  if (!val) return '—';
+  try {
+    return new Date(val).toLocaleString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch { return String(val); }
+}
 
 export default function EditReceiptModal({
   open, onClose, member,
   rcForm, setRcForm,
-  onSave,
+  onSave, onPrint,
 }) {
+  // ── Profile edit state ────────────────────────────────────────────────────
+  const [profileEdit, setProfileEdit] = useState(false);
+  const [profileForm, setProfileForm] = useState({});
+
+  // ── Item inline edit state — null = not editing; number = index being edited
+  const [editingItem, setEditingItem] = useState(null);
+  const [editBuf, setEditBuf]         = useState({});
+
+  // Reset local state when modal opens
+  useEffect(() => {
+    if (!open) return;
+    setProfileEdit(false);
+    setProfileForm({
+      fullName: member?.name    || '',
+      itsNo:    member?.itsNo   || '',
+      mobile:   member?.mobile  || '',
+      sector:   member?.sector  || '',
+    });
+    setEditingItem(null);
+    setEditBuf({});
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Profile edit handlers ─────────────────────────────────────────────────
+  const openProfileEdit = () => {
+    setProfileForm({
+      fullName: rcForm?.fullName || member?.name   || '',
+      itsNo:    rcForm?.itsNo   || member?.itsNo   || '',
+      mobile:   rcForm?.mobile  || member?.mobile  || '',
+      sector:   rcForm?.sector  || member?.sector  || '',
+    });
+    setProfileEdit(true);
+  };
+
+  const doneProfileEdit = () => {
+    setRcForm(p => ({
+      ...p,
+      fullName: profileForm.fullName,
+      itsNo:    profileForm.itsNo,
+      mobile:   profileForm.mobile,
+      sector:   profileForm.sector,
+    }));
+    setProfileEdit(false);
+  };
+
+  // ── Date locking ──────────────────────────────────────────────────────────
+  const receivedDateStr = toDateStr(rcForm?.receivedDate);
+  const todayStr        = new Date().toISOString().split('T')[0];
+  const isDateLocked    = !ALLOW_BACKDATE_EDIT && !!receivedDateStr && receivedDateStr <= todayStr;
+
+  // ── Items array — use rcForm.items if present, else build from single fields
+  const items = rcForm?.items || [
+    {
+      subHead:  rcForm?.subHead  || '',
+      mainHead: rcForm?.mainHead || '',
+      forYear:  rcForm?.forYear  || '',
+      amount:   Number(rcForm?.amount || 0),
+      remark:   rcForm?.remark   || '',
+      grade:    rcForm?.grade    || '',
+    },
+  ];
+
+  const isCash    = rcForm?.mode === 'Cash';
+  const amount    = items.reduce((s, it) => s + Number(it.amount || 0), 0);
+  const overLimit = isCash && amount > CASH_LIMIT;
+
+  // ── Item edit handlers ────────────────────────────────────────────────────
+  const startItemEdit = (index) => {
+    const item = items[index] || {};
+    setEditBuf({
+      forYear: item.forYear || '',
+      grade:   item.grade   || '',
+      amount:  String(item.amount || ''),
+      remark:  item.remark  || '',
+    });
+    setEditingItem(index);
+  };
+
+  const saveItemEdit = (index) => {
+    const newAmt  = Number(editBuf.amount || 0);
+    const newTotal = items.reduce((s, it, i) => s + (i === index ? newAmt : Number(it.amount) || 0), 0);
+    if (isCash && newTotal > CASH_LIMIT) {
+      alert(`Cash receipts cannot exceed ₹${CASH_LIMIT.toLocaleString()} total. The total would be ₹${newTotal.toLocaleString()}.`);
+      return;
+    }
+    setRcForm(p => {
+      const curItems = p.items || [
+        { subHead: p.subHead, mainHead: p.mainHead, forYear: p.forYear, amount: Number(p.amount), remark: p.remark, grade: p.grade },
+      ];
+      const newItems = curItems.map((it, i) =>
+        i === index ? { ...it, forYear: editBuf.forYear, grade: editBuf.grade, amount: newAmt, remark: editBuf.remark } : it
+      );
+      const total = newItems.reduce((s, it) => s + Number(it.amount), 0);
+      return { ...p, items: newItems, amount: total };
+    });
+    setEditingItem(null);
+  };
+
+  // ── Display values (show edited profile fields if in edit mode) ───────────
+  const displayName   = profileEdit ? profileForm.fullName : (rcForm?.fullName || member?.name   || '');
+  const displayIts    = profileEdit ? profileForm.itsNo   : (rcForm?.itsNo    || member?.itsNo   || '');
+  const displayMobile = profileEdit ? profileForm.mobile  : (rcForm?.mobile   || member?.mobile  || '');
+  const displaySector = profileEdit ? profileForm.sector  : (rcForm?.sector   || member?.sector  || '');
+
+  // ── Previous update info from DB ──────────────────────────────────────────
+  const prevReason = rcForm?.RecordUpdateReason || rcForm?.recordUpdateReason || '';
+  const prevDate   = rcForm?.RecordUpdateDate   || rcForm?.recordUpdateDate   || '';
+
   return (
     <Modal
       open={open} onClose={onClose}
-      title={`Edit Receipt — ${member?.name} (Acc# ${member?.accno})`}
-      size="md"
+      title={`Edit Receipt — ${displayName || member?.name} (Acc# ${member?.accno})`}
+      size="xl"
       footer={
         <>
           <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          {onPrint && (
+            <button className="btn btn-secondary" onClick={onPrint}>
+              <PrintIcon className="w-3.5 h-3.5 mr-1.5" />Print Only
+            </button>
+          )}
           <button className="btn btn-primary" onClick={onSave}>
-            <SaveIcon className="w-3.5 h-3.5 mr-1.5" />Update Receipt
+            <SaveIcon className="w-3.5 h-3.5 mr-1.5" />Save Receipt
           </button>
         </>
       }
     >
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="form-label">Receipt No</label>
-            <input type="text" className="form-input bg-gray-50" value={rcForm?.receiptNo || ''} readOnly />
+
+        {/* ── 1. Mumin Profile ──────────────────────────────────────────────── */}
+        <div className="border border-border rounded-lg p-3">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+              Mumin Profile
+            </span>
+            <button
+              className={`text-[11px] px-2.5 py-0.5 rounded font-medium border transition-colors ${
+                profileEdit
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : 'border-border text-gray-500 hover:text-gray-700 hover:border-gray-400'
+              }`}
+              onClick={profileEdit ? doneProfileEdit : openProfileEdit}
+            >
+              {profileEdit ? '✓ Done' : 'Edit'}
+            </button>
           </div>
-          <div>
-            <label className="form-label">Received Date</label>
-            <input type="date" className="form-input" value={rcForm?.receivedDate ? rcForm.receivedDate.split('T')[0] : ''}
-              onChange={e => setRcForm(p => ({ ...p, receivedDate: e.target.value }))} />
-          </div>
-          <div>
-            <label className="form-label">Payment Mode</label>
-            <select className="form-select" value={rcForm?.mode || ''}
-              onChange={e => setRcForm(p => ({ ...p, mode: e.target.value }))}>
-              {['Cash','Online','Cheque','UPI'].map(m => <option key={m}>{m}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="form-label">For Year</label>
-            <input type="text" className="form-input" value={rcForm?.forYear || ''}
-              onChange={e => setRcForm(p => ({ ...p, forYear: e.target.value }))} />
-          </div>
-          <div>
-            <label className="form-label">Main Head</label>
-            <input type="text" className="form-input bg-gray-50" value={rcForm?.mainHead || ''} readOnly />
-          </div>
-          <div>
-            <label className="form-label">Sub Head</label>
-            <input type="text" className="form-input bg-gray-50" value={rcForm?.subHead || ''} readOnly />
-          </div>
-           <div>
-            <label className="form-label">Amount (₹)</label>
-            <input type="number" className="form-input" value={rcForm?.amount || ''}
-              onChange={e => setRcForm(p => ({ ...p, amount: Number(e.target.value) }))} />
-          </div>
-           <div>
-            <label className="form-label">Status</label>
-            <select className="form-select" value={rcForm?.status || ''}
-              onChange={e => setRcForm(p => ({ ...p, status: e.target.value }))}>
-              {['Clear', 'Pending', 'Bounce', 'Cancel Receipt', 'Cancelled'].map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
+
+          <div className="grid grid-cols-3 gap-3">
+            {/* AccNo: permanently locked regardless of profileEdit */}
+            <div>
+              <label className="form-label flex items-center gap-1.5">
+                Acc No.
+                <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded">Locked</span>
+              </label>
+              <input className="form-input bg-gray-50 cursor-not-allowed" value={member?.accno || ''} readOnly />
+            </div>
+
+            <div>
+              <label className="form-label">Full Name</label>
+              {profileEdit ? (
+                <input
+                  className="form-input"
+                  value={profileForm.fullName}
+                  onChange={e => setProfileForm(p => ({ ...p, fullName: e.target.value }))}
+                />
+              ) : (
+                <input className="form-input bg-gray-50" value={displayName} readOnly />
+              )}
+            </div>
+
+            <div>
+              <label className="form-label">Mobile</label>
+              {profileEdit ? (
+                <input
+                  className="form-input"
+                  value={profileForm.mobile}
+                  onChange={e => setProfileForm(p => ({ ...p, mobile: e.target.value }))}
+                />
+              ) : (
+                <input className="form-input bg-gray-50" value={displayMobile} readOnly />
+              )}
+            </div>
+
+            <div>
+              <label className="form-label">ITS No.</label>
+              {profileEdit ? (
+                <input
+                  className="form-input"
+                  value={profileForm.itsNo}
+                  onChange={e => setProfileForm(p => ({ ...p, itsNo: e.target.value }))}
+                />
+              ) : (
+                <input className="form-input bg-gray-50" value={displayIts} readOnly />
+              )}
+            </div>
+
+            <div>
+              <label className="form-label">Local HOF ITS No.</label>
+              <input className="form-input bg-gray-50" value={member?.hofIts || ''} readOnly />
+            </div>
+
+            <div>
+              <label className="form-label">Sector</label>
+              {profileEdit ? (
+                <input
+                  className="form-input"
+                  value={profileForm.sector}
+                  onChange={e => setProfileForm(p => ({ ...p, sector: e.target.value }))}
+                />
+              ) : (
+                <input className="form-input bg-gray-50" value={displaySector} readOnly />
+              )}
+            </div>
           </div>
         </div>
+
+        {/* ── 2. Transaction Info ───────────────────────────────────────────── */}
+        <div className="border border-border rounded-lg p-3">
+          <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">
+            Transaction Info
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            <div>
+              <label className="form-label flex items-center gap-1.5">
+                Received Date
+                {isDateLocked && (
+                  <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded">Locked</span>
+                )}
+              </label>
+              <input
+                type="date"
+                className={`form-input ${isDateLocked ? 'bg-gray-50 cursor-not-allowed' : ''}`}
+                value={receivedDateStr}
+                readOnly={isDateLocked}
+                onChange={isDateLocked ? undefined : e => setRcForm(p => ({ ...p, receivedDate: e.target.value }))}
+              />
+            </div>
+            <div>
+              <label className="form-label">Mode</label>
+              <select
+                className="form-select"
+                value={rcForm?.mode || 'Cash'}
+                onChange={e => setRcForm(p => ({ ...p, mode: e.target.value }))}
+              >
+                {['Cash', 'Online', 'Cheque', 'UPI'].map(m => <option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Status</label>
+              <select
+                className="form-select"
+                value={rcForm?.status || ''}
+                onChange={e => setRcForm(p => ({ ...p, status: e.target.value }))}
+              >
+                {['Clear', 'Pending', 'Bounce', 'Cancel Receipt', 'Cancelled'].map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="form-label">Receipt No.</label>
+              <input className="form-input bg-gray-50" value={rcForm?.receiptNo || ''} readOnly />
+            </div>
+          </div>
+        </div>
+
+        {/* ── 3. Items Table (Hub Sub Head locked) ─────────────────────────── */}
+        <div className="rounded-lg overflow-hidden border border-border">
+          <table className="w-full border-collapse text-[12px]">
+            <thead>
+              <tr>
+                {['Action', 'S.No#', 'Hub Sub Head', 'For Year', 'Grade', 'Amount (₹)', 'Remark'].map(h => (
+                  <th key={h} className="th-navy whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, idx) => {
+                const isEditing = editingItem === idx;
+                if (isEditing) {
+                  return (
+                    <tr key={idx} className="bg-blue-50">
+                      <td className="px-2 py-1.5 border-t border-border whitespace-nowrap">
+                        <button
+                          className="text-[11px] px-1.5 py-0.5 bg-green-600 text-white rounded mr-1"
+                          onClick={() => saveItemEdit(idx)}
+                        >Save</button>
+                        <button
+                          className="text-[11px] px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded"
+                          onClick={() => setEditingItem(null)}
+                        >✕</button>
+                      </td>
+                      <td className="px-2 py-1.5 border-t border-border text-gray-400">{idx + 1}</td>
+                      {/* Hub Sub Head: readonly text even in edit mode */}
+                      <td className="px-3 py-1.5 border-t border-border text-gray-700 font-medium">
+                        {item.subHead || '—'}
+                      </td>
+                      <td className="px-2 py-1.5 border-t border-border">
+                        <input
+                          className="form-input text-[11px]"
+                          value={editBuf.forYear || ''}
+                          onChange={e => setEditBuf(p => ({ ...p, forYear: e.target.value }))}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 border-t border-border">
+                        <input
+                          className="form-input text-[11px] w-16"
+                          value={editBuf.grade || ''}
+                          onChange={e => setEditBuf(p => ({ ...p, grade: e.target.value }))}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 border-t border-border">
+                        <input
+                          type="number"
+                          className={`form-input text-[11px] ${isCash && Number(editBuf.amount) > CASH_LIMIT ? 'border-red-400 bg-red-50' : ''}`}
+                          value={editBuf.amount || ''}
+                          onChange={e => setEditBuf(p => ({ ...p, amount: e.target.value }))}
+                        />
+                      </td>
+                      <td className="px-2 py-1.5 border-t border-border">
+                        <input
+                          className="form-input text-[11px]"
+                          value={editBuf.remark || ''}
+                          onChange={e => setEditBuf(p => ({ ...p, remark: e.target.value }))}
+                        />
+                      </td>
+                    </tr>
+                  );
+                }
+                return (
+                  <tr key={idx} className="hover:bg-blue-500/[0.025]">
+                    <td className="px-2 py-2 border-t border-border">
+                      <button
+                        className="p-1 rounded text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        title="Edit item"
+                        onClick={() => startItemEdit(idx)}
+                        disabled={editingItem !== null && editingItem !== idx}
+                      >
+                        <EditIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
+                    <td className="px-3 py-2 border-t border-border text-gray-500">{idx + 1}</td>
+                    <td className="px-3 py-2 border-t border-border">{item.subHead || '—'}</td>
+                    <td className="px-3 py-2 border-t border-border">{item.forYear || '—'}</td>
+                    <td className="px-3 py-2 border-t border-border">{item.grade || '—'}</td>
+                    <td className="px-3 py-2 border-t border-border font-semibold">
+                      {fmt(item.amount)}
+                    </td>
+                    <td className="px-3 py-2 border-t border-border text-gray-500">{item.remark || '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="bg-navy-800">
+                <td colSpan={5} className="px-3 py-2.5 text-white font-semibold">
+                  Grand Total {items.length > 1 ? `(${items.length} items)` : ''}
+                </td>
+                <td className={`px-3 py-2.5 font-bold text-[13px] ${overLimit ? 'text-red-300' : 'text-white'}`}>
+                  {fmt(amount)}
+                  {overLimit && <span className="ml-1">⚠</span>}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* ── Cash limit warning banner ─────────────────────────────────────── */}
+        {overLimit && (
+          <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg text-[11.5px] text-red-700">
+            ⚠ Cash receipt total {fmt(amount)} exceeds the per-receipt cash limit of {fmt(CASH_LIMIT)}.
+            Change the mode to Online / Cheque / UPI or reduce the amounts.
+          </div>
+        )}
+
+        {/* ── 4. Record Update Reason ───────────────────────────────────────── */}
+        <div className="border border-amber-200 bg-amber-50/40 rounded-lg p-3">
+          <div className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider mb-2.5">
+            Update Record
+          </div>
+
+          {/* Previous update info pulled from DB (readonly) */}
+          {(prevReason || prevDate) && (
+            <div className="flex items-start gap-6 mb-3 pb-3 border-b border-amber-200">
+              <div className="flex-1 min-w-0">
+                <label className="form-label text-gray-400">Last Update Reason</label>
+                <p className="text-[12px] text-gray-600 leading-relaxed">{prevReason || '—'}</p>
+              </div>
+              <div className="shrink-0">
+                <label className="form-label text-gray-400">Last Update Date</label>
+                <p className="text-[12px] text-gray-600 whitespace-nowrap">{fmtDateTime(prevDate)}</p>
+              </div>
+            </div>
+          )}
+
+          {/* New reason — required before saving */}
+          <div>
+            <label className="form-label">
+              Reason for this Update <span className="text-red-500">*</span>
+            </label>
+            <input
+              className="form-input"
+              placeholder="Enter reason for this change…"
+              value={rcForm?.updateReason || ''}
+              onChange={e => setRcForm(p => ({ ...p, updateReason: e.target.value }))}
+            />
+          </div>
+        </div>
+
       </div>
     </Modal>
   );
