@@ -101,7 +101,7 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, permissions,
   const subTypeOptions = useMemo(() => [...new Set((receipts || []).filter(r => !filterHubType || r.mainHead === filterHubType).map(r => r.subHead))].filter(Boolean), [receipts, filterHubType]);
   const yearOptions = useMemo(() => [...new Set((receipts || []).filter(r => (!filterHubType || r.mainHead === filterHubType) && (!filterSubType || r.subHead === filterSubType)).map(r => r.forYear))].filter(Boolean), [receipts, filterHubType, filterSubType]);
 
-  const baseColCount = 10; // Actions, Receipt#, Received Date, Type, Sub Type, For Year, Grade, Amount, Mode, Status
+  const baseColCount = 11; // Actions, Receipt#, Received Date, Full Name, Type, Sub Type, For Year, Grade, Amount, Mode, Status
   const colCount = baseColCount + (showUpdateInfo ? 2 : 0);
 
   return (
@@ -161,11 +161,11 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, permissions,
           )}
         </div>
       </div>
-      <div className="rounded-lg overflow-hidden border border-border">
-        <table className="w-full border-collapse text-[12px]">
+      <div className={`rounded-lg border border-border ${showUpdateInfo ? 'overflow-x-auto' : 'overflow-hidden'}`}>
+        <table className={`border-collapse text-[12px] ${showUpdateInfo ? 'min-w-max w-full' : 'w-full'}`}>
           <thead>
             <tr>
-              {['Actions', 'Receipt#', 'Received Date', 'Type', 'Sub Type', 'For Year', 'Grade', 'Amount', 'Mode', 'Status'].map(h => (
+              {['Actions', 'Receipt#', 'Received Date', 'Full Name', 'Type', 'Sub Type', 'For Year', 'Grade', 'Amount', 'Mode', 'Status'].map(h => (
                 <th key={h} className="th-navy">{h}</th>
               ))}
               {showUpdateInfo && <>
@@ -198,6 +198,7 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, permissions,
                   </td>
                   <td className={`${td} ${isCancelled ? 'text-white' : 'text-blue-500'} font-semibold`}>#{r.receiptNo}</td>
                   <td className={`${td} whitespace-nowrap`}>{fmtDate(r.receivedDate)}</td>
+                  <td className={td}>{r.ReceivedFrom || r.receivedFrom || r.fullName || '—'}</td>
                   <td className={td}>{r.mainHead}</td>
                   <td className={td}>{r.subHead ?? '—'}</td>
                   <td className={td}>{r.forYear ?? '—'}</td>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import clsx from 'clsx';
 import { fmt, toInputDate } from '../../../utils';
 
@@ -8,7 +9,18 @@ const byYearDesc = (a, b) => (parseInt(b.forYear) || 0) - (parseInt(a.forYear) |
 export default function VajebaatTakhmeenSection({
   vajebaat, onAddVaj, onVajForm, onEditVaj, onDeleteVaj, onPrintVaj,
 }) {
+  const [pageSize, setPageSize] = useState(10);
+  const [page, setPage] = useState(1);
+
   const sorted = [...vajebaat].sort(byYearDesc);
+  const paginated = pageSize === 'all' ? sorted : sorted.slice((page - 1) * pageSize, page * pageSize);
+  const totalPages = pageSize === 'all' ? 1 : Math.ceil(sorted.length / pageSize);
+
+  function handlePageSize(val) {
+    setPageSize(val === 'all' ? 'all' : Number(val));
+    setPage(1);
+  }
+
   return (
     <>
       <div className="flex items-center justify-between gap-2 mb-3">
@@ -16,7 +28,17 @@ export default function VajebaatTakhmeenSection({
           <span>Vajebaat Takhmeen Details</span>
           <div className="flex-1 h-px bg-border" />
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <select
+            className="text-[11px] border border-border rounded px-1.5 py-1 bg-white text-gray-600"
+            value={pageSize === 'all' ? 'all' : pageSize}
+            onChange={e => handlePageSize(e.target.value)}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value="all">All</option>
+          </select>
           {onVajForm && (
             <button className="btn btn-secondary btn-sm" onClick={onVajForm}>Vajebaat Takhmeen Form</button>
           )}
@@ -35,9 +57,9 @@ export default function VajebaatTakhmeenSection({
             </tr>
           </thead>
           <tbody>
-            {sorted.length === 0 ? (
+            {paginated.length === 0 ? (
               <tr><td colSpan={7} className="text-center py-6 text-gray-400">No vajebaat records</td></tr>
-            ) : sorted.map((v, i) => (
+            ) : paginated.map((v, i) => (
               <tr key={i} className="hover:bg-blue-500/[0.025]">
                 <td className="px-3 py-2 border-t border-border whitespace-nowrap">
                   <div className="flex items-center gap-1">
@@ -93,6 +115,27 @@ export default function VajebaatTakhmeenSection({
           </tbody>
         </table>
       </div>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-end gap-1 mb-4 text-[11px]">
+          <button
+            className="px-2 py-1 rounded border border-border text-gray-500 hover:bg-gray-50 disabled:opacity-40"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >‹</button>
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+            <button
+              key={p}
+              className={clsx('px-2 py-1 rounded border text-gray-600', page === p ? 'border-blue-500 bg-blue-50 text-blue-600 font-semibold' : 'border-border hover:bg-gray-50')}
+              onClick={() => setPage(p)}
+            >{p}</button>
+          ))}
+          <button
+            className="px-2 py-1 rounded border border-border text-gray-500 hover:bg-gray-50 disabled:opacity-40"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >›</button>
+        </div>
+      )}
     </>
   );
 }

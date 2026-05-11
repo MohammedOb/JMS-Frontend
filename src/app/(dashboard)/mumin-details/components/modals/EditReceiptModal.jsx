@@ -4,12 +4,20 @@ import { useState, useEffect } from 'react';
 import Modal from '@/components/shared/Modal';
 import { SaveIcon, PrintIcon, EditIcon } from '@/components/shared/Icons';
 import { fmt } from '../../utils';
+import { takhmeenService } from '@/services';
+
+function normList(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (data.recordset) return data.recordset;
+  if (Array.isArray(data.recordsets?.[0])) return data.recordsets[0];
+  if (Array.isArray(data.data)) return data.data;
+  return [];
+}
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 // Set to true to allow editing the received date on back-dated (past) receipts
 const ALLOW_BACKDATE_EDIT = false;
-
-const CASH_LIMIT = 9500;
 
 function toDateStr(val) {
   if (!val) return '';
@@ -36,6 +44,9 @@ export default function EditReceiptModal({
   const [profileEdit, setProfileEdit] = useState(false);
   const [profileForm, setProfileForm] = useState({});
 
+  // ── Per-head cash limit ───────────────────────────────────────────────────
+  const [cashLimit, setCashLimit] = useState(9500);
+
   // ── Item inline edit state — null = not editing; number = index being edited
   const [editingItem, setEditingItem] = useState(null);
   const [editBuf, setEditBuf]         = useState({});
@@ -45,22 +56,35 @@ export default function EditReceiptModal({
     if (!open) return;
     setProfileEdit(false);
     setProfileForm({
-      fullName: member?.name    || '',
-      itsNo:    member?.itsNo   || '',
-      mobile:   member?.mobile  || '',
-      sector:   member?.sector  || '',
+      fullName: rcForm?.fullName || rcForm?.ReceivedFrom || member?.name   || '',
+      itsNo:    rcForm?.itsNo   || rcForm?.ITSNo        || member?.itsNo  || '',
+      mobile:   rcForm?.mobile  || rcForm?.Mobile       || member?.mobile || '',
+      sector:   rcForm?.sector  || member?.sector       || '',
     });
     setEditingItem(null);
     setEditBuf({});
+
+    // Fetch per-head cash limit
+    const subHead = rcForm?.subHead || rcForm?.items?.[0]?.subHead;
+    if (subHead) {
+      takhmeenService.loadHubHeadDetails({ HubSubHead: subHead })
+        .then(res => {
+          const rec = normList(res.data)[0];
+          setCashLimit(Number(rec?.CashLimit ?? rec?.Cash_Limit ?? 9500) || 9500);
+        })
+        .catch(() => setCashLimit(9500));
+    } else {
+      setCashLimit(9500);
+    }
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Profile edit handlers ─────────────────────────────────────────────────
   const openProfileEdit = () => {
     setProfileForm({
-      fullName: rcForm?.fullName || member?.name   || '',
-      itsNo:    rcForm?.itsNo   || member?.itsNo   || '',
-      mobile:   rcForm?.mobile  || member?.mobile  || '',
-      sector:   rcForm?.sector  || member?.sector  || '',
+      fullName: rcForm?.fullName || rcForm?.ReceivedFrom || member?.name   || '',
+      itsNo:    rcForm?.itsNo   || rcForm?.ITSNo        || member?.itsNo  || '',
+      mobile:   rcForm?.mobile  || rcForm?.Mobile       || member?.mobile || '',
+      sector:   rcForm?.sector  || member?.sector       || '',
     });
     setProfileEdit(true);
   };
@@ -95,7 +119,7 @@ export default function EditReceiptModal({
 
   const isCash    = rcForm?.mode === 'Cash';
   const amount    = items.reduce((s, it) => s + Number(it.amount || 0), 0);
-  const overLimit = isCash && amount > CASH_LIMIT;
+  const overLimit = isCash && amount > cashLimit;
 
   // ── Item edit handlers ────────────────────────────────────────────────────
   const startItemEdit = (index) => {
@@ -112,8 +136,8 @@ export default function EditReceiptModal({
   const saveItemEdit = (index) => {
     const newAmt  = Number(editBuf.amount || 0);
     const newTotal = items.reduce((s, it, i) => s + (i === index ? newAmt : Number(it.amount) || 0), 0);
-    if (isCash && newTotal > CASH_LIMIT) {
-      alert(`Cash receipts cannot exceed ₹${CASH_LIMIT.toLocaleString()} total. The total would be ₹${newTotal.toLocaleString()}.`);
+    if (isCash && newTotal > cashLimit) {
+      alert(`Cash receipts cannot exceed ₹${cashLimit.toLocaleString()} total. The total would be ₹${newTotal.toLocaleString()}.`);
       return;
     }
     setRcForm(p => {
@@ -130,10 +154,10 @@ export default function EditReceiptModal({
   };
 
   // ── Display values (show edited profile fields if in edit mode) ───────────
-  const displayName   = profileEdit ? profileForm.fullName : (rcForm?.fullName || member?.name   || '');
-  const displayIts    = profileEdit ? profileForm.itsNo   : (rcForm?.itsNo    || member?.itsNo   || '');
-  const displayMobile = profileEdit ? profileForm.mobile  : (rcForm?.mobile   || member?.mobile  || '');
-  const displaySector = profileEdit ? profileForm.sector  : (rcForm?.sector   || member?.sector  || '');
+  const displayName   = profileEdit ? profileForm.fullName : (rcForm?.fullName || rcForm?.ReceivedFrom || member?.name   || '');
+  const displayIts    = profileEdit ? profileForm.itsNo   : (rcForm?.itsNo    || rcForm?.ITSNo        || member?.itsNo  || '');
+  const displayMobile = profileEdit ? profileForm.mobile  : (rcForm?.mobile   || rcForm?.Mobile       || member?.mobile || '');
+  const displaySector = profileEdit ? profileForm.sector  : (rcForm?.sector   || member?.sector       || '');
 
   // ── Previous update info from DB ──────────────────────────────────────────
   const prevReason = rcForm?.RecordUpdateReason || rcForm?.recordUpdateReason || '';
@@ -345,7 +369,7 @@ export default function EditReceiptModal({
                       <td className="px-2 py-1.5 border-t border-border">
                         <input
                           type="number"
-                          className={`form-input text-[11px] ${isCash && Number(editBuf.amount) > CASH_LIMIT ? 'border-red-400 bg-red-50' : ''}`}
+                          className={`form-input text-[11px] ${isCash && Number(editBuf.amount) > cashLimit ? 'border-red-400 bg-red-50' : ''}`}
                           value={editBuf.amount || ''}
                           onChange={e => setEditBuf(p => ({ ...p, amount: e.target.value }))}
                         />
@@ -402,7 +426,7 @@ export default function EditReceiptModal({
         {/* ── Cash limit warning banner ─────────────────────────────────────── */}
         {overLimit && (
           <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-lg text-[11.5px] text-red-700">
-            ⚠ Cash receipt total {fmt(amount)} exceeds the per-receipt cash limit of {fmt(CASH_LIMIT)}.
+            ⚠ Cash receipt total {fmt(amount)} exceeds the per-receipt cash limit of {fmt(cashLimit)}.
             Change the mode to Online / Cheque / UPI or reduce the amounts.
           </div>
         )}

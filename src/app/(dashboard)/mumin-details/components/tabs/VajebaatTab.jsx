@@ -28,59 +28,86 @@ export default function VajebaatTab({
   onAddSf, onUpdateSf, onDeleteSf,
 }) {
   return (
-    <div className="p-4">
+    <div className="p-4 flex flex-col gap-6">
 
       {VAJ_SECTIONS.vajebaatInfo && (
-        <VajebaatInfoSection member={member} onEdit={onEditVajInfo} />
+        <div>
+          <VajebaatInfoSection member={member} onEdit={onEditVajInfo} />
+        </div>
       )}
 
       {VAJ_SECTIONS.quickEntry && permissions.MDSpeedVajebaatView && (
-        <VajebaatQuickEntry
-          vajForm={vajForm}
-          setVajForm={setVajForm}
-          permissions={permissions}
-          onSave={onSaveVajebaat}
-        />
+        <>
+          <hr className="border-border" />
+          <div>
+            <VajebaatQuickEntry
+              vajForm={vajForm}
+              setVajForm={setVajForm}
+              permissions={permissions}
+              onSave={onSaveVajebaat}
+            />
+          </div>
+        </>
       )}
 
       {VAJ_SECTIONS.takhmeenDetails && permissions.MDVajebaatDetailsView && (
-        <VajebaatTakhmeenSection
-          vajebaat={vajebaat}
-          onAddVaj={onAddVaj}
-          onVajForm={onVajForm}
-          onEditVaj={onEditVaj}
-          onDeleteVaj={onDeleteVaj}
-          onPrintVaj={onPrintVaj}
-        />
+        <>
+          <hr className="border-border" />
+          <div>
+            <VajebaatTakhmeenSection
+              vajebaat={vajebaat}
+              onAddVaj={onAddVaj}
+              onVajForm={onVajForm}
+              onEditVaj={onEditVaj}
+              onDeleteVaj={onDeleteVaj}
+              onPrintVaj={onPrintVaj}
+            />
+          </div>
+        </>
       )}
 
       {VAJ_SECTIONS.himTakhmeen && permissions.MDHIMView && (
-        <HimTakhmeenSection
-          himList={himList}
-          onAddHim={onAddHim}
-          onHimForm={onHimForm}
-          onEditHim={onEditHim}
-          onDeleteHim={onDeleteHim}
-        />
+        <>
+          <hr className="border-border" />
+          <div>
+            <HimTakhmeenSection
+              himList={himList}
+              onAddHim={onAddHim}
+              onHimForm={onHimForm}
+              onEditHim={onEditHim}
+              onDeleteHim={onDeleteHim}
+            />
+          </div>
+        </>
       )}
 
       {VAJ_SECTIONS.shehrullahNiyaz && (
-        <ShehrullahNiyazSection
-          sniyazList={sniyazList}
-          onAddSniyaz={onAddSniyaz}
-          onSniyazForm={onSniyazForm}
-          onEditSniyaz={onEditSniyaz}
-          onDeleteSniyaz={onDeleteSniyaz}
-        />
+        <>
+          <hr className="border-border" />
+          <div>
+            <ShehrullahNiyazSection
+              sniyazList={sniyazList}
+              onAddSniyaz={onAddSniyaz}
+              onSniyazForm={onSniyazForm}
+              onEditSniyaz={onEditSniyaz}
+              onDeleteSniyaz={onDeleteSniyaz}
+            />
+          </div>
+        </>
       )}
 
       {VAJ_SECTIONS.silaFitra && (
-        <SilaFitraSection
-          silaFitra={silaFitra}
-          onAdd={onAddSf}
-          onUpdate={onUpdateSf}
-          onDelete={onDeleteSf}
-        />
+        <>
+          <hr className="border-border" />
+          <div>
+            <SilaFitraSection
+              silaFitra={silaFitra}
+              onAdd={onAddSf}
+              onUpdate={onUpdateSf}
+              onDelete={onDeleteSf}
+            />
+          </div>
+        </>
       )}
 
     </div>

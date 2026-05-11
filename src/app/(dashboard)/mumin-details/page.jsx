@@ -12,7 +12,7 @@ import clsx   from 'clsx';
 
 import {
   today, toInputDate,
-  normalizeArray, normalizeTakRow, normalizeSfRow, normalizeMemberPayload,
+  normalizeArray, normalizeReceiptRow, normalizeTakRow, normalizeSfRow, normalizeMemberPayload,
   SUB_HEADS,
 } from './utils';
 
@@ -53,7 +53,7 @@ import FmbDetailsCard   from './components/FmbDetailsCard';
 import VajebaatInfoCard from './components/VajebaatInfoCard';
 import DueSummaryCards  from './components/DueSummaryCards';
 import AlertBanners     from './components/AlertBanners';
-import ActionBar        from './components/ActionBar';
+// import ActionBar        from './components/ActionBar';
 
 // Tab components
 import TakhmeenTab     from './components/tabs/TakhmeenTab';
@@ -310,9 +310,17 @@ function MuminDetailsInner() {
         console.error('LoadTakhmeenDetails failed', err);
       }
 
+      let receipts = [];
+      try {
+        const rRes = await receiptService.loadTransactionDetails({ AccNo: accno });
+        receipts = normalizeArray(rRes.data).map(normalizeReceiptRow);
+      } catch (err) {
+        console.error('LoadTransactionDetails failed', err);
+      }
+
       setMember(memberData);
       setTakhmeen(takhmeen);
-      setReceipts(normalized.receipts);
+      setReceipts(receipts);
       setFamily(normalized.family);
       setSafaiList(normalized.safai);
       setMemberForm(memberData);
@@ -559,6 +567,7 @@ function MuminDetailsInner() {
           ReceivedAmount: env.amount,
           HubMainHead:    mainHead,
           HubSubHead:     subHead,
+          IsCashMemo:     rcForm.isCashMemo ? 1 : 0,
         });
 
         const { insertId, receiptNo } = txRes.data;
@@ -590,8 +599,9 @@ function MuminDetailsInner() {
       // Update takhmeen received totals for this member
       await takhmeenService.updateTakhmeenReceived({ AccNo: profile.accno }).catch(() => {});
 
-      const rRes = await receiptService.getDailyReport({ accno: member.accno });
-      setReceipts(rRes.data);
+      receiptService.loadTransactionDetails({ AccNo: member.accno })
+        .then(res => setReceipts(normalizeArray(res.data).map(normalizeReceiptRow)))
+        .catch(() => {});
     } catch (err) {
       toast.error('Failed to save: ' + (err?.response?.data?.message || err?.message || 'Unknown error'));
     }
@@ -868,7 +878,7 @@ function MuminDetailsInner() {
                 </div>
               )}
             </div>
-            <ActionBar
+            {/* <ActionBar
               features={FEATURES}
               onAddReceipt={() => openModal('addReceipt')}
               onAddTakhmeen={() => {
@@ -880,7 +890,7 @@ function MuminDetailsInner() {
               onAddSafai={() => openModal('addSafai')}
               onAddFollowup={() => openModal('addFollowup')}
               onTakPreview={() => openModal('takPreview')}
-            />
+            /> */}
 
             {/* Tab panel */}
             <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
@@ -1113,24 +1123,9 @@ function MuminDetailsInner() {
 
             toast.success('Receipt updated successfully');
             closeModal('editReceipt');
-            setReceipts(p => p.map(r => {
-              if (String(r.receiptNo) !== String(receiptNo)) return r;
-              const matchingItem = (items || []).find(it =>
-                String(it.subHead) === String(r.subHead) && String(it.forYear) === String(r.forYear)
-              ) || items?.[0];
-              return {
-                ...r,
-                receivedDate: receivedDate || r.receivedDate,
-                mode, status,
-                fullName:      receivedFrom || r.fullName,
-                itsNo:         itsNoVal     || r.itsNo,
-                mobile:        mobileVal    || r.mobile,
-                ...(matchingItem ? { forYear: matchingItem.forYear, amount: matchingItem.amount, remark: matchingItem.remark } : {}),
-                RecordUpdateReason: fullReason,
-                RecordUpdateDate:   recordUpdateDate,
-                updateReason: '',
-              };
-            }));
+            receiptService.loadTransactionDetails({ AccNo: member?.accno })
+              .then(res => setReceipts(normalizeArray(res.data).map(normalizeReceiptRow)))
+              .catch(() => {});
           } catch (err) {
             console.error(err);
             toast.error('Failed to update receipt');

@@ -7,7 +7,7 @@ import { fmt, today } from '../../utils';
 import { memberService, takhmeenService } from '@/services';
 import toast from 'react-hot-toast';
 
-const CASH_LIMIT_PER_RECEIPT = 9500;
+const DEFAULT_CASH_LIMIT = 9500;
 
 function normList(data) {
   if (!data) return [];
@@ -84,14 +84,17 @@ export default function AddReceiptModal({
   const itsTimer     = useRef(null);
   const forYearTimer = useRef(null);
 
+  const currentSubHead  = rcItem.hubSubHead || rcItem.hubType || '';
+  const currentFundType = rcItem.fundType   || hubHeads.find(h => h.HubSubHead === currentSubHead)?.FundType || '';
+  const selectedHead    = hubHeads.find(h => h.HubSubHead === currentSubHead);
+  const cashLimit       = Number(selectedHead?.CashLimit ?? selectedHead?.Cash_Limit ?? DEFAULT_CASH_LIMIT);
+
   const grandTotal  = rcItems.reduce((s, i) => s + Number(i.amount || 0), 0);
-  const needsSplit  = rcForm.mode === 'Cash' && grandTotal > CASH_LIMIT_PER_RECEIPT;
+  const isCashMemo  = !!rcForm.isCashMemo;
+  const needsSplit  = rcForm.mode === 'Cash' && grandTotal > cashLimit && !isCashMemo;
   const splitTotal  = splitRows.reduce((s, r) => s + Number(r.amount || 0), 0);
   const splitDiff   = grandTotal - splitTotal;           // >0 = unallocated, <0 = over
   const splitOk     = needsSplit ? Math.abs(splitDiff) < 0.01 : true;
-
-  const currentSubHead  = rcItem.hubSubHead || rcItem.hubType || '';
-  const currentFundType = rcItem.fundType   || hubHeads.find(h => h.HubSubHead === currentSubHead)?.FundType || '';
 
   // Re-init when modal opens
   useEffect(() => {
@@ -113,7 +116,7 @@ export default function AddReceiptModal({
     setSaving(false);
     // Reset form fields so reopening the modal always starts clean
     setRcItems([]);
-    setRcForm({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false });
+    setRcForm({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false, isCashMemo: false });
     setRcItem({ hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', grade: member?.grade || '', amount: '', remark: '' });
   }, [open, member]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -138,13 +141,13 @@ export default function AddReceiptModal({
   // Auto-generate split rows whenever grand total or family list changes
   useEffect(() => {
     if (!needsSplit || grandTotal <= 0) { setSplitRows([]); return; }
-    const count = Math.ceil(grandTotal / CASH_LIMIT_PER_RECEIPT);
+    const count = Math.ceil(grandTotal / cashLimit);
     setSplitRows(prev => Array.from({ length: count }, (_, i) => {
       const prevRow = prev[i];
       const fam     = familyMembers[i];
       const amt = i < count - 1
-        ? CASH_LIMIT_PER_RECEIPT
-        : grandTotal - CASH_LIMIT_PER_RECEIPT * (count - 1);
+        ? cashLimit
+        : grandTotal - cashLimit * (count - 1);
       return {
         familyMemberName: prevRow?.familyMemberName || fam?.Full_Name         || '',
         itsId:            prevRow?.itsId            || String(fam?.ITS_ID  || ''),
@@ -221,6 +224,9 @@ export default function AddReceiptModal({
       hubType:     val,
       hubMainHead: found?.HubMainHead || '',
       fundType:    found?.FundType    || '',
+      forYear:     '',
+      grade:       '',
+      amount:      '',
     }));
     setRemainingAmt(null);
     if (rcItem.forYear && profile.accno) {
@@ -248,6 +254,22 @@ export default function AddReceiptModal({
       setRemainingAmt(amt);
       const grade = rec?.Grade || rec?.grade || rec?.CurrentGrade || '';
       if (grade) setRcItem(p => ({ ...p, grade }));
+
+      if (amt != null && Number(amt) > 0) {
+        // Due exists — auto-fill amount with due
+        setRcItem(p => ({ ...p, amount: Number(amt) }));
+      } else {
+        // No due — fetch DefaultLaagat for this sub head
+        try {
+          const hdRes  = await takhmeenService.loadHubHeadDetails({ HubSubHead: hubSubHead });
+          const hdList = normList(hdRes.data);
+          const hdRec  = hdList[0];
+          const defAmt = hdRec?.DefaultLaagat ?? hdRec?.defaultLaagat ?? null;
+          if (defAmt != null) {
+            setRcItem(p => ({ ...p, amount: Number(defAmt) || '' }));
+          }
+        } catch { /* silent */ }
+      }
     } catch { setRemainingAmt(null); }
     finally  { setRemainingLoad(false); }
   };
@@ -457,13 +479,28 @@ export default function AddReceiptModal({
             </div>
             <div>
               <label className="form-label">Mode</label>
-              <select
-                className="form-select"
-                value={rcForm.mode || 'Cash'}
-                onChange={e => setRcForm(p => ({ ...p, mode: e.target.value }))}
-              >
-                {['Cash', 'Online', 'Cheque', 'UPI'].map(m => <option key={m}>{m}</option>)}
-              </select>
+              <div className="flex items-center gap-2">
+                <select
+                  className="form-select flex-1"
+                  value={rcForm.mode || 'Cash'}
+                  onChange={e => setRcForm(p => ({ ...p, mode: e.target.value, isCashMemo: false }))}
+                >
+                  {['Cash', 'Online', 'Cheque', 'UPI'].map(m => <option key={m}>{m}</option>)}
+                </select>
+                {rcForm.mode === 'Cash' && (
+                  <label className="flex items-center gap-1 cursor-pointer shrink-0" title="Cash Memo — bypasses cash limit">
+                    <input
+                      type="checkbox"
+                      checked={isCashMemo}
+                      onChange={e => setRcForm(p => ({ ...p, isCashMemo: e.target.checked }))}
+                      className="w-3.5 h-3.5 accent-blue-600"
+                    />
+                    <span className={`text-[11px] font-medium ${isCashMemo ? 'text-blue-600' : 'text-gray-500'}`}>
+                      Cash Memo
+                    </span>
+                  </label>
+                )}
+              </div>
             </div>
             <div>
               <label className="form-label">Remark</label>
@@ -684,7 +721,7 @@ export default function AddReceiptModal({
                 Receipt for Family Members
               </span>
               <span className="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-medium">
-                Cash Limit: {fmt(CASH_LIMIT_PER_RECEIPT)} / receipt
+                Cash Limit: {fmt(cashLimit)} / receipt
               </span>
             </div>
             <p className="text-[11px] text-amber-600 mb-2.5">

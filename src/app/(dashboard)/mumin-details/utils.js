@@ -83,6 +83,19 @@ export function ComboBox({ value, onChange, options = [], placeholder, disabled,
   );
 }
 
+export const normalizeReceiptRow = (r) => ({
+  receiptNo:    r.ReceiptNo    || r.receiptNo    || r.RcptNo        || '',
+  receivedDate: r.ReceivedDate || r.receivedDate || r.SystemDate    || r.CreatedDate || r.Date || r.date || r.ReceiptDate || r.RcptDate || '',
+  mainHead:     r.MainHead     || r.mainHead     || r.HubMainHead   || '',
+  subHead:      r.SubHead      || r.subHead      || r.HubSubHead    || '',
+  forYear:      r.ForYear      || r.forYear      || '',
+  grade:        r.Grade        || r.grade        || '',
+  amount:       r.Amount       ?? r.amount       ?? r.Received      ?? 0,
+  mode:         r.Mode         || r.mode         || r.PaymentMode   || '',
+  status:       r.Status       || r.status       || r.ReceiptStatus || '',
+  ...r,
+});
+
 export const normalizeArray = (value) => {
   if (!value) return [];
   if (Array.isArray(value)) return value;

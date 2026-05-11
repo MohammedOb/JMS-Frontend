@@ -19,11 +19,12 @@ const INIT_FILTERS = {
   sabeelType:   '',
   thaaliStatus: '',
   thaaliSize:   '',
+  grade:        '',
   amountFrom:   '',
   amountTo:     '',
 };
 
-const TABLE_COLS = 14;
+const TABLE_COLS = 15;
 
 const PAGE_SIZE_OPTIONS = [
   { label: '100',   value: 100   },
@@ -46,6 +47,7 @@ const EXPORT_COLS = [
   { key: 'thaaliStatus',      label: 'Thali Status'  },
   { key: 'thaaliSize',        label: 'Thali Size'    },
   { key: 'hubSubHead',        label: 'Hub Sub Head'  },
+  { key: 'grade',             label: 'Grade'         },
   { key: 'forYear',           label: 'For Year'      },
   { key: 'takhmeen',          label: 'Takhmeen (₹)'  },
 ];
@@ -74,6 +76,7 @@ const normalizeRow = (r) => {
     thaaliSize:        str(r.ThaaliSize   ?? r.ThaliSize  ?? r.thaliSize  ?? ''),
     hubSubHead:        str(r.HubSubHead   ?? r.hubSubHead ?? ''),
     hubMainHead:       str(r.HubMainHead  ?? r.hubMainHead ?? ''),
+    grade:             str(r.Grade        ?? r.grade        ?? ''),
     forYear:           str(r.ForYear ?? r.forYear ?? ''),
     takhmeen:          Number(r.Takhmeen  ?? r.takhmeen  ?? 0),
   };
@@ -227,6 +230,20 @@ export default function MuminTakhmeenPage() {
   const thaaliStatuses = useMemo(() => uniq(allRows.map(r => r.thaaliStatus)),  [allRows]);
   const thaaliSizes    = useMemo(() => uniq(allRows.map(r => r.thaaliSize)),    [allRows]);
 
+  // Grade options cascade with all other active filters (excluding grade itself)
+  const gradeOptions = useMemo(() => {
+    let rows = allRows;
+    if (filters.forYear)      rows = rows.filter(r => r.forYear      === filters.forYear);
+    if (filters.hubMainHead)  rows = rows.filter(r => r.hubMainHead  === filters.hubMainHead);
+    if (filters.hubSubHead)   rows = rows.filter(r => r.hubSubHead   === filters.hubSubHead);
+    if (filters.sector)       rows = rows.filter(r => r.sector       === filters.sector);
+    if (filters.subsector)    rows = rows.filter(r => r.subsector    === filters.subsector);
+    if (filters.sabeelType)   rows = rows.filter(r => r.sabeelType   === filters.sabeelType);
+    if (filters.thaaliStatus) rows = rows.filter(r => r.thaaliStatus === filters.thaaliStatus);
+    if (filters.thaaliSize)   rows = rows.filter(r => r.thaaliSize   === filters.thaaliSize);
+    return uniq(rows.map(r => r.grade));
+  }, [allRows, filters.forYear, filters.hubMainHead, filters.hubSubHead, filters.sector, filters.subsector, filters.sabeelType, filters.thaaliStatus, filters.thaaliSize]);
+
   // ── client-side filtering ─────────────────────────────────────────────────
 
   const filteredRows = useMemo(() => {
@@ -239,6 +256,7 @@ export default function MuminTakhmeenPage() {
     if (filters.sabeelType)        rows = rows.filter(r => r.sabeelType   === filters.sabeelType);
     if (filters.thaaliStatus)      rows = rows.filter(r => r.thaaliStatus === filters.thaaliStatus);
     if (filters.thaaliSize)        rows = rows.filter(r => r.thaaliSize   === filters.thaaliSize);
+    if (filters.grade)             rows = rows.filter(r => r.grade        === filters.grade);
     if (filters.amountFrom !== '') rows = rows.filter(r => r.takhmeen >= Number(filters.amountFrom));
     if (filters.amountTo   !== '') rows = rows.filter(r => r.takhmeen <= Number(filters.amountTo));
     return [...rows].sort((a, b) => Number(a.accno) - Number(b.accno));
@@ -438,6 +456,13 @@ export default function MuminTakhmeenPage() {
               </select>
             </div>
             <div>
+              <label className="form-label">Grade</label>
+              <select className="form-select" value={filters.grade} onChange={e => setF('grade', e.target.value)}>
+                <option value="">All</option>
+                {gradeOptions.map(g => <option key={g}>{g}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="form-label">Amount From (₹)</label>
               <input type="number" className="form-input" placeholder="0"
                 value={filters.amountFrom} onChange={e => setF('amountFrom', e.target.value)} />
@@ -524,7 +549,7 @@ export default function MuminTakhmeenPage() {
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
               <tr>
-                {['S No','Acc No','Full Name','Mobile','Local HOF ITS','Sector','Subsector','Sabeel Type','Members','Thali Status','Thali Size','Hub Sub Head','For Year','Takhmeen (₹)'].map(h => (
+                {['S No','Acc No','Full Name','Mobile','Local HOF ITS','Sector','Subsector','Sabeel Type','Members','Thali Status','Thali Size','Hub Sub Head','Grade','For Year','Takhmeen (₹)'].map(h => (
                   <th key={h} className="th-navy">{h}</th>
                 ))}
               </tr>
@@ -551,6 +576,7 @@ export default function MuminTakhmeenPage() {
                   <td className="px-3 py-2.5 border-t border-border">{r.thaaliStatus     || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border">{r.thaaliSize       || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border">{r.hubSubHead       || '—'}</td>
+                  <td className="px-3 py-2.5 border-t border-border text-center">{r.grade           || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border text-center">{r.forYear         || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border text-right font-semibold">₹{fmt(r.takhmeen)}</td>
                 </tr>
@@ -559,7 +585,7 @@ export default function MuminTakhmeenPage() {
             {filteredRows.length > 0 && (
               <tfoot>
                 <tr className="bg-navy-800/[0.04] font-bold text-[12px]">
-                  <td colSpan={13} className="px-3 py-2.5 border-t-2 border-navy-800/20">
+                  <td colSpan={14} className="px-3 py-2.5 border-t-2 border-navy-800/20">
                     Total ({filteredRows.length} records)
                   </td>
                   <td className="px-3 py-2.5 border-t-2 border-navy-800/20 text-right">₹{fmt(totTakhmeen)}</td>
