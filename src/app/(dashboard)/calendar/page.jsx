@@ -1,139 +1,320 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { bookingService }  from '@/services';
-import toast               from 'react-hot-toast';
-import clsx                from 'clsx';
-import PageHeader          from '@/components/shared/PageHeader';
-import Modal               from '@/components/shared/Modal';
-import { useAuth }         from '@/context/AuthContext';
+import { bookingService } from '@/services';
+import toast from 'react-hot-toast';
+import { useAuth } from '@/context/AuthContext';
 
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-function buildCalendar(year, month) {
-  const first = new Date(year, month, 1).getDay();
-  const days  = new Date(year, month + 1, 0).getDate();
-  const cells = [];
-  for (let i = 0; i < first; i++) cells.push(null);
-  for (let d = 1; d <= days; d++) cells.push(d);
-  return cells;
-}
+import {
+  buildCalendar, groupBookingsByDay, toDateKey, toHijriString, EMPTY_EVENT_FORM,
+} from './utils/hijri';
+import CalendarGrid from './components/CalendarGrid';
+import DayEventList from './components/DayEventList';
+import AddEventModal from './components/AddEventModal';
+import EditEventModal from './components/EditEventModal';
 
 export default function CalendarPage() {
-  const { permissions } = useAuth();
-  const now   = new Date();
-  const [year,   setYear]   = useState(now.getFullYear());
-  const [month,  setMonth]  = useState(now.getMonth());
-  const [bookings, setBookings] = useState([]);
-  const [modal,  setModal]  = useState(false);
-  const [form,   setForm]   = useState({ date: '', eventName: '', venue: 'Masjid Hall', notes: '' });
+  const { permissions, user } = useAuth();
+  const now = new Date();
+  const todayKey = toDateKey(now);
 
+  // ── Navigation ───────────────────────────────────────────────────────────────
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth());
+
+  // ── Data ─────────────────────────────────────────────────────────────────────
+  const [bookings, setBookings] = useState([]);
+
+  // ── Selected day (inline list) ───────────────────────────────────────────────
+  const [selectedCell, setSelectedCell] = useState(null);
+
+  // ── Add event modal ──────────────────────────────────────────────────────────
+  const [addOpen, setAddOpen] = useState(false);
+  const [addForm, setAddForm] = useState(EMPTY_EVENT_FORM);
+  const [addSaving, setAddSaving] = useState(false);
+
+  // ── Edit event modal ─────────────────────────────────────────────────────────
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState(EMPTY_EVENT_FORM);
+  const [editSaving, setEditSaving] = useState(false);
+
+  // ── Load ─────────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     try {
-      const res = await bookingService.getAll({ year, month: month + 1 });
-      setBookings(res.data);
-    } catch { toast.error('Failed to load bookings'); }
+      const res = await bookingService.loadEventDetails({
+        EventDate: `${year}-${String(month + 1).padStart(2, '0')}`,
+      });
+      const d = res.data;
+      const raw = Array.isArray(d)                 ? d
+                : Array.isArray(d?.data)            ? d.data
+                : Array.isArray(d?.recordset)       ? d.recordset
+                : Array.isArray(d?.recordsets?.[0]) ? d.recordsets[0]
+                : [];
+      const list = raw.map(b => ({
+        id:         b.ID          ?? b.id,
+        accNo:      b.AccNo       ?? b.accNo       ?? '',
+        date:       (() => {
+          const raw = b.EventDate ?? b.date ?? '';
+          if (!raw) return '';
+          const s = String(raw).trim();
+          if (s.length > 10) {
+            const d = new Date(s);
+            if (!isNaN(d)) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+          }
+          return s.slice(0, 10);
+        })(),
+        hijriDate:  b.HijriDate   ?? b.hijriDate    ?? '',
+        eventName:  b.EventName   ?? b.eventName    ?? '',
+        fullName:   b.FullName    ?? b.fullName     ?? '',
+        mobile:     b.Mobile      ?? b.mobile       ?? '',
+        mobile1:    b.Mobile1     ?? b.mobile1      ?? '',
+        itsNo:      b.ITSNo       ?? b.itsNo        ?? '',
+        address:    b.Address     ?? b.address      ?? '',
+        venue:      b.Place       ?? b.venue        ?? '',
+        eventTime:  b.EventTime   ?? b.eventTime    ?? '',
+        thaal:      b.Thaal       ?? b.thaal        ?? '',
+        requestBy:  b.RequestedBy ?? b.requestBy    ?? '',
+        createdBy:  b.CreatedBy   ?? b.createdBy    ?? '',
+        remark:     b.Remark      ?? b.remark       ?? '',
+        razaStatus:  b.RazaStatus   ?? b.razaStatus,
+        serialNo:    b.SerialNo    ?? b.serialNo    ?? b.ID ?? b.id,
+        requestDate: b.RequestDate ?? b.requestDate,
+        updateReason:b.UpdateReason?? b.updateReason,
+        updatedAt:   b.UpdatedAt   ?? b.updatedAt,
+      }));
+      setBookings(list);
+    } catch {
+      toast.error('Failed to load bookings');
+    }
   }, [year, month]);
 
   useEffect(() => { load(); }, [load]);
 
+  // ── Calendar grid data ───────────────────────────────────────────────────────
   const cells = buildCalendar(year, month);
-  const eventDays = new Set(bookings.map(b => new Date(b.date).getDate()));
-  const upcoming  = bookings.filter(b => new Date(b.date) >= now).slice(0, 5);
+  const bookingsByDay = groupBookingsByDay(bookings);
 
-  const prev = () => { if (month === 0) { setYear(y => y - 1); setMonth(11); } else setMonth(m => m - 1); };
-  const next = () => { if (month === 11) { setYear(y => y + 1); setMonth(0); } else setMonth(m => m + 1); };
-
-  const save = async () => {
-    if (!form.date || !form.eventName) { toast.error('Fill required fields'); return; }
-    try {
-      await bookingService.create(form);
-      toast.success('Booking saved');
-      setModal(false);
-      load();
-    } catch { toast.error('Failed to save'); }
+  // ── Navigation handlers ──────────────────────────────────────────────────────
+  const prev = () => {
+    setSelectedCell(null);
+    month === 0 ? (setYear(y => y - 1), setMonth(11)) : setMonth(m => m - 1);
   };
+  const next = () => {
+    setSelectedCell(null);
+    month === 11 ? (setYear(y => y + 1), setMonth(0)) : setMonth(m => m + 1);
+  };
+
+  // ── Day click → show inline list (toggle off if same day) ───────────────────
+  const handleCellClick = (cell) => {
+    setSelectedCell(prev => prev?.key === cell.key ? null : cell);
+  };
+
+  // ── Open add modal from cell + button or from DayEventList ──────────────────
+  const openAdd = (cell) => {
+    const dateKey = cell?.key ?? '';
+    setAddForm({
+      ...EMPTY_EVENT_FORM,
+      date: dateKey,
+      hijriDate: toHijriString(dateKey),
+      createdBy: user?.name || user?.username || '',
+    });
+    setAddOpen(true);
+  };
+
+  const setAddField = (key, val) => setAddForm(f => ({ ...f, [key]: val }));
+
+  const saveAdd = async () => {
+    if (!addForm.date || !addForm.eventName) {
+      toast.error('Event date and name are required');
+      return;
+    }
+    setAddSaving(true);
+    try {
+      await bookingService.addEventDetails({
+        AccNo:       addForm.accNo,
+        FullName:    addForm.fullName,
+        Mobile:      addForm.mobile,
+        Mobile1:     addForm.mobile1,
+        ITSNo:       addForm.itsNo,
+        Address:     addForm.address,
+        EventName:   addForm.eventName,
+        EventDate:   addForm.date,
+        HijriDate:   addForm.hijriDate,
+        Place:       addForm.venue,
+        EventTime:   addForm.eventTime,
+        Thaal:       addForm.thaal,
+        Remark:      addForm.remark,
+        RequestedBy: addForm.requestBy,
+        RequestDate: (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })(),
+        CreatedBy:   addForm.createdBy,
+      });
+      toast.success('Event saved');
+      setAddOpen(false);
+      setAddForm(EMPTY_EVENT_FORM);
+      load();
+    } catch {
+      toast.error('Failed to save event');
+    } finally {
+      setAddSaving(false);
+    }
+  };
+
+  // ── Open edit modal ──────────────────────────────────────────────────────────
+  const openEdit = (booking) => {
+    setEditForm({
+      id: booking.id,
+      accNo: booking.accNo ?? '',
+      date: booking.date?.slice(0, 10) ?? '',
+      hijriDate: booking.hijriDate ?? toHijriString(booking.date?.slice(0, 10) ?? ''),
+      eventName: booking.eventName ?? booking.name ?? '',
+      fullName: booking.fullName ?? '',
+      mobile: booking.mobile ?? '',
+      mobile1: booking.mobile1 ?? '',
+      itsNo: booking.itsNo ?? '',
+      address: booking.address ?? '',
+      venue: booking.venue ?? booking.location ?? '',
+      eventTime: booking.eventTime ?? '',
+      thaal: booking.thaal ?? '',
+      requestBy: booking.requestBy ?? '',
+      createdBy: booking.createdBy ?? '',
+      remark: booking.remark ?? '',
+      serialNo:        String(booking.serialNo ?? booking.id ?? ''),
+      requestDate:     booking.requestDate ?? '',
+      razaStatus:      booking.razaStatus ?? '',
+      updateReason:    booking.updateReason ?? '',
+      updatedAt:       booking.updatedAt ?? '',
+      reasonForUpdate: '',
+    });
+    setEditOpen(true);
+  };
+
+  const setEditField = (key, val) => setEditForm(f => ({ ...f, [key]: val }));
+
+  const saveEdit = async () => {
+    if (!editForm.date || !editForm.eventName) {
+      toast.error('Event date and name are required');
+      return;
+    }
+    if (!editForm.reasonForUpdate?.trim()) {
+      toast.error('Reason for update is required');
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const updatedBy = user?.name || user?.username || '';
+      await bookingService.updateEventDetails({
+        ID:          editForm.id,
+        AccNo:       editForm.accNo,
+        FullName:    editForm.fullName,
+        Mobile:      editForm.mobile,
+        Mobile1:     editForm.mobile1,
+        ITSNo:       editForm.itsNo,
+        Address:     editForm.address,
+        EventName:   editForm.eventName,
+        EventDate:   editForm.date,
+        HijriDate:   editForm.hijriDate,
+        Place:       editForm.venue,
+        EventTime:   editForm.eventTime,
+        Thaal:       editForm.thaal,
+        Remark:      editForm.remark,
+        UpdateReason:`${editForm.reasonForUpdate.trim()} – Updated by: ${updatedBy}`,
+        UpdatedAt:   (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')} ${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`; })(),
+      });
+      toast.success('Event updated');
+      setEditOpen(false);
+      load();
+    } catch {
+      toast.error('Failed to update event');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // ── Delete ───────────────────────────────────────────────────────────────────
+  const handleDelete = async (booking) => {
+    try {
+      await bookingService.deleteEventDetails({ ID: booking.id });
+      toast.success('Event deleted');
+      load();
+    } catch {
+      toast.error('Failed to delete event');
+    }
+  };
+
+  // ── Raza status ───────────────────────────────────────────────────────────────
+  const handleApproveRaza = async (booking) => {
+    try {
+      await bookingService.updateEventDetails({ ID: booking.id, RazaStatus: 'Approved' });
+      toast.success('Raza approved');
+      load();
+    } catch {
+      toast.error('Failed to approve raza');
+    }
+  };
+
+  const handleRevertRaza = async (booking) => {
+    try {
+      await bookingService.updateEventDetails({ ID: booking.id, RazaStatus: 'Raza Pending' });
+      toast.success('Raza reverted to pending');
+      load();
+    } catch {
+      toast.error('Failed to revert raza');
+    }
+  };
+
+  const canAdd = !!permissions?.BookingAdd;
+  const canEdit = !!permissions?.BookingEdit;
+  const canDelete = !!permissions?.BookingDelete;
 
   return (
     <div>
-      <PageHeader title="Bookings & Calendar" subtitle={`Manage venue bookings — ${MONTHS[month]} ${year}`}>
-        <button className="btn btn-secondary btn-sm" onClick={prev}>← Previous</button>
-        <button className="btn btn-secondary btn-sm" onClick={next}>Next →</button>
-        {permissions.BookingAdd && (
-          <button className="btn btn-primary btn-sm" onClick={() => setModal(true)}>+ Add Booking</button>
-        )}
-      </PageHeader>
+      <CalendarGrid
+        year={year}
+        month={month}
+        cells={cells}
+        bookingsByDay={bookingsByDay}
+        todayKey={todayKey}
+        selectedCellKey={selectedCell?.key}
+        onPrev={prev}
+        onNext={next}
+        onCellClick={handleCellClick}
+        onAddClick={openAdd}
+        canAdd={canAdd}
+      />
 
-      <div className="grid grid-cols-[1fr_260px] gap-3">
-        {/* Calendar */}
-        <div className="card">
-          <div className="card-header">{MONTHS[month]} {year}</div>
-          <div className="card-body">
-            <div className="grid grid-cols-7 gap-1 mb-1">
-              {DAYS.map(d => <div key={d} className="text-[9px] font-semibold text-gray-400 uppercase text-center py-1.5">{d}</div>)}
-            </div>
-            <div className="grid grid-cols-7 gap-1">
-              {cells.map((day, i) => {
-                const isToday = day === now.getDate() && month === now.getMonth() && year === now.getFullYear();
-                const hasEvent = day && eventDays.has(day);
-                return (
-                  <div
-                    key={i}
-                    className={clsx(
-                      'text-[12px] text-center py-1.5 rounded-md relative cursor-pointer transition-colors',
-                      !day ? '' : isToday ? 'bg-blue-500 text-white font-semibold' : 'hover:bg-surface-2 text-gray-700'
-                    )}
-                  >
-                    {day}
-                    {hasEvent && !isToday && (
-                      <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-amber-500" />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex gap-4 mt-3 text-[11px] text-gray-400">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> Has booking</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> Today</span>
-            </div>
-          </div>
-        </div>
+      {selectedCell && (
+        <DayEventList
+          cell={selectedCell}
+          bookings={bookingsByDay[selectedCell.key] ?? []}
+          canAdd={canAdd}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onAddEvent={() => openAdd(selectedCell)}
+          onEdit={openEdit}
+          onDelete={handleDelete}
+          onApproveRaza={handleApproveRaza}
+          onRevertRaza={handleRevertRaza}
+          onClose={() => setSelectedCell(null)}
+        />
+      )}
 
-        {/* Upcoming + Add form */}
-        <div className="space-y-3">
-          <div className="card">
-            <div className="card-header text-[12px]">Upcoming Bookings</div>
-            <div className="card-body space-y-3">
-              {upcoming.length === 0 ? (
-                <p className="text-[12px] text-gray-400">No upcoming bookings</p>
-              ) : upcoming.map((b, i) => (
-                <div key={i} className="border-l-[3px] border-blue-500 pl-3">
-                  <div className="text-[12px] font-semibold text-navy-900">{b.eventName}</div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">{b.date} · {b.venue}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+      <AddEventModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        form={addForm}
+        onChange={setAddField}
+        onSave={saveAdd}
+        saving={addSaving}
+      />
 
-          {permissions.BookingAdd && (
-            <div className="card">
-              <div className="card-header text-[12px]">Add New Booking</div>
-              <div className="card-body space-y-2.5">
-                <div><label className="form-label">Date</label><input type="date" className="form-input" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} /></div>
-                <div><label className="form-label">Event Name</label><input className="form-input" placeholder="e.g. Majlis Qurbani" value={form.eventName} onChange={e => setForm(p => ({ ...p, eventName: e.target.value }))} /></div>
-                <div>
-                  <label className="form-label">Venue</label>
-                  <select className="form-select" value={form.venue} onChange={e => setForm(p => ({ ...p, venue: e.target.value }))}>
-                    {['Masjid Hall','Community Hall','Distribution Point','Other'].map(v => <option key={v}>{v}</option>)}
-                  </select>
-                </div>
-                <button className="btn btn-primary w-full justify-center" onClick={save}>Save Booking</button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <EditEventModal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        form={editForm}
+        onChange={setEditField}
+        onSave={saveEdit}
+        saving={editSaving}
+      />
     </div>
   );
 }

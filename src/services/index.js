@@ -143,10 +143,14 @@ export const mohallahService = {
 
 // ── Bookings ─────────────────────────────────────────────────────────────────
 export const bookingService = {
-  getAll:  (params)        => api.get('/bookings', { params }),
-  create:  (data)          => api.post('/bookings', data),
-  update:  (id, data)      => api.put(`/bookings/${id}`, data),
-  delete:  (id)            => api.delete(`/bookings/${id}`),
+  getAll:             (params)    => api.get('/bookings', { params }),
+  create:             (data)      => api.post('/bookings', data),
+  update:             (id, data)  => api.put(`/bookings/${id}`, data),
+  delete:             (id)        => api.delete(`/bookings/${id}`),
+  addEventDetails:    (data)      => api.post('/AddEventDetails',    data),
+  loadEventDetails:   (data)      => api.post('/LoadEventDetails',   data),
+  updateEventDetails: (data)      => api.post('/UpdateEventDetails', data),
+  deleteEventDetails: (data)      => api.delete('/DeleteEventDetails', { data }),
 };
 
 // ── Majlis ───────────────────────────────────────────────────────────────────
