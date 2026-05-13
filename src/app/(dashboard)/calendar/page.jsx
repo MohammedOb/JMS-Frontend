@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { bookingService } from '@/services';
+import { bookingService, safaiService } from '@/services';
+import AddSafaiChitthiModal from '@/app/(dashboard)/mumin-details/components/modals/AddSafaiChitthiModal';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
 
@@ -37,6 +38,14 @@ export default function CalendarPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState(EMPTY_EVENT_FORM);
   const [editSaving, setEditSaving] = useState(false);
+
+  // ── Add Safai Chitthi modal ───────────────────────────────────────────────────
+  const [chitthiOpen,   setChitthiOpen]   = useState(false);
+  const [chitthiForm,   setChitthiForm]   = useState({});
+  const [chitthiSaving, setChitthiSaving] = useState(false);
+  const [razaOpts,      setRazaOpts]      = useState([]);
+  const [placeOpts,     setPlaceOpts]     = useState([]);
+  const [timeOpts,      setTimeOpts]      = useState([]);
 
   // ── Load ─────────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -76,8 +85,8 @@ export default function CalendarPage() {
         requestBy:  b.RequestedBy ?? b.requestBy    ?? '',
         createdBy:  b.CreatedBy   ?? b.createdBy    ?? '',
         remark:     b.Remark      ?? b.remark       ?? '',
-        razaStatus:  b.RazaStatus   ?? b.razaStatus,
-        serialNo:    b.SerialNo    ?? b.serialNo    ?? b.ID ?? b.id,
+        razaStatus:  b.RazaDetailStatus ?? b.RazaStatus ?? b.razaStatus,
+        serialNo:    b.SerialNo    ?? b.serialNo    ?? null,
         requestDate: b.RequestDate ?? b.requestDate,
         updateReason:b.UpdateReason?? b.updateReason,
         updatedAt:   b.UpdatedAt   ?? b.updatedAt,
@@ -244,7 +253,7 @@ export default function CalendarPage() {
   // ── Raza status ───────────────────────────────────────────────────────────────
   const handleApproveRaza = async (booking) => {
     try {
-      await bookingService.updateEventDetails({ ID: booking.id, RazaStatus: 'Approved' });
+      await safaiService.updateRazaDetails({ SerialNo: booking.serialNo, RazaStatus: 'Raza Done' });
       toast.success('Raza approved');
       load();
     } catch {
@@ -254,12 +263,78 @@ export default function CalendarPage() {
 
   const handleRevertRaza = async (booking) => {
     try {
-      await bookingService.updateEventDetails({ ID: booking.id, RazaStatus: 'Raza Pending' });
+      await safaiService.updateRazaDetails({ SerialNo: booking.serialNo, RazaStatus: 'Raza Pending' });
       toast.success('Raza reverted to pending');
       load();
     } catch {
       toast.error('Failed to revert raza');
     }
+  };
+
+  // ── Load dropdown options for Safai Chitthi modal ───────────────────────────
+  useEffect(() => {
+    const parseList = (raw) => {
+      const payload = raw?.data ?? raw;
+      const arr = Array.isArray(payload) ? payload
+                : Array.isArray(payload?.data) ? payload.data
+                : Array.isArray(payload?.recordset) ? payload.recordset
+                : [];
+      return arr.map(item => {
+        if (typeof item === 'string') return item.trim();
+        const val = item?.Razafor ?? item?.Place ?? item?.EventTime
+                  ?? Object.values(item).find(v => typeof v === 'string');
+        return String(val ?? '').trim();
+      }).filter(Boolean);
+    };
+    Promise.allSettled([
+      safaiService.loadRazaDropdownDetails({ Razafor:   'All' }),
+      safaiService.loadRazaDropdownDetails({ Place:     'All' }),
+      safaiService.loadRazaDropdownDetails({ EventTime: 'All' }),
+    ]).then(([rf, pl, tm]) => {
+      if (rf.status === 'fulfilled') setRazaOpts(parseList(rf.value.data));
+      if (pl.status === 'fulfilled') setPlaceOpts(parseList(pl.value.data));
+      if (tm.status === 'fulfilled') setTimeOpts(parseList(tm.value.data));
+    });
+  }, []);
+
+  // ── Open Add Safai Chitthi modal pre-filled from booking ────────────────────
+  const handleOpenAddChitthi = (booking) => {
+    const today = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    setChitthiForm({
+      RequestDate: todayStr,
+      AccNo:       booking.accNo       ?? '',
+      FullName:    booking.fullName     ?? '',
+      Mobile:      booking.mobile       ?? '',
+      Mobile1:     booking.mobile1      ?? '',
+      ITSNo:       booking.itsNo        ?? '',
+      Address:     booking.address      ?? '',
+      EventDate:   booking.date         ?? '',
+      HijriDate:   booking.hijriDate    ?? '',
+      Razafor:     booking.eventName    ?? '',
+      Place:       booking.venue        ?? '',
+      EventTime:   booking.eventTime    ?? '',
+      Thaal:       booking.thaal        ?? '',
+      Remark:      booking.remark       ?? '',
+      Requestby:   booking.requestBy    ?? '',
+      Createdby:   user?.username       ?? '',
+      RazaStatus:  'Raza Pending',
+      EventID:     booking.id,
+    });
+    setChitthiOpen(true);
+  };
+
+  const handleSaveChitthi = async () => {
+    if (!chitthiForm.EventDate) { toast.error('Event Date is required'); return; }
+    if (!chitthiForm.Razafor)   { toast.error('Raza For is required');   return; }
+    setChitthiSaving(true);
+    try {
+      await safaiService.addRazaDetails({ ...chitthiForm });
+      toast.success('Safai Chitthi added');
+      setChitthiOpen(false);
+      load();
+    } catch { toast.error('Failed to add Safai Chitthi'); }
+    finally  { setChitthiSaving(false); }
   };
 
   const canAdd = !!permissions?.BookingAdd;
@@ -294,6 +369,7 @@ export default function CalendarPage() {
           onDelete={handleDelete}
           onApproveRaza={handleApproveRaza}
           onRevertRaza={handleRevertRaza}
+          onAddSafaiChitthi={handleOpenAddChitthi}
           onClose={() => setSelectedCell(null)}
         />
       )}
@@ -305,6 +381,20 @@ export default function CalendarPage() {
         onChange={setAddField}
         onSave={saveAdd}
         saving={addSaving}
+      />
+
+      <AddSafaiChitthiModal
+        open={chitthiOpen}
+        onClose={() => setChitthiOpen(false)}
+        member={{ name: chitthiForm.FullName, FullName: chitthiForm.FullName }}
+        accNo={chitthiForm.AccNo}
+        form={chitthiForm}
+        set={(k, v) => setChitthiForm(p => ({ ...p, [k]: v }))}
+        saving={chitthiSaving}
+        onSave={handleSaveChitthi}
+        razaOpts={razaOpts}
+        placeOpts={placeOpts}
+        timeOpts={timeOpts}
       />
 
       <EditEventModal

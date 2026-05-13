@@ -1,7 +1,7 @@
 'use client';
 
 import clsx from 'clsx';
-import { MONTHS, DAYS, getHijriLabel, getHijriParts, HIJRI_MONTH_NAMES } from '../utils/hijri';
+import { MONTHS, DAYS, getHijriLabel } from '../utils/hijri';
 
 export default function CalendarGrid({
   year, month, cells, bookingsByDay, todayKey,
@@ -12,31 +12,9 @@ export default function CalendarGrid({
   const nextMonthLabel = MONTHS[(month + 1) % 12];
   const currentMonthLabel = `${MONTHS[month]} ${year}`;
 
-  // Hijri label for the middle of the month
-  const midHijri = getHijriParts(new Date(year, month, 15));
-  const hijriHeaderLabel = HIJRI_MONTH_NAMES[midHijri.month];
-
-  const now = new Date();
-  const todayFormatted = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
     <div className="card overflow-hidden">
-      {/* ── Card header ── */}
-      <div className="bg-navy-800 px-5 py-4 text-white">
-        <div className="text-[10px] uppercase tracking-[0.24em] text-white/50 mb-1">Event Calendar</div>
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="text-[28px] font-display font-bold leading-none">{currentMonthLabel}</div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-medium">
-              Hijri: {hijriHeaderLabel}
-            </div>
-            <div className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[11px] font-medium">
-              Today: {todayFormatted}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* ── Month nav bar ── */}
       <div className="grid grid-cols-[1fr_auto_1fr] items-center bg-navy-700 px-4 py-2.5 text-white">
         <div>
@@ -137,26 +115,6 @@ export default function CalendarGrid({
         </div>
 
         {/* ── Legend ── */}
-        <div className="mt-3 flex flex-wrap items-center gap-4 text-[11px] text-gray-400">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-full border-2 border-blue-500 bg-white" />
-            Today
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-3 w-3 rounded-sm bg-surface border border-border" />
-            Adjacent month
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block h-2.5 w-5 bg-blue-600 rounded" />
-            Event
-          </span>
-          {canAdd && (
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block w-4 h-4 rounded-full bg-navy-800 text-white text-[11px] font-bold flex items-center justify-center leading-none">+</span>
-              Hover cell to add event
-            </span>
-          )}
-        </div>
       </div>
     </div>
   );

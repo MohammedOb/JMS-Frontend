@@ -39,7 +39,7 @@ function statusBadge(status) {
   if (status === 'Raza Done')     return 'bg-green-600 text-white';
   if (status === 'Raza Approved') return 'bg-green-600 text-white';
   if (status === 'Raza Rejected') return 'bg-red-400 text-white';
-  return 'bg-orange-500 text-white';
+  return 'bg-red-600 text-white';
 }
 
 function parseList(raw) {

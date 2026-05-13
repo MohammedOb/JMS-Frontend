@@ -156,7 +156,7 @@ function MuminDetailsInner() {
   const [familyLoading, setFamilyLoading] = useState(false);
 
   // ── Tab & modals ──────────────────────────────────────────────────────────
-  const [tab, setTab] = useState(TAB_LIST[0]?.key || '');
+  const [tab, setTab] = useState(params.get('tab') || TAB_LIST[0]?.key || '');
 
   const [modals, setModals] = useState({
     addTakhmeen: false, editTakhmeen: false,
@@ -861,7 +861,7 @@ function MuminDetailsInner() {
             <div className="flex gap-3 mb-3">
               {FEATURES.dueSummary && (
                 <div className="w-[35%] shrink-0">
-                  <DueSummaryCards takhmeen={takhmeen} />
+                  <DueSummaryCards takhmeen={takhmeen} onOverallDue={() => openModal('overallDue')} />
                 </div>
               )}
               {FEATURES.alertBanners && (

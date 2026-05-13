@@ -1,7 +1,7 @@
 'use client';
 
 import Badge from '@/components/shared/Badge';
-import { EditIcon, ReceiptIcon, PrintIcon, KeyIcon, ClipboardListIcon } from '@/components/shared/Icons';
+import { EditIcon, KeyIcon } from '@/components/shared/Icons';
 import { fmt, fmtDate } from '../utils';
 
 export default function MuminProfileCard({ member, initials, features = {}, onEdit, onAddReceipt, onPrint, onResetPass, onOverallDue }) {
@@ -54,22 +54,9 @@ export default function MuminProfileCard({ member, initials, features = {}, onEd
             <EditIcon className="w-3.5 h-3.5 mr-1.5" />Edit Profile
           </button>
         )}
-        <button className="btn btn-secondary btn-sm" onClick={onAddReceipt}>
-          <ReceiptIcon className="w-3.5 h-3.5 mr-1.5" />Add Receipt
-        </button>
-        <button className="btn btn-secondary btn-sm" onClick={onPrint}>
-          <PrintIcon className="w-3.5 h-3.5 mr-1.5" />Print
-        </button>
-      </div>
-      <div className="px-3 pb-3 flex gap-2">
         {features.resetPassword !== false && (
           <button className="btn btn-secondary btn-sm flex-1 justify-center" onClick={onResetPass}>
             <KeyIcon className="w-3.5 h-3.5 mr-1.5" />Reset Password
-          </button>
-        )}
-        {features.overallDue !== false && (
-          <button className="btn btn-sm bg-amber-500 text-white border-amber-500 hover:bg-amber-600" onClick={onOverallDue}>
-            <ClipboardListIcon className="w-3.5 h-3.5 mr-1.5" />Overall Due
           </button>
         )}
       </div>

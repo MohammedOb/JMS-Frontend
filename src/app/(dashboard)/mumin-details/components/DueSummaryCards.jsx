@@ -1,8 +1,9 @@
 'use client';
 
+import { ClipboardListIcon } from '@/components/shared/Icons';
 import { fmt } from '../utils';
 
-export default function DueSummaryCards({ takhmeen = [] }) {
+export default function DueSummaryCards({ takhmeen = [], onOverallDue }) {
   const byHead = takhmeen.reduce((acc, row) => {
     if (!row.subHead || !(Number(row.remaining) > 0)) return acc;
     if (!acc[row.subHead]) acc[row.subHead] = { rem: 0, years: [] };
@@ -56,6 +57,16 @@ export default function DueSummaryCards({ takhmeen = [] }) {
           </tr>
         </tfoot>
       </table>
+      {onOverallDue && (
+        <div className="px-3 py-2 border-t border-gray-100">
+          <button
+            className="btn btn-sm w-full justify-center bg-amber-500 text-white border-amber-500 hover:bg-amber-600"
+            onClick={onOverallDue}
+          >
+            <ClipboardListIcon className="w-3.5 h-3.5 mr-1.5" />Overall Due
+          </button>
+        </div>
+      )}
     </div>
   );
 }

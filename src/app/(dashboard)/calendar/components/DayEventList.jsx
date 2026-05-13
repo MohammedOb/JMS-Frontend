@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import clsx from 'clsx';
 import { MONTHS, getHijriLabel } from '../utils/hijri';
 import { EditIcon, TrashIcon, CheckIcon, RefreshIcon, PrintIcon } from '@/components/shared/Icons';
@@ -53,7 +54,7 @@ const BASE_HEADERS = [
 
 export default function DayEventList({
   cell, bookings, canAdd, canEdit, canDelete,
-  onAddEvent, onEdit, onDelete, onApproveRaza, onRevertRaza, onClose,
+  onAddEvent, onEdit, onDelete, onApproveRaza, onRevertRaza, onAddSafaiChitthi, onClose,
 }) {
   const [showUpdateInfo, setShowUpdateInfo] = useState(false);
   const [razaModal, setRazaModal]   = useState(null); // { type: 'approve'|'revert', booking }
@@ -162,8 +163,8 @@ export default function DayEventList({
                           <PrintIcon className="w-3.5 h-3.5" />
                         </button>
                         {/* Single raza toggle */}
-                        {b.razaStatus === 'Approved' ? (
-                          <button onClick={() => setRazaModal({ type: 'revert', booking: b })} title="Revert Raza"
+                        {(b.razaStatus === 'Raza Done' || b.razaStatus === 'Raza Approved') ? (
+                          <button onClick={() => setRazaModal({ type: 'revert', booking: b })} title="Revert to Pending"
                             className="p-1 rounded text-orange-500 hover:bg-orange-100 transition-colors">
                             <RefreshIcon className="w-3.5 h-3.5" />
                           </button>
@@ -183,7 +184,9 @@ export default function DayEventList({
                     </td>
 
                     <td className="px-3 py-2 whitespace-nowrap">
-                      {b.accNo ? <span className="text-blue-600 font-medium">{b.accNo}</span> : '—'}
+                      {b.accNo
+                        ? <Link href={`/mumin-details?accno=${b.accNo}&tab=safai`} className="text-blue-600 font-medium hover:underline">{b.accNo}</Link>
+                        : '—'}
                     </td>
                     <td className="px-3 py-2 min-w-[140px]">{b.fullName || '—'}</td>
                     <td className="px-3 py-2 whitespace-nowrap">{b.mobile || '—'}</td>
@@ -215,16 +218,24 @@ export default function DayEventList({
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className={clsx(
                         'inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                        b.razaStatus === 'Approved' ? 'bg-green-100 text-green-700'
-                          : b.razaStatus === 'Cancelled' ? 'bg-red-100 text-red-600'
-                          : 'bg-amber-100 text-amber-700'
+                        (b.razaStatus === 'Raza Done' || b.razaStatus === 'Raza Approved') ? 'bg-green-600 text-white'
+                          : b.razaStatus === 'Cancelled' ? 'bg-red-600 text-white'
+                          : 'bg-red-600 text-white'
                       )}>
                         {b.razaStatus || 'Raza Pending'}
                       </span>
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-500">{b.createdBy || '—'}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
-                      {b.serialNo ? <span className="text-blue-600 font-medium">{b.serialNo}</span> : '—'}
+                      {b.serialNo
+                        ? <span className="text-blue-600 font-medium">{b.serialNo}</span>
+                        : <button
+                            onClick={() => onAddSafaiChitthi(b)}
+                            className="inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors whitespace-nowrap"
+                          >
+                            + Add Safai Chitthi
+                          </button>
+                      }
                     </td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-500">{b.requestBy || '—'}</td>
                     <td className="px-3 py-2 whitespace-nowrap text-gray-500">{fmtDate(b.requestDate)}</td>
