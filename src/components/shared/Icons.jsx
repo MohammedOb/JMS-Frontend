@@ -296,6 +296,12 @@ export const MosqueIcon = mk(<>
   <path d="M19 11h2a1 1 0 0 1 1 1v1h-3"/>
 </>);
 
+export const LayersIcon = mk(<>
+  <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+  <polyline points="2 17 12 22 22 17"/>
+  <polyline points="2 12 12 17 22 12"/>
+</>);
+
 export const ExportIcon = mk(<>
   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
   <polyline points="17 8 12 3 7 8"/>

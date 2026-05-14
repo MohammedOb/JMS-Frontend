@@ -190,9 +190,9 @@ export default function EditEventModal({ open, onClose, form, onChange, onSave, 
           <div className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">Raza Status</div>
           <span className={clsx(
             'inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
-            form.razaStatus === 'Approved' ? 'bg-green-100 text-green-700'
-              : form.razaStatus === 'Cancelled' ? 'bg-red-100 text-red-600'
-              : 'bg-red-500 text-white'
+            form.razaStatus === 'Raza Done' ? 'bg-green-600 text-white'
+              : form.razaStatus === 'Raza Pending' ? 'bg-red-100 text-white'
+              : 'bg-red-600 text-white'
           )}>
             {form.razaStatus || 'Raza Pending'}
           </span>

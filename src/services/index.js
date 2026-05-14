@@ -128,6 +128,22 @@ export const expenseService = {
   getCategories:()         => api.get('/expenses/categories'),
 };
 
+// ── Income Head (Hub Head) ────────────────────────────────────────────────────
+export const incomeHeadService = {
+  load:   (data)  => api.post('/LoadHubHeadDetails',   data),
+  add:    (data)  => api.post('/AddHubHeadDetails',    data),
+  update: (data)  => api.post('/UpdateHubHeadDetails', data),
+  delete: (data)  => api.delete('/DeleteHubHeadDetails', { data }),
+};
+
+// ── Expense Head ──────────────────────────────────────────────────────────────
+export const expenseHeadService = {
+  getAll:  (params)     => api.get('/expense-heads', { params }),
+  create:  (data)       => api.post('/expense-heads', data),
+  update:  (id, data)   => api.put(`/expense-heads/${id}`, data),
+  delete:  (id)         => api.delete(`/expense-heads/${id}`),
+};
+
 // ── Distribution ─────────────────────────────────────────────────────────────
 export const distributionService = {
   getAll:  (params)        => api.get('/distribution', { params }),

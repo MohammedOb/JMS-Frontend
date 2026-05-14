@@ -12,7 +12,7 @@ import {
   BellIcon, UsersIcon, CoinsIcon, AlertCircleIcon, ClipboardListIcon,
   TrendingUpIcon, TrendingDownIcon, CreditCardIcon, FileTextIcon, TruckIcon,
   MapPinIcon, CalendarIcon, StarIcon, ListIcon, MailIcon, GiftIcon,
-  UtensilsIcon, UserCogIcon, SettingsIcon, MosqueIcon, LogoutIcon,
+  UtensilsIcon, UserCogIcon, SettingsIcon, MosqueIcon, LogoutIcon, LayersIcon,
 } from '@/components/shared/Icons';
 
 // ── Nav config — mirrors LinkButton visibility rules in Master.cs ─────────
@@ -48,9 +48,10 @@ const NAV_SECTIONS = [
   {
     label: 'Finance',
     items: [
-      { label: 'Expenses',          href: '/expenses',           icon: CreditCardIcon, permission: 'MPExpense' },
-      { label: 'Expense Report',    href: '/expense-report',     icon: FileTextIcon,   permission: 'MPExpense' },
-      { label: 'Distribution List', href: '/distribution',       icon: TruckIcon,      permission: 'MPDistributor' },
+      { label: 'Expenses',              href: '/expenses',              icon: CreditCardIcon, permission: 'MPExpense' },
+      { label: 'Expense Report',       href: '/expense-report',        icon: FileTextIcon,   permission: 'MPExpense' },
+      { label: 'Income & Expense Heads', href: '/income-expense-heads', icon: LayersIcon,     permission: 'MPExpense' },
+      { label: 'Distribution List',    href: '/distribution',          icon: TruckIcon,      permission: 'MPDistributor' },
     ],
   },
   {
