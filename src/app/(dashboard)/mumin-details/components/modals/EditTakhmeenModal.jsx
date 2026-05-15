@@ -34,7 +34,7 @@ export default function EditTakhmeenModal({ open, onClose, member, editTakRow, s
 
   useEffect(() => {
     if (!open) { setHeadOptions([]); setGradeOptions([]); return; }
-    takhmeenService.loadHubHeadDetails({})
+    takhmeenService.loadHubHeadDetails({ IsActive: 1 })
       .then(res => {
         const rows = normalizeArray(res?.data);
         const seen = new Set();

@@ -126,6 +126,12 @@ export const expenseService = {
   delete:     (id)         => api.delete(`/expenses/${id}`),
   getReport:  (params)     => api.get('/expenses/report', { params }),
   getCategories:()         => api.get('/expenses/categories'),
+
+  // SP-based endpoints
+  loadExpenseDetails:   (data) => api.post('/LoadExpenseDetails',   data),
+  addExpenseDetails:    (data) => api.post('/AddExpenseDetails',    data),
+  updateExpenseDetails: (data) => api.post('/UpdateExpenseDetails', data),
+  deleteExpenseDetails: (data) => api.delete('/DeleteExpenseDetails', { data }),
 };
 
 // ── Income Head (Hub Head) ────────────────────────────────────────────────────

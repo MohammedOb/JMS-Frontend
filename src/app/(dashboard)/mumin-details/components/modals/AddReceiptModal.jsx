@@ -123,7 +123,7 @@ export default function AddReceiptModal({
   // Load hub heads on open
   useEffect(() => {
     if (!open) return;
-    takhmeenService.loadHubHeadDetails({})
+    takhmeenService.loadHubHeadDetails({ IsActive: 1 })
       .then(res => setHubHeads(normList(res.data).filter(h => h && h.HubSubHead).sort((a, b) => a.HubSubHead.localeCompare(b.HubSubHead))))
       .catch(() => setHubHeads([]));
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -261,7 +261,7 @@ export default function AddReceiptModal({
       } else {
         // No due — fetch DefaultLaagat for this sub head
         try {
-          const hdRes  = await takhmeenService.loadHubHeadDetails({ HubSubHead: hubSubHead });
+          const hdRes  = await takhmeenService.loadHubHeadDetails({ HubSubHead: hubSubHead, IsActive: 1 });
           const hdList = normList(hdRes.data);
           const hdRec  = hdList[0];
           const defAmt = hdRec?.DefaultLaagat ?? hdRec?.defaultLaagat ?? null;

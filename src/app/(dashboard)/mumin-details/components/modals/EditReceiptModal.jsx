@@ -67,7 +67,7 @@ export default function EditReceiptModal({
     // Fetch per-head cash limit
     const subHead = rcForm?.subHead || rcForm?.items?.[0]?.subHead;
     if (subHead) {
-      takhmeenService.loadHubHeadDetails({ HubSubHead: subHead })
+      takhmeenService.loadHubHeadDetails({ HubSubHead: subHead, IsActive: 1 })
         .then(res => {
           const rec = normList(res.data)[0];
           setCashLimit(Number(rec?.CashLimit ?? rec?.Cash_Limit ?? 9500) || 9500);

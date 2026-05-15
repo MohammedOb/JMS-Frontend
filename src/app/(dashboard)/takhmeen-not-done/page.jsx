@@ -197,7 +197,21 @@ export default function TakhmeenNotDonePage() {
 
   // Dropdown options derived from master reference data
   const forYears       = useMemo(() => uniq(refRows.map(r => r.forYear)),      [refRows]);
-  const hubSubHeads    = useMemo(() => uniq(hubHeadRows.map(r => String(r.HubSubHead ?? '').trim())), [hubHeadRows]);
+  const hubSubHeads    = useMemo(() => {
+    const seen = new Map();
+    hubHeadRows.forEach(r => {
+      const name = String(r.HubSubHead ?? '').trim();
+      if (!name) return;
+      const active = r.IsActive === 1 || r.IsActive === '1';
+      seen.set(name, (seen.get(name) ?? false) || active);
+    });
+    return [...seen.entries()]
+      .map(([name, active]) => ({ name, active }))
+      .sort((a, b) => {
+        if (a.active !== b.active) return a.active ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [hubHeadRows]);
   const sabeelTypes    = useMemo(() => uniq(refRows.map(r => r.sabeelType)),   [refRows]);
   const sectors        = useMemo(() =>
     uniq(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim())), [mohallaRows]);
@@ -361,7 +375,9 @@ export default function TakhmeenNotDonePage() {
               <label className="form-label">Hub Sub Head</label>
               <select className="form-select" value={filters.hubSubHead} onChange={e => setF('hubSubHead', e.target.value)}>
                 <option value="">All</option>
-                {hubSubHeads.map(h => <option key={h}>{h}</option>)}
+                {hubSubHeads.map(h => (
+                  <option key={h.name} value={h.name}>{h.name}{!h.active ? ' (Inactive)' : ''}</option>
+                ))}
               </select>
             </div>
             <div>

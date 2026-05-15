@@ -48,7 +48,6 @@ const NAV_SECTIONS = [
   {
     label: 'Finance',
     items: [
-      { label: 'Expenses',              href: '/expenses',              icon: CreditCardIcon, permission: 'MPExpense' },
       { label: 'Expense Report',       href: '/expense-report',        icon: FileTextIcon,   permission: 'MPExpense' },
       { label: 'Income & Expense Heads', href: '/income-expense-heads', icon: LayersIcon,     permission: 'MPExpense' },
       { label: 'Distribution List',    href: '/distribution',          icon: TruckIcon,      permission: 'MPDistributor' },

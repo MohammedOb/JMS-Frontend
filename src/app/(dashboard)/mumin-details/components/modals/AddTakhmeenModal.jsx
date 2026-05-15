@@ -23,7 +23,7 @@ export default function AddTakhmeenModal({ open, onClose, member, permissions, t
 
   useEffect(() => {
     if (!open) { setHeadOptions([]); setGradeOptions([]); return; }
-    takhmeenService.loadHubHeadDetails({})
+    takhmeenService.loadHubHeadDetails({ IsActive: 1 })
       .then(res => {
         const rows = normalizeArray(res?.data);
         const seen = new Set();
@@ -32,7 +32,7 @@ export default function AddTakhmeenModal({ open, onClose, member, permissions, t
           const key = `${r.HubMainHead}||${r.HubSubHead}`;
           if (!seen.has(key)) { seen.add(key); opts.push({ mainHead: r.HubMainHead, subHead: r.HubSubHead }); }
         }
-        setHeadOptions(opts.length ? opts : Object.entries(SUB_HEADS).flatMap(([mh, subs]) => subs.map(sh => ({ mainHead: mh, subHead: sh }))));
+        setHeadOptions(opts);
       })
       .catch(() => setHeadOptions(Object.entries(SUB_HEADS).flatMap(([mh, subs]) => subs.map(sh => ({ mainHead: mh, subHead: sh })))));
   }, [open]);

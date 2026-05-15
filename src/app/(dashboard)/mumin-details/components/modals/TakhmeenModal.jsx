@@ -19,7 +19,7 @@ export default function TakhmeenModal({
   // Load HubMainHead / HubSubHead options from API, fall back to static SUB_HEADS
   useEffect(() => {
     if (!open) { setHeadOptions([]); setGradeOptions([]); return; }
-    takhmeenService.loadHubHeadDetails({})
+    takhmeenService.loadHubHeadDetails({ IsActive: 1 })
       .then(res => {
         const rows = normalizeArray(res?.data);
         const seen = new Set();

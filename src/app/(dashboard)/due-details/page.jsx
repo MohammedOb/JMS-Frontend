@@ -249,15 +249,39 @@ export default function DueDetailsPage() {
   const fromYears = useMemo(() => uniq(lookupRows.map(r => r.fromYear)), [lookupRows]);
   const toYears   = useMemo(() => uniq(lookupRows.map(r => r.toYear)),   [lookupRows]);
 
-  const hubMainHeads = useMemo(() =>
-    uniq(hubRows.map(r => pick(r, 'HubMainHead', 'hubMainHead'))), [hubRows]);
+  const hubMainHeads = useMemo(() => {
+    const map = new Map(); // mainHead -> isActive (true if any sub head is active)
+    hubRows.forEach(r => {
+      const name = pick(r, 'HubMainHead', 'hubMainHead');
+      if (!name) return;
+      const active = r.IsActive === 1 || r.IsActive === '1';
+      map.set(name, (map.get(name) ?? false) || active);
+    });
+    return [...map.entries()]
+      .map(([name, active]) => ({ name, active }))
+      .sort((a, b) => {
+        if (a.active !== b.active) return a.active ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [hubRows]);
 
-  const hubSubHeadOptions = useMemo(() =>
-    uniq(
-      hubRows
-        .filter(r => !filters.hubMainHead || pick(r, 'HubMainHead', 'hubMainHead') === filters.hubMainHead)
-        .map(r => pick(r, 'HubSubHead', 'hubSubHead'))
-    ), [hubRows, filters.hubMainHead]);
+  const hubSubHeadOptions = useMemo(() => {
+    const seen = new Map(); // subHead -> isActive
+    hubRows
+      .filter(r => !filters.hubMainHead || pick(r, 'HubMainHead', 'hubMainHead') === filters.hubMainHead)
+      .forEach(r => {
+        const name = pick(r, 'HubSubHead', 'hubSubHead');
+        if (!name) return;
+        const active = r.IsActive === 1 || r.IsActive === '1';
+        seen.set(name, (seen.get(name) ?? false) || active);
+      });
+    return [...seen.entries()]
+      .map(([name, active]) => ({ name, active }))
+      .sort((a, b) => {
+        if (a.active !== b.active) return a.active ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [hubRows, filters.hubMainHead]);
 
   const sectors = useMemo(() =>
     uniq(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim())), [mohallaRows]);
@@ -474,14 +498,18 @@ export default function DueDetailsPage() {
               <select className="form-select" value={filters.hubMainHead}
                 onChange={e => setFilters(p => ({ ...p, hubMainHead: e.target.value, hubSubHead: '' }))}>
                 <option value="">All</option>
-                {hubMainHeads.map(h => <option key={h}>{h}</option>)}
+                {hubMainHeads.map(h => (
+                  <option key={h.name} value={h.name}>{h.name}{!h.active ? ' (Inactive)' : ''}</option>
+                ))}
               </select>
             </div>
             <div>
               <label className="form-label">Hub Sub Head</label>
               <select className="form-select" value={filters.hubSubHead} onChange={e => setF('hubSubHead', e.target.value)}>
                 <option value="">All</option>
-                {hubSubHeadOptions.map(h => <option key={h}>{h}</option>)}
+                {hubSubHeadOptions.map(h => (
+                  <option key={h.name} value={h.name}>{h.name}{!h.active ? ' (Inactive)' : ''}</option>
+                ))}
               </select>
             </div>
             <div>

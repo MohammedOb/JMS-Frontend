@@ -123,20 +123,37 @@ export default function DailyReportPage() {
   }, []);
 
   // ── Cascaded dropdown options ────────────────────────────────────────────────
-  const mainHeadOptions = useMemo(() =>
-    [...new Set(hubHeads.map(h => h.HubMainHead).filter(Boolean))].sort(),
-    [hubHeads]
-  );
+  const mainHeadOptions = useMemo(() => {
+    const map = new Map(); // mainHead -> isActive (true if any sub head is active)
+    hubHeads.forEach(h => {
+      if (!h.HubMainHead) return;
+      const active = h.IsActive === 1 || h.IsActive === '1';
+      map.set(h.HubMainHead, (map.get(h.HubMainHead) ?? false) || active);
+    });
+    return [...map.entries()]
+      .map(([name, active]) => ({ name, active }))
+      .sort((a, b) => {
+        if (a.active !== b.active) return a.active ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [hubHeads]);
 
-  const subHeadOptions = useMemo(() =>
-    [...new Set(
-      hubHeads
-        .filter(h => !filters.HubMainHead || h.HubMainHead === filters.HubMainHead)
-        .map(h => h.HubSubHead)
-        .filter(Boolean)
-    )].sort(),
-    [hubHeads, filters.HubMainHead]
-  );
+  const subHeadOptions = useMemo(() => {
+    const seen = new Map(); // subHead -> isActive
+    hubHeads
+      .filter(h => !filters.HubMainHead || h.HubMainHead === filters.HubMainHead)
+      .forEach(h => {
+        if (!h.HubSubHead) return;
+        const active = h.IsActive === 1 || h.IsActive === '1';
+        seen.set(h.HubSubHead, (seen.get(h.HubSubHead) ?? false) || active);
+      });
+    return [...seen.entries()]
+      .map(([name, active]) => ({ name, active }))
+      .sort((a, b) => {
+        if (a.active !== b.active) return a.active ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      });
+  }, [hubHeads, filters.HubMainHead]);
 
   const sectorOptions = useMemo(() =>
     [...new Set(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '')).filter(Boolean))].sort(),
@@ -456,7 +473,9 @@ export default function DailyReportPage() {
             <select className="form-select w-[110px]" value={filters.HubMainHead}
               onChange={e => setFilters(p => ({ ...p, HubMainHead: e.target.value, HubSubHead: '' }))}>
               <option value="">All</option>
-              {mainHeadOptions.map(h => <option key={h}>{h}</option>)}
+              {mainHeadOptions.map(h => (
+                <option key={h.name} value={h.name}>{h.name}{!h.active ? ' (Inactive)' : ''}</option>
+              ))}
             </select>
           </div>
           <div>
@@ -464,7 +483,9 @@ export default function DailyReportPage() {
             <select className="form-select w-[160px]" value={filters.HubSubHead}
               onChange={e => setF('HubSubHead', e.target.value)}>
               <option value="">All</option>
-              {subHeadOptions.map(h => <option key={h}>{h}</option>)}
+              {subHeadOptions.map(h => (
+                <option key={h.name} value={h.name}>{h.name}{!h.active ? ' (Inactive)' : ''}</option>
+              ))}
             </select>
           </div>
           <div>
