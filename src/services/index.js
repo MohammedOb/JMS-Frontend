@@ -138,10 +138,10 @@ export const incomeHeadService = {
 
 // ── Expense Head ──────────────────────────────────────────────────────────────
 export const expenseHeadService = {
-  getAll:  (params)     => api.get('/expense-heads', { params }),
-  create:  (data)       => api.post('/expense-heads', data),
-  update:  (id, data)   => api.put(`/expense-heads/${id}`, data),
-  delete:  (id)         => api.delete(`/expense-heads/${id}`),
+  load:   (data)  => api.post('/LoadExpenseHeadDetails',   data),
+  add:    (data)  => api.post('/AddExpenseHeadDetails',    data),
+  update: (data)  => api.post('/UpdateExpenseHeadDetails', data),
+  delete: (data)  => api.delete('/DeleteExpenseHeadDetails', { data }),
 };
 
 // ── Distribution ─────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import clsx              from 'clsx';
 import toast             from 'react-hot-toast';
 import PageHeader        from '@/components/shared/PageHeader';
-import { incomeHeadService } from '@/services';
+import { incomeHeadService, expenseHeadService } from '@/services';
 
 import IncomeHeadList      from './components/IncomeHeadList';
 import IncomeHeadAddModal  from './components/IncomeHeadAddModal';
@@ -50,36 +50,30 @@ export default function IncomeExpenseHeadsPage() {
 
   // ── Expense Head state ─────────────────────────────────────────────────────
   const [expenseRows,     setExpenseRows]     = useState([]);
-  const [expenseLoading]                      = useState(false);
+  const [expenseLoading,  setExpenseLoading]  = useState(false);
   const [expenseAddOpen,  setExpenseAddOpen]  = useState(false);
   const [expenseEditItem, setExpenseEditItem] = useState(null);
-  const [expenseFilters,  setExpenseFilters]  = useState({ search: '', category: '', status: '' });
 
-  // ── Expense Head operations (TODO: wire to API when endpoints are provided) ─
-  const handleExpenseSave = (formData) => {
-    setExpenseRows(prev => [{ id: Date.now(), ...formData }, ...prev]);
+  const loadExpense = useCallback(async () => {
+    setExpenseLoading(true);
+    try {
+      const res = await expenseHeadService.load({});
+      const rows = res.data?.data ?? res.data;
+      setExpenseRows(Array.isArray(rows) ? rows : []);
+    } catch {
+      toast.error('Failed to load expense heads');
+    } finally {
+      setExpenseLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadExpense(); }, [loadExpense]);
+
+  const handleExpenseSaved = () => {
     setExpenseAddOpen(false);
-    toast.success('Expense Head added');
-  };
-
-  const handleExpenseUpdate = (formData) => {
-    setExpenseRows(prev => prev.map(r => r === expenseEditItem ? { ...r, ...formData } : r));
     setExpenseEditItem(null);
-    toast.success('Expense Head updated');
+    loadExpense();
   };
-
-  const handleExpenseDelete = (item) => {
-    if (!window.confirm(`Delete "${item.headName}"?`)) return;
-    setExpenseRows(prev => prev.filter(r => r !== item));
-    toast.success('Deleted');
-  };
-
-  const filteredExpense = expenseRows.filter(r => {
-    const matchSearch   = !expenseFilters.search   || r.headName?.toLowerCase().includes(expenseFilters.search.toLowerCase());
-    const matchCategory = !expenseFilters.category || r.category === expenseFilters.category;
-    const matchStatus   = !expenseFilters.status   || r.status === expenseFilters.status;
-    return matchSearch && matchCategory && matchStatus;
-  });
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
@@ -125,13 +119,11 @@ export default function IncomeExpenseHeadsPage() {
       {/* ── Expense Head tab ─────────────────────────────────────────────────── */}
       {tab === 'expense' && (
         <ExpenseHeadList
-          rows={filteredExpense}
+          rows={expenseRows}
           loading={expenseLoading}
-          filters={expenseFilters}
-          onFilterChange={(k, v) => setExpenseFilters(p => ({ ...p, [k]: v }))}
           onAdd={() => setExpenseAddOpen(true)}
           onEdit={(item) => setExpenseEditItem(item)}
-          onDelete={handleExpenseDelete}
+          onReload={loadExpense}
         />
       )}
 
@@ -156,13 +148,15 @@ export default function IncomeExpenseHeadsPage() {
       <ExpenseHeadAddModal
         open={expenseAddOpen}
         onClose={() => setExpenseAddOpen(false)}
-        onSave={handleExpenseSave}
+        onSaved={handleExpenseSaved}
+        existingRows={expenseRows}
       />
       <ExpenseHeadEditModal
         open={!!expenseEditItem}
         onClose={() => setExpenseEditItem(null)}
         item={expenseEditItem}
-        onSave={handleExpenseUpdate}
+        onSaved={handleExpenseSaved}
+        existingRows={expenseRows}
       />
     </div>
   );

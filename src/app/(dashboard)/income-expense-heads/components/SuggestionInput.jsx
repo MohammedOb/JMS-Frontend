@@ -10,6 +10,7 @@ export default function SuggestionInput({
   placeholder,
   className,
   disabled,
+  dropUp = false,
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -41,7 +42,7 @@ export default function SuggestionInput({
       />
 
       {open && matches.length > 0 && (
-        <div className="absolute z-50 top-full left-0 right-0 bg-white border border-border rounded-md shadow-lg mt-0.5 max-h-44 overflow-y-auto">
+        <div className={clsx('absolute z-50 left-0 right-0 bg-white border border-border rounded-md shadow-lg max-h-44 overflow-y-auto', dropUp ? 'bottom-full mb-0.5' : 'top-full mt-0.5')}>
           {matches.map((s, i) => (
             <button
               key={i}
