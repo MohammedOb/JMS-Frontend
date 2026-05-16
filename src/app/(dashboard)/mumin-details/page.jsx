@@ -63,7 +63,7 @@ import SafaiChitthiTab from './components/tabs/SafaiChitthiTab';
 import VajebaatTab     from './components/tabs/VajebaatTab';
 
 // Modal components
-import TakhmeenModal       from './components/modals/TakhmeenModal';
+import TakhmeenModal       from './components/modals/AddTakhmeenModal';
 import EditTakhmeenModal   from './components/modals/EditTakhmeenModal';
 import AddReceiptModal     from './components/modals/AddReceiptModal';
 import EditReceiptModal    from './components/modals/EditReceiptModal';
@@ -411,7 +411,7 @@ function MuminDetailsInner() {
   };
 
   const saveTakhmeen = async () => {
-    if (!takForm.mainHead || !takForm.subHead || !takForm.forYear || takForm.takhmeen === '' || takForm.takhmeen == null || !takForm.date) { toast.error('Fill required fields'); return; }
+    if (!takForm.mainHead || !takForm.subHead || !takForm.forYear || takForm.takhmeen === '' || takForm.takhmeen == null || !takForm.date) return;
     try {
       await takhmeenService.addDetails({
         AccNo:           member.accno,

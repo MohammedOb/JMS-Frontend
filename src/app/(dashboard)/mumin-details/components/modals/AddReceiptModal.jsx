@@ -84,6 +84,11 @@ export default function AddReceiptModal({
   const itsTimer     = useRef(null);
   const forYearTimer = useRef(null);
 
+  const accnoRef   = useRef(null);
+  const fullNameRef = useRef(null);
+  const dateRef    = useRef(null);
+  const modeRef    = useRef(null);
+
   const currentSubHead  = rcItem.hubSubHead || rcItem.hubType || '';
   const currentFundType = rcItem.fundType   || hubHeads.find(h => h.HubSubHead === currentSubHead)?.FundType || '';
   const selectedHead    = hubHeads.find(h => h.HubSubHead === currentSubHead);
@@ -332,6 +337,32 @@ export default function AddReceiptModal({
 
   const handleSave = async (printOnly) => {
     if (saving) return;
+
+    if (!String(profile.accno ?? '').trim()) {
+      toast.error('Acc No. is required');
+      setTimeout(() => accnoRef.current?.focus(), 0);
+      return;
+    }
+    if (!String(profile.fullName ?? '').trim()) {
+      toast.error('Full Name is required');
+      setTimeout(() => fullNameRef.current?.focus(), 0);
+      return;
+    }
+    if (!rcForm.date) {
+      toast.error('Received Date is required');
+      setTimeout(() => dateRef.current?.focus(), 0);
+      return;
+    }
+    if (!rcForm.mode) {
+      toast.error('Mode is required');
+      setTimeout(() => modeRef.current?.focus(), 0);
+      return;
+    }
+    if (rcItems.length === 0) {
+      toast.error('Please add at least one item');
+      return;
+    }
+
     if (!splitOk) {
       const dir = splitDiff > 0 ? `${fmt(splitDiff)} unallocated` : `${fmt(-splitDiff)} over-allocated`;
       alert(`Split amounts must equal Grand Total (${fmt(grandTotal)}). Currently ${dir}.`);
@@ -393,6 +424,7 @@ export default function AddReceiptModal({
             <div>
               <label className="form-label">Acc No.</label>
               <input
+                ref={accnoRef}
                 className="form-input"
                 value={profile.accno || ''}
                 disabled={!profileEdit}
@@ -402,6 +434,7 @@ export default function AddReceiptModal({
             <div>
               <label className="form-label">Full Name</label>
               <input
+                ref={fullNameRef}
                 className="form-input"
                 value={profile.fullName || ''}
                 disabled={!profileEdit}
@@ -471,6 +504,7 @@ export default function AddReceiptModal({
             <div>
               <label className="form-label">Received Date</label>
               <input
+                ref={dateRef}
                 type="date"
                 className="form-input"
                 value={rcForm.date || ''}
@@ -481,6 +515,7 @@ export default function AddReceiptModal({
               <label className="form-label">Mode</label>
               <div className="flex items-center gap-2">
                 <select
+                  ref={modeRef}
                   className="form-select flex-1"
                   value={rcForm.mode || 'Cash'}
                   onChange={e => setRcForm(p => ({ ...p, mode: e.target.value, isCashMemo: false }))}

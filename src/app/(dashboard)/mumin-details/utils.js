@@ -37,7 +37,7 @@ export const SUB_HEADS = {
   Other:    ['General', 'Other'],
 };
 
-export function ComboBox({ value, onChange, options = [], placeholder, disabled, readOnly, className }) {
+export function ComboBox({ value, onChange, options = [], placeholder, disabled, readOnly, className, inputRef }) {
   const [open, setOpen] = useState(false);
   const wrapRef         = useRef(null);
 
@@ -56,6 +56,7 @@ export function ComboBox({ value, onChange, options = [], placeholder, disabled,
   return (
     <div ref={wrapRef} className="relative">
       <input
+        ref={inputRef}
         type="text"
         className={className || 'form-input'}
         value={value || ''}

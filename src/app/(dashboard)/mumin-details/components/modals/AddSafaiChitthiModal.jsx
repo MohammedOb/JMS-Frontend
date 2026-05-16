@@ -7,10 +7,11 @@ import { SaveIcon } from '@/components/shared/Icons';
 // ── Hijri conversion (anchor: 15 Jun 2026 = 1 Muharram 1448) ────────────────
 const HIJRI_ANCHOR = { gYear: 2026, gMonth: 6, gDay: 15, hYear: 1448, hMonth: 1, hDay: 1 };
 const HIJRI_MONTHS = [
-  'محرم', 'صفر', 'ربيع الاول', 'ربيع الاخر',
+  'محرم', 'صفر', 'ربيع الاولى', 'ربيع الاخر',
   'جمادى الاولى', 'جمادى الاخرى', 'رجب', 'شعبان',
   'رمضان', 'شوال', 'ذي القعدة', 'ذي الحجة',
 ];
+const toArabic = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
 let _hijriAdj = null;
 
 function _islamicRaw(date, adj = 0) {
@@ -48,7 +49,7 @@ function toHijriString(isoDate) {
   const date = new Date(y, m - 1, d);
   const anc  = new Date(HIJRI_ANCHOR.gYear, HIJRI_ANCHOR.gMonth - 1, HIJRI_ANCHOR.gDay);
   const h = _islamicRaw(date, date < anc ? _hijriCorrection() - 1 : _hijriCorrection());
-  return `${h.year}-${HIJRI_MONTHS[h.month]}-${h.day}`;
+  return `${toArabic(h.day)}-${HIJRI_MONTHS[h.month]}-${toArabic(h.year)}`;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -200,8 +201,9 @@ export default function AddSafaiChitthiModal({
               <div>
                 <label className="form-label">Hijri Date</label>
                 <div
-                  className="form-input bg-gray-50 border-gray-200 text-gray-700 min-h-[36px] flex items-center justify-end"
-                  style={{ fontFamily: "'AL-KANZ', serif", direction: 'rtl', fontSize: '14px' }}
+                  className="form-input bg-gray-50 border-gray-200 text-gray-700 min-h-[36px] flex items-center"
+                  
+                  style={{ fontFamily: "'AL-KANZ', serif", fontSize: '14px' }}
                 >
                   {form.HijriDate || (
                     <span className="text-gray-300 text-[12px]" style={{ fontFamily: 'inherit' }}>— auto calculated —</span>

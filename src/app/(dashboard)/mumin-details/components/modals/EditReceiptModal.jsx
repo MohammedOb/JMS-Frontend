@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Modal from '@/components/shared/Modal';
 import { SaveIcon, PrintIcon, EditIcon } from '@/components/shared/Icons';
 import { fmt } from '../../utils';
 import { takhmeenService } from '@/services';
+import toast from 'react-hot-toast';
 
 function normList(data) {
   if (!data) return [];
@@ -50,6 +51,8 @@ export default function EditReceiptModal({
   // ── Item inline edit state — null = not editing; number = index being edited
   const [editingItem, setEditingItem] = useState(null);
   const [editBuf, setEditBuf]         = useState({});
+
+  const updateReasonRef = useRef(null);
 
   // Reset local state when modal opens
   useEffect(() => {
@@ -163,6 +166,15 @@ export default function EditReceiptModal({
   const prevReason = rcForm?.RecordUpdateReason || rcForm?.recordUpdateReason || '';
   const prevDate   = rcForm?.RecordUpdateDate   || rcForm?.recordUpdateDate   || '';
 
+  const handleSave = () => {
+    if (!String(rcForm?.updateReason ?? '').trim()) {
+      toast.error('Reason for this update is required');
+      setTimeout(() => updateReasonRef.current?.focus(), 0);
+      return;
+    }
+    onSave();
+  };
+
   return (
     <Modal
       open={open} onClose={onClose}
@@ -176,7 +188,7 @@ export default function EditReceiptModal({
               <PrintIcon className="w-3.5 h-3.5 mr-1.5" />Print Only
             </button>
           )}
-          <button className="btn btn-primary" onClick={onSave}>
+          <button className="btn btn-primary" onClick={handleSave}>
             <SaveIcon className="w-3.5 h-3.5 mr-1.5" />Save Receipt
           </button>
         </>
@@ -457,6 +469,7 @@ export default function EditReceiptModal({
               Reason for this Update <span className="text-red-500">*</span>
             </label>
             <input
+              ref={updateReasonRef}
               className="form-input"
               placeholder="Enter reason for this change…"
               value={rcForm?.updateReason || ''}

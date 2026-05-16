@@ -30,9 +30,21 @@ const fmtDate = (iso) => {
   return isNaN(d) ? iso : d.toLocaleDateString('en-GB').replace(/\//g, '-');
 };
 
+const toArabicNum = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+const fmtHijri = (val) => {
+  if (!val) return '';
+  const m = String(val).match(/^(\d+)-(.+)-(\d+)$/);
+  return m ? `${toArabicNum(m[3])}-${m[2]}-${toArabicNum(m[1])}` : val;
+};
+
 const toInput = (iso) => {
   if (!iso) return '';
-  try { return new Date(iso).toISOString().split('T')[0]; } catch { return ''; }
+  const s = String(iso);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = new Date(s);
+  if (isNaN(d)) return '';
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
 };
 
 function statusBadge(status) {
@@ -386,7 +398,7 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
                 <td className="px-3 py-2 border-t border-border">{r.ITSNo}</td>
                 <td className="px-3 py-2 border-t border-border">{r.Address}</td>
                 <td className="px-3 py-2 border-t border-border">{fmtDate(r.EventDate)}</td>
-                <td className="px-3 py-2 border-t border-border" dir="rtl" style={{ fontFamily: "'AL-KANZ', serif" }}>{r.HijriDate}</td>
+                <td className="px-3 py-2 border-t border-border" dir="rtl" style={{ fontFamily: "'AL-KANZ', serif", fontSize: '14px' }}>{fmtHijri(r.HijriDate)}</td>
                 <td className="px-3 py-2 border-t border-border">{r.Razafor}</td>
                 <td className="px-3 py-2 border-t border-border">{r.Place}</td>
                 <td className="px-3 py-2 border-t border-border">{r.EventTime}</td>
