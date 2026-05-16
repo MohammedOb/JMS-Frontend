@@ -158,9 +158,14 @@ export const distributionService = {
 
 // ── Mohallah ─────────────────────────────────────────────────────────────────
 export const mohallahService = {
-  LoadMohallaDetails:  (data)              => api.post('/LoadMohallaDetails', data),
-  AddMohallaDetails:  (data)          => api.post('/AddMohallaDetails', data),
-  UpdateMohallaDetails:  (id, data)      => api.post(`/UpdateMohallaDetails/${id}`, data),
+  LoadMohallaDetails:               (data) => api.post('/LoadMohallaDetails',               data),
+  AddMohallaDetails:                (data) => api.post('/AddMohallaDetails',                data),
+  UpdateMohallaDetails:             (data) => api.post('/UpdateMohallaDetails',             data),
+  DeleteMohallaDetails:             (data) => api.delete('/DeleteMohallaDetails',           { data }),
+  LoadMohallaCordinatorsDetails:    (data) => api.post('/LoadMohallaCordinatorsDetails',    data),
+  AddMohallaCordinatorsDetails:     (data) => api.post('/AddMohallaCordinatorsDetails',     data),
+  UpdateMohallaCordinatorsDetails:  (data) => api.post('/UpdateMohallaCordinatorsDetails',  data),
+  DeleteMohallaCordinatorsDetails:  (data) => api.delete('/DeleteMohallaCordinatorsDetails',{ data }),
 };
 
 // ── Bookings ─────────────────────────────────────────────────────────────────
