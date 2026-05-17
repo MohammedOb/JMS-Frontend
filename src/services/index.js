@@ -255,6 +255,36 @@ export const utilityService = {
   generateReport:        (type)  => api.post('/utility/generate-report', { type }),
 };
 
+// ── Hall Seating Layout ───────────────────────────────────────────────────────
+export const hallService = {
+  // Halls
+  loadLayouts:          (data) => api.post('/LoadHallLayouts',         data),
+  addLayout:            (data) => api.post('/AddHallLayout',           data),
+  updateLayout:         (data) => api.post('/UpdateHallLayout',        data),
+  deleteLayout:         (data) => api.delete('/DeleteHallLayout',      { data }),
+
+  // Sections
+  loadSections:         (data) => api.post('/LoadHallSections',        data),
+  addSection:           (data) => api.post('/AddHallSection',          data),
+  updateSection:        (data) => api.post('/UpdateHallSection',       data),
+  deleteSection:        (data) => api.delete('/DeleteHallSection',     { data }),
+
+  // Seating
+  loadSeatGrid:         (data) => api.post('/LoadSeatGrid',            data),
+  allocateSeat:         (data) => api.post('/AllocateSeat',            data),
+  blockSeat:            (data) => api.post('/BlockSeat',               data),
+  clearSeat:            (data) => api.post('/ClearSeat',               data),
+  clearAllSeats:        (data) => api.post('/ClearAllSeats',           data),
+  autoAssignSeats:      (data) => api.post('/AutoAssignSeats',         data),
+  loadMembersForAssign: (data) => api.post('/LoadMembersForAssign',    data),
+};
+
+// ── Seating Lookups ───────────────────────────────────────────────────────────
+export const seatingLookupService = {
+  loadLookups:    (data) => api.post('/LoadSeatingLookups', data),
+  addLookupValue: (data) => api.post('/AddLookupValue',     data),
+};
+
 // ── Lookup helpers ────────────────────────────────────────────────────────────
 export const lookupService = {
   getMohallahs:   ()       => api.get('/lookup/mohallahs'),

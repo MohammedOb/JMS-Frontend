@@ -12,7 +12,7 @@ import {
   BellIcon, UsersIcon, CoinsIcon, AlertCircleIcon, ClipboardListIcon,
   TrendingUpIcon, TrendingDownIcon, CreditCardIcon, FileTextIcon, TruckIcon,
   MapPinIcon, CalendarIcon, StarIcon, ListIcon, MailIcon, GiftIcon,
-  UtensilsIcon, UserCogIcon, SettingsIcon, MosqueIcon, LogoutIcon, LayersIcon,
+  UtensilsIcon, UserCogIcon, SettingsIcon, MosqueIcon, LogoutIcon, LayersIcon, TableIcon,
 } from '@/components/shared/Icons';
 
 // ── Nav config — mirrors LinkButton visibility rules in Master.cs ─────────
@@ -57,6 +57,7 @@ const NAV_SECTIONS = [
     label: 'Community',
     items: [
       { label: 'Mohallah Details',  href: '/mohallah',           icon: MapPinIcon,    permission: 'MPMohallah' },
+      { label: 'Seating Layout',    href: '/seating-layout',      icon: TableIcon,     permission: 'MPBooking' },
       { label: 'Bookings',          href: '/calendar',            icon: CalendarIcon,  permission: 'MPBooking' },
       { label: 'Ohbat Majlis',      href: '/ohbat-majlis',       icon: StarIcon,      permission: 'MPOhbatMajlis' },
       { label: 'Majlis List',       href: '/majlis',             icon: ListIcon,      permission: 'MPOhbatMajlis' },
