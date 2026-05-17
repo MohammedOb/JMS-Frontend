@@ -36,3 +36,34 @@ export function buildSeatMap(allocations) {
   (allocations || []).forEach(a => { map[buildSeatKey(a.RowLabel, a.ColNo)] = a; });
   return map;
 }
+
+// Converts row label back to 0-based index: A→0, Z→25, AA→26 …
+export function getRowIndex(label) {
+  let result = 0;
+  for (let i = 0; i < label.length; i++) result = result * 26 + (label.charCodeAt(i) - 64);
+  return result - 1;
+}
+
+// Builds a map of seatKey → { label, isLabelCell } for all void groups.
+// isLabelCell marks the centre cell of each group where the label is rendered.
+export function buildVoidMap(voidGroups) {
+  const map = {};
+  for (const g of (voidGroups || [])) {
+    const fi = getRowIndex(g.RowFrom);
+    const ti = getRowIndex(g.RowTo);
+    const cf = parseInt(g.ColFrom);
+    const ct = parseInt(g.ColTo);
+    const centerRi  = Math.floor((fi + ti) / 2);
+    const centerCol = Math.floor((cf + ct) / 2);
+    for (let ri = fi; ri <= ti; ri++) {
+      const rowLabel = getRowLabel(ri);
+      for (let col = cf; col <= ct; col++) {
+        map[buildSeatKey(rowLabel, col)] = {
+          label: g.Label,
+          isLabelCell: ri === centerRi && col === centerCol,
+        };
+      }
+    }
+  }
+  return map;
+}

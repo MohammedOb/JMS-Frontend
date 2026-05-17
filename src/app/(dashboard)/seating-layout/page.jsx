@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import * as XLSX from 'xlsx';
-import { hallService, memberService, seatingLookupService } from '@/services';
-import { getRowLabel, THIS_YEAR, buildSeatKey, buildSeatMap, DEFAULT_LOOKUPS } from './components/constants';
+import { hallService, memberService, seatingLookupService, voidService } from '@/services';
+import { getRowLabel, THIS_YEAR, buildSeatKey, buildSeatMap, buildVoidMap, DEFAULT_LOOKUPS } from './components/constants';
 
 import FilterBar       from './components/booking/FilterBar';
 import StatsActionBar  from './components/booking/StatsActionBar';
@@ -14,6 +14,8 @@ import HallModal       from './components/modals/HallModal';
 import SectionModal    from './components/modals/SectionModal';
 import SeatClickModal  from './components/modals/SeatClickModal';
 import AutoAssignModal from './components/modals/AutoAssignModal';
+import BlockRangeModal from './components/modals/BlockRangeModal';
+import VoidSeatsModal  from './components/modals/VoidSeatsModal';
 
 export default function SeatingLayoutPage() {
   const [activeTab, setActiveTab] = useState('booking');
@@ -54,6 +56,13 @@ export default function SeatingLayoutPage() {
   const [selectedMember, setSelectedMember]     = useState(null);
   const [blockRemark, setBlockRemark]           = useState('');
   const memberSearchTimer                       = useRef(null);
+
+  // ── Void seats state ──────────────────────────────────────────────────────────
+  const [voidMap,   setVoidMap]   = useState({});
+  const [voidModal, setVoidModal] = useState({ open: false, section: null });
+
+  // ── Block-range modal state ───────────────────────────────────────────────────
+  const [blockRangeModal, setBlockRangeModal] = useState(false);
 
   // ── Auto-assign modal state ───────────────────────────────────────────────────
   const [autoModal,   setAutoModal]   = useState(false);
@@ -163,12 +172,16 @@ export default function SeatingLayoutPage() {
     setActiveSec(sec);
     setLoadingGrid(true);
     try {
-      const res = await hallService.loadSeatGrid({
-        SectionID: filterSectionId,
-        EventType: filterEventType || null,
-        ForYear: filterYear || null,
-      });
-      setSeatMap(buildSeatMap(res.data?.data));
+      const [gridRes, voidRes] = await Promise.all([
+        hallService.loadSeatGrid({
+          SectionID: filterSectionId,
+          EventType: filterEventType || null,
+          ForYear: filterYear || null,
+        }),
+        voidService.loadVoidGroups({ SectionID: filterSectionId }),
+      ]);
+      setSeatMap(buildSeatMap(gridRes.data?.data));
+      setVoidMap(buildVoidMap(voidRes.data?.data || []));
     } catch { toast.error('Failed to load seat grid'); }
     finally { setLoadingGrid(false); }
   }, [filterSectionId, filterEventType, filterYear, bookingSections]);
@@ -177,7 +190,8 @@ export default function SeatingLayoutPage() {
 
   const stats = (() => {
     if (!activeSec) return { total: 0, allocated: 0, blocked: 0, available: 0 };
-    const total = activeSec.RowCount * activeSec.ColCount;
+    const voidCount = Object.keys(voidMap).length;
+    const total = activeSec.RowCount * activeSec.ColCount - voidCount;
     const allocs = Object.values(seatMap);
     const allocated = allocs.filter(a => a.SeatStatus === 'Allocated').length;
     const blocked   = allocs.filter(a => a.SeatStatus === 'Blocked').length;
@@ -358,7 +372,8 @@ export default function SeatingLayoutPage() {
     for (let r = 0; r < activeSec.RowCount; r++) {
       for (let c = 1; c <= activeSec.ColCount; c++) {
         const rowLabel = getRowLabel(r);
-        if (!seatMap[buildSeatKey(rowLabel, c)]) available.push({ RowLabel: rowLabel, ColNo: c });
+        const key = buildSeatKey(rowLabel, c);
+        if (!seatMap[key] && !voidMap[key]) available.push({ RowLabel: rowLabel, ColNo: c });
       }
     }
     const pairs = sorted.slice(0, available.length).map((m, i) => ({
@@ -481,6 +496,20 @@ export default function SeatingLayoutPage() {
     setFilterSectionId(sectionId);
     setActiveSec(null);
     setSeatMap({});
+    setVoidMap({});
+  };
+
+  // ── Block range ───────────────────────────────────────────────────────────────
+
+  const doBlockRange = async ({ RowFrom, RowTo, ColFrom, ColTo, Remark }) => {
+    try {
+      await hallService.blockSeatRange({
+        SectionID: filterSectionId, EventType: filterEventType || null, ForYear: filterYear || null,
+        RowFrom, RowTo, ColFrom, ColTo, Remark,
+      });
+      toast.success('Seat range blocked');
+      loadGrid();
+    } catch { toast.error('Failed to block seat range'); }
   };
 
   const closeAutoModal = () => { setAutoModal(false); setAutoPreview(null); setAutoMembers([]); };
@@ -533,13 +562,14 @@ export default function SeatingLayoutPage() {
             <StatsActionBar
               stats={stats}
               onAutoAssign={() => setAutoModal(true)}
+              onBlockRange={() => setBlockRangeModal(true)}
               onClearAll={doClearAll}
               onPrint={handlePrint}
               onExport={handleExport}
             />
           )}
 
-          <SeatGrid activeSec={activeSec} seatMap={seatMap} onSeatClick={handleSeatClick} />
+          <SeatGrid activeSec={activeSec} seatMap={seatMap} voidMap={voidMap} onSeatClick={handleSeatClick} />
         </div>
       )}
 
@@ -557,6 +587,7 @@ export default function SeatingLayoutPage() {
           onAddSection={(hallId) => setSectionModal({ open: true, mode: 'add', data: {}, hallId })}
           onEditSection={(sec, hallId) => setSectionModal({ open: true, mode: 'edit', data: { ...sec }, hallId })}
           onDeleteSection={deleteSection}
+          onVoidSeats={(sec) => setVoidModal({ open: true, section: sec })}
         />
       )}
 
@@ -611,6 +642,20 @@ export default function SeatingLayoutPage() {
         onPreview={generateAutoPreview}
         onClearPreview={() => setAutoPreview(null)}
         onConfirm={confirmAutoAssign}
+      />
+
+      <BlockRangeModal
+        open={blockRangeModal}
+        activeSec={activeSec}
+        onClose={() => setBlockRangeModal(false)}
+        onConfirm={doBlockRange}
+      />
+
+      <VoidSeatsModal
+        open={voidModal.open}
+        section={voidModal.section}
+        onClose={() => setVoidModal({ open: false, section: null })}
+        onSaved={() => { if (activeSec && String(activeSec.ID) === String(voidModal.section?.ID)) loadGrid(); }}
       />
     </div>
   );

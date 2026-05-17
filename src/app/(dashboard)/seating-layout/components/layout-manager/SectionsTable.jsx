@@ -2,7 +2,7 @@
 
 import { PlusIcon, EditIcon, TrashIcon } from '@/components/shared/Icons';
 
-export default function SectionsTable({ sections, hallId, onAddSection, onEditSection, onDeleteSection }) {
+export default function SectionsTable({ sections, hallId, onAddSection, onEditSection, onDeleteSection, onVoidSeats }) {
   return (
     <div className="bg-surface border-t border-border px-8 py-3">
       <div className="flex items-center justify-between mb-2">
@@ -38,6 +38,9 @@ export default function SectionsTable({ sections, hallId, onAddSection, onEditSe
                 <td className="py-1.5 text-center">{sec.ColCount}</td>
                 <td className="py-1.5 text-center font-semibold text-navy-700">{sec.RowCount * sec.ColCount}</td>
                 <td className="py-1.5 flex gap-1 justify-end">
+                  <button onClick={() => onVoidSeats?.(sec)} title="Manage void seats" className="p-1 rounded hover:bg-slate-100 text-slate-600 text-[9px] font-bold leading-none">
+                    ⬛
+                  </button>
                   <button onClick={() => onEditSection(sec, hallId)} className="p-1 rounded hover:bg-blue-50 text-blue-500">
                     <EditIcon className="w-3 h-3" />
                   </button>

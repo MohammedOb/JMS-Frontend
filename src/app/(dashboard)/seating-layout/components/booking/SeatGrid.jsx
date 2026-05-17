@@ -3,7 +3,7 @@
 import { getRowLabel, buildSeatKey } from '../constants';
 import SeatCell from './SeatCell';
 
-export default function SeatGrid({ activeSec, seatMap, onSeatClick }) {
+export default function SeatGrid({ activeSec, seatMap, voidMap, onSeatClick }) {
   if (!activeSec) {
     return (
       <div className="bg-white rounded-xl border border-border p-12 text-center text-gray-400 shadow-sm">
@@ -41,7 +41,7 @@ export default function SeatGrid({ activeSec, seatMap, onSeatClick }) {
                   const alloc = seatMap[buildSeatKey(rowLabel, col)] || null;
                   return (
                     <td key={col}>
-                      <SeatCell row={rowLabel} col={col} allocation={alloc} onClick={onSeatClick} />
+                      <SeatCell row={rowLabel} col={col} allocation={alloc} voidInfo={voidMap?.[buildSeatKey(rowLabel, col)] || null} onClick={onSeatClick} />
                     </td>
                   );
                 })}

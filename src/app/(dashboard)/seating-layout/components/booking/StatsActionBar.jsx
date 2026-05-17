@@ -11,7 +11,7 @@ function StatChip({ label, value, color }) {
   );
 }
 
-export default function StatsActionBar({ stats, onAutoAssign, onClearAll, onPrint, onExport }) {
+export default function StatsActionBar({ stats, onAutoAssign, onBlockRange, onClearAll, onPrint, onExport }) {
   return (
     <div className="bg-white rounded-xl border border-border p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -29,6 +29,9 @@ export default function StatsActionBar({ stats, onAutoAssign, onClearAll, onPrin
           </div>
           <button onClick={onAutoAssign} className="btn-secondary text-sm flex items-center gap-1.5">
             <CheckIcon className="w-3.5 h-3.5" />Auto Assign
+          </button>
+          <button onClick={onBlockRange} className="btn-secondary text-sm flex items-center gap-1.5 text-yellow-700 border-yellow-300 hover:bg-yellow-50">
+            <XIcon className="w-3.5 h-3.5" />Block Range
           </button>
           <button onClick={onClearAll} className="btn-danger text-sm flex items-center gap-1.5">
             <XIcon className="w-3.5 h-3.5" />Clear All

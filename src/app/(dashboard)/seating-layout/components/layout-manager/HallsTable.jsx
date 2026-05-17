@@ -6,7 +6,7 @@ import SectionsTable from './SectionsTable';
 export default function HallsTable({
   halls, loadingHalls, expandedHall, sections,
   onToggleExpand, onAddHall, onEditHall, onDeleteHall,
-  onAddSection, onEditSection, onDeleteSection,
+  onAddSection, onEditSection, onDeleteSection, onVoidSeats,
 }) {
   return (
     <div className="bg-white rounded-xl border border-border shadow-sm">
@@ -50,6 +50,7 @@ export default function HallsTable({
                   onAddSection={onAddSection}
                   onEditSection={onEditSection}
                   onDeleteSection={onDeleteSection}
+                  onVoidSeats={onVoidSeats}
                 />
               )}
             </div>
