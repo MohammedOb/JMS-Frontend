@@ -278,6 +278,7 @@ export const hallService = {
   autoAssignSeats:      (data) => api.post('/AutoAssignSeats',         data),
   loadMembersForAssign: (data) => api.post('/LoadMembersForAssign',    data),
   blockSeatRange:       (data) => api.post('/BlockSeatRange',          data),
+  clearSeatRange:       (data) => api.post('/ClearSeatRange',          data),
 };
 
 // ── Void Seats ────────────────────────────────────────────────────────────────

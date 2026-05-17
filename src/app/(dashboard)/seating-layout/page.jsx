@@ -58,8 +58,9 @@ export default function SeatingLayoutPage() {
   const memberSearchTimer                       = useRef(null);
 
   // ── Void seats state ──────────────────────────────────────────────────────────
-  const [voidMap,   setVoidMap]   = useState({});
-  const [voidModal, setVoidModal] = useState({ open: false, section: null });
+  const [voidGroups, setVoidGroups] = useState([]);
+  const [voidMap,    setVoidMap]    = useState({});
+  const [voidModal,  setVoidModal]  = useState({ open: false, section: null });
 
   // ── Block-range modal state ───────────────────────────────────────────────────
   const [blockRangeModal, setBlockRangeModal] = useState(false);
@@ -181,7 +182,9 @@ export default function SeatingLayoutPage() {
         voidService.loadVoidGroups({ SectionID: filterSectionId }),
       ]);
       setSeatMap(buildSeatMap(gridRes.data?.data));
-      setVoidMap(buildVoidMap(voidRes.data?.data || []));
+      const vgData = voidRes.data?.data || [];
+      setVoidGroups(vgData);
+      setVoidMap(buildVoidMap(vgData));
     } catch { toast.error('Failed to load seat grid'); }
     finally { setLoadingGrid(false); }
   }, [filterSectionId, filterEventType, filterYear, bookingSections]);
@@ -496,7 +499,38 @@ export default function SeatingLayoutPage() {
     setFilterSectionId(sectionId);
     setActiveSec(null);
     setSeatMap({});
+    setVoidGroups([]);
     setVoidMap({});
+  };
+
+  // ── Span cell click (blocked range or void group) ─────────────────────────────
+
+  const handleSpanClick = (span) => {
+    if (span.type === 'void') {
+      // Open the Void Seats modal for the current section so the user can remove it
+      setVoidModal({ open: true, section: activeSec });
+      return;
+    }
+    // Blocked range — confirm then clear
+    if (confirm(`Unblock "${span.label}" (Rows ${span.rowFrom}–${span.rowTo}, Cols ${span.colFrom}–${span.colTo})?\n\nAll seats in this range will become available again.`)) {
+      doUnblockRange(span);
+    }
+  };
+
+  const doUnblockRange = async (span) => {
+    try {
+      await hallService.clearSeatRange({
+        SectionID: filterSectionId,
+        EventType: filterEventType || null,
+        ForYear:   filterYear || null,
+        RowFrom:   span.rowFrom,
+        RowTo:     span.rowTo,
+        ColFrom:   span.colFrom,
+        ColTo:     span.colTo,
+      });
+      toast.success(`"${span.label}" unblocked`);
+      loadGrid();
+    } catch { toast.error('Failed to unblock range'); }
   };
 
   // ── Block range ───────────────────────────────────────────────────────────────
@@ -569,7 +603,7 @@ export default function SeatingLayoutPage() {
             />
           )}
 
-          <SeatGrid activeSec={activeSec} seatMap={seatMap} voidMap={voidMap} onSeatClick={handleSeatClick} />
+          <SeatGrid activeSec={activeSec} seatMap={seatMap} voidGroups={voidGroups} onSeatClick={handleSeatClick} onSpanClick={handleSpanClick} />
         </div>
       )}
 
