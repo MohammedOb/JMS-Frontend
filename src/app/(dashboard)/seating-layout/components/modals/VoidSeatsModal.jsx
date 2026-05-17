@@ -15,7 +15,8 @@ export default function VoidSeatsModal({ open, section, onClose, onSaved }) {
   const [form,    setForm]    = useState(EMPTY_FORM);
 
   useEffect(() => {
-    if (!open || !section?.ID) return;
+    if (!open) { setForm(EMPTY_FORM); return; }
+    if (!section?.ID) return;
     setLoading(true);
     voidService.loadVoidGroups({ SectionID: section.ID })
       .then(res => setGroups(res.data?.data || []))

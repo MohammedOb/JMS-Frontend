@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Modal from '@/components/shared/Modal';
 import { getRowLabel } from '../constants';
 
@@ -10,6 +10,16 @@ export default function BlockRangeModal({ open, activeSec, onClose, onConfirm })
   const [colFrom, setColFrom] = useState('1');
   const [colTo,   setColTo]   = useState('1');
   const [remark,  setRemark]  = useState('');
+
+  useEffect(() => {
+    if (!open) {
+      setRowFrom('A');
+      setRowTo('A');
+      setColFrom('1');
+      setColTo('1');
+      setRemark('');
+    }
+  }, [open]);
 
   if (!activeSec) return null;
 
