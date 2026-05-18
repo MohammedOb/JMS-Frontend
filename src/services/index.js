@@ -194,13 +194,44 @@ export const musaidaService = {
   update:  (id, data)      => api.put(`/musaida/${id}`, data),
 };
 
-// ── Users ─────────────────────────────────────────────────────────────────────
+// ── Users (legacy) ───────────────────────────────────────────────────────────
 export const userService = {
-  getAll:         ()       => api.get('/users'),
-  create:         (data)   => api.post('/users', data),
-  update:         (id, d)  => api.put(`/users/${id}`, d),
-  updatePermissions:(id, d)=> api.put(`/users/${id}/permissions`, d),
-  resetPassword:  (id)     => api.post(`/users/${id}/reset-password`),
+  getAll:           ()       => api.get('/users'),
+  create:           (data)   => api.post('/users', data),
+  update:           (id, d)  => api.put(`/users/${id}`, d),
+  updatePermissions:(id, d)  => api.put(`/users/${id}/permissions`, d),
+  resetPassword:    (id)     => api.post(`/users/${id}/reset-password`),
+};
+
+// ── RBAC — Industry-standard access control ──────────────────────────────────
+export const rbacService = {
+  // Users
+  getUsers:         ()           => api.get('/rbac/users'),
+  getUser:          (id)         => api.get(`/rbac/users/${id}`),
+  createUser:       (data)       => api.post('/rbac/users', data),
+  updateUser:       (id, data)   => api.put(`/rbac/users/${id}`, data),
+  resetPassword:    (id, data)   => api.post(`/rbac/users/${id}/reset-password`, data),
+  assignRole:       (id, data)   => api.put(`/rbac/users/${id}/role`, data),
+  assignScopes:     (id, data)   => api.put(`/rbac/users/${id}/scopes`, data),
+  // Roles
+  getRoles:         ()           => api.get('/rbac/roles'),
+  getRole:          (id)         => api.get(`/rbac/roles/${id}`),
+  createRole:       (data)       => api.post('/rbac/roles', data),
+  updateRole:       (id, data)   => api.put(`/rbac/roles/${id}`, data),
+  setRolePermissions:(id, data)  => api.put(`/rbac/roles/${id}/permissions`, data),
+  // Permissions
+  getPermissions:    ()          => api.get('/rbac/permissions'),
+  createPermission:  (data)      => api.post('/rbac/permissions', data),
+  updatePermission:  (id, data)  => api.put(`/rbac/permissions/${id}`, data),
+  deletePermission:  (id)        => api.delete(`/rbac/permissions/${id}`),
+  // Scopes
+  getScopes:         ()          => api.get('/rbac/scopes'),
+  createScope:       (data)      => api.post('/rbac/scopes', data),
+  updateScope:       (id, data)  => api.put(`/rbac/scopes/${id}`, data),
+  deleteScope:       (id)        => api.delete(`/rbac/scopes/${id}`),
+  // Audit
+  getAuditLogs:     (params)     => api.get('/rbac/audit-logs', { params }),
+  clearAuditLogs:   ()           => api.delete('/rbac/audit-logs'),
 };
 
 // ── FMB Menu ─────────────────────────────────────────────────────────────────

@@ -78,57 +78,59 @@ import AddNewMemberModal   from './components/modals/AddNewMemberModal';
 import EditFmbModal        from './components/modals/EditFmbModal';
 import EditVajInfoModal    from './components/modals/EditVajInfoModal';
 
-// ── Feature flags — set false to hide, true to show ──────────────────────────
-// Tab list is derived at module level so the default tab state uses it
-const FEATURES = {
-  // Left panel cards
-  fmbCard:         true,
-  vajebaatInfoCard:false,
-
-  // Profile card actions
-  editProfile:     true,
-  resetPassword:   true,
-  overallDue:      true,
-
-  // Due summary row
-  dueSummary:      true,
-
-  // Alert banners (HIM / FMB pending warnings)
-  alertBanners:    true,
-
-  // Action bar buttons
-  addReceipt:      true,
-  addTakhmeen:     true,
-  vajebaatEntry:   true,
-  sabeelDue:       true,
-  addSafai:        true,
-  followup:        true,
-  takhmeenPreview: true,
-
-  // Tabs
-  takhmeenTab:     true,
-  receiptsTab:     true,
-  familyTab:       true,
-  safaiTab:        true,
-  vajebaatTab:     true,
-
-  // New member button in search bar
-  newMember:       true,
-};
-
-const TAB_LIST = [
-  FEATURES.takhmeenTab && { key: 'takhmeen', label: 'Takhmeen' },
-  FEATURES.receiptsTab && { key: 'receipts', label: 'Receipt History' },
-  FEATURES.familyTab   && { key: 'family',   label: 'Family Details' },
-  FEATURES.safaiTab    && { key: 'safai',     label: 'Safai Chitthi' },
-  FEATURES.vajebaatTab && { key: 'vajebaat',  label: 'Vajebaat' },
-].filter(Boolean);
 
 // ═══════════════════════════════════════════════════════════════════════════
 function MuminDetailsInner() {
   const params          = useSearchParams();
   const router          = useRouter();
   const { permissions, user } = useAuth();
+
+  // ── Feature flags — derived from permissions ──────────────────────────────
+  const hideButtons = permissions.MDHideAllButtons;
+  const FEATURES = {
+    // Left panel cards
+    fmbCard:          true,
+    editFMB:          !hideButtons && !!permissions.MDEditFMB,
+    printFMB:         !hideButtons && !!permissions.MDPrintFMB,
+    vajebaatInfoCard: !!permissions.MDVajebaatDetailsView,
+
+    // Profile card actions
+    editProfile:      !hideButtons && (!!permissions.MDEditProfile || !!permissions.MDNewInsert),
+    resetPassword:    !hideButtons && (!!permissions.MDResetPassword || !!permissions.MPManagUser),
+    
+
+    // Due summary + alert banners always shown
+    dueSummary:       true,
+    overallDue:       !hideButtons && !!permissions.MDOverallDue,
+    alertBanners:     true,
+
+    // Action bar buttons
+    addReceipt:       !hideButtons && !!permissions.MDNewInsert,
+    addTakhmeen:      !hideButtons && !!permissions.MDNewInsert,
+    vajebaatEntry:    !hideButtons && !!permissions.MDSpeedVajebaatView,
+    sabeelDue:        !hideButtons,
+    addSafai:         !hideButtons,
+    followup:         !hideButtons,
+    takhmeenPreview:  true,
+
+    // Tabs
+    takhmeenTab:      true,
+    receiptsTab:      true,
+    familyTab:        true,
+    safaiTab:         !!permissions.MDSafaiChitthiTabView,
+    vajebaatTab:      !!permissions.MDVajebaatTabView,
+
+    // New member button in search bar
+    newMember:        !hideButtons && !!permissions.MDNewInsert,
+  };
+
+  const TAB_LIST = [
+    FEATURES.takhmeenTab && { key: 'takhmeen', label: 'Takhmeen' },
+    FEATURES.receiptsTab && { key: 'receipts', label: 'Receipt History' },
+    FEATURES.familyTab   && { key: 'family',   label: 'Family Details' },
+    FEATURES.safaiTab    && { key: 'safai',     label: 'Safai Chitthi' },
+    FEATURES.vajebaatTab && { key: 'vajebaat',  label: 'Vajebaat' },
+  ].filter(Boolean);
 
   // ── Search state ──────────────────────────────────────────────────────────
   const [searchVal,       setSearchVal]       = useState(params.get('accno') || '');
@@ -816,11 +818,13 @@ function MuminDetailsInner() {
               onAddReceipt={() => openModal('addReceipt')}
               onPrint={() => window.print()}
               onResetPass={() => openModal('resetPass')}
-              onOverallDue={() => openModal('overallDue')}
+              onOverallDue={FEATURES.overallDue ? () => openModal('overallDue') : null}
             />
             {FEATURES.fmbCard && (
               <FmbDetailsCard
                 member={member}
+                showEdit={FEATURES.editFMB}
+                showPrint={FEATURES.printFMB}
                 onEdit={() => {
                   setFmbForm({
                     ThaaliStatus:    member.thaaliStatus  || '',
@@ -861,7 +865,7 @@ function MuminDetailsInner() {
             <div className="flex gap-3 mb-3">
               {FEATURES.dueSummary && (
                 <div className="w-[35%] shrink-0">
-                  <DueSummaryCards takhmeen={takhmeen} onOverallDue={() => openModal('overallDue')} />
+                  <DueSummaryCards takhmeen={takhmeen} onOverallDue={FEATURES.overallDue ? () => openModal('overallDue') : null} />
                 </div>
               )}
               {FEATURES.alertBanners && (
@@ -985,7 +989,7 @@ function MuminDetailsInner() {
               {tab === 'safai' && (
                 <SafaiChitthiTab member={member} onCountChange={setSafaiCount} />
               )}
-              {tab === 'vajebaat' && permissions.MDVajebaatTabView && (
+              {tab === 'vajebaat' && (
                 <VajebaatTab
                   member={member}
                   vajebaat={vajebaat}

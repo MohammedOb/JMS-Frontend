@@ -21,12 +21,12 @@ const NAV_SECTIONS = [
   {
     label: 'Core',
     items: [
-      { label: 'Dashboard',         href: '/dashboard',           icon: DashboardIcon,      permission: null },
+      { label: 'Dashboard',         href: '/dashboard',           icon: DashboardIcon,      permission: 'MPBasicMenu' },
       { label: 'Add Receipt',        href: '/add-receipt',         icon: ReceiptIcon,        permission: 'MPBasicMenu' },
       { label: 'Daily Report',       href: '/daily-report',        icon: BarChartIcon,       permission: 'MPBasicMenu' },
-      { label: 'Member Search',      href: '/mumin-search',        icon: SearchIcon,         permission: 'MPBasicMenu' },
-      { label: 'Takhmeen Not Done',  href: '/takhmeen-not-done',   icon: AlertTriangleIcon,  permission: 'MPBasicMenu' },
-      { label: 'Notifications',      href: '/notifications',       icon: BellIcon,           permission: 'MPBasicMenu' },
+      { label: 'Member Search',      href: '/mumin-search',        icon: SearchIcon,         permission: 'MPMuminDetails' },
+      { label: 'Takhmeen Not Done',  href: '/takhmeen-not-done',   icon: AlertTriangleIcon,  permission: 'MPMuminTakhmeen' },
+      { label: 'Notifications',      href: '/notifications',       icon: BellIcon,           permission: 'MPnotifications' },
     ],
   },
   {
@@ -39,7 +39,7 @@ const NAV_SECTIONS = [
   {
     label: 'Reports & Due',
     items: [
-      { label: 'Due Details',        href: '/due-details',        icon: AlertCircleIcon,  permission: 'MPDueDetails' },
+      { label: 'Due Details',        href: '/due-details',        icon: AlertCircleIcon,  permission: 'MPMuminTakhmeen' },
       { label: 'Follow Up List',     href: '/followup',           icon: ClipboardListIcon, permission: 'MPFollowupList' },
       { label: 'Sabeel Statistics',  href: '/sabeel-statistics',  icon: TrendingUpIcon,   permission: 'MPSabeelStatistics' },
       { label: 'FMB Statistics',     href: '/fmb-statistics',     icon: TrendingDownIcon, permission: 'MPFMBStatistics' },
@@ -57,19 +57,19 @@ const NAV_SECTIONS = [
     label: 'Community',
     items: [
       { label: 'Mohallah Details',  href: '/mohallah',           icon: MapPinIcon,    permission: 'MPMohallah' },
-      { label: 'Seating Layout',    href: '/seating-layout',      icon: TableIcon,     permission: 'MPBooking' },
+      { label: 'Seating Layout',    href: '/seating-layout',      icon: TableIcon,     permission: 'MPSeatingLayout' },
       { label: 'Bookings',          href: '/calendar',            icon: CalendarIcon,  permission: 'MPBooking' },
       { label: 'Ohbat Majlis',      href: '/ohbat-majlis',       icon: StarIcon,      permission: 'MPOhbatMajlis' },
       { label: 'Majlis List',       href: '/majlis',             icon: ListIcon,      permission: 'MPOhbatMajlis' },
       { label: 'Safai Chitthi',     href: '/safai-chitthi',      icon: MailIcon,      permission: 'MPSafaiChitthi' },
-      { label: 'Musaida List',      href: '/musaida',            icon: GiftIcon,      permission: null },
+      { label: 'Musaida List',      href: '/musaida',            icon: GiftIcon,      permission: 'MPMusaida' },
     ],
   },
   {
     label: 'System',
     items: [
       { label: 'FMB Daily Menu',    href: '/fmb-daily-menu',     icon: UtensilsIcon,  permission: 'MPFMBDailyMenu' },
-      { label: 'Manage Users',      href: '/manage-users',       icon: UserCogIcon,   permission: 'MPManagUser' },
+      { label: 'Access Control',     href: '/access-control',     icon: UserCogIcon,   permission: 'MPManagUser' },
       { label: 'Utility',           href: '/utility',            icon: SettingsIcon,  permission: 'MPUtility' },
     ],
   },

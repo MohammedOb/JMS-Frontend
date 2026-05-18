@@ -53,7 +53,7 @@ const BASE_HEADERS = [
 ];
 
 export default function DayEventList({
-  cell, bookings, canAdd, canEdit, canDelete,
+  cell, bookings, canAdd, canEdit, canDelete, canPrint,
   onAddEvent, onEdit, onDelete, onApproveRaza, onRevertRaza, onAddSafaiChitthi, onClose,
 }) {
   const [showUpdateInfo, setShowUpdateInfo] = useState(false);
@@ -158,10 +158,12 @@ export default function DayEventList({
                             <EditIcon className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        <button onClick={() => onEdit({ ...b, _print: true })} title="Print"
-                          className="p-1 rounded text-blue-600 hover:bg-blue-100 transition-colors">
-                          <PrintIcon className="w-3.5 h-3.5" />
-                        </button>
+                        {canPrint && (
+                          <button onClick={() => onEdit({ ...b, _print: true })} title="Print"
+                            className="p-1 rounded text-blue-600 hover:bg-blue-100 transition-colors">
+                            <PrintIcon className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         {/* Single raza toggle */}
                         {(b.razaStatus === 'Raza Done' || b.razaStatus === 'Raza Approved') ? (
                           <button onClick={() => setRazaModal({ type: 'revert', booking: b })} title="Revert to Pending"

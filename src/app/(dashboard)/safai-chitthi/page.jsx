@@ -10,6 +10,7 @@ import Modal from '@/components/shared/Modal';
 import ComboBox from '@/components/shared/ComboBox';
 import EditSafaiChitthiModal from '@/app/(dashboard)/mumin-details/components/modals/EditSafaiChitthiModal';
 import { PrintIcon, EditIcon, TrashIcon, DownloadIcon, BarChartIcon, FileTextIcon } from '@/components/shared/Icons';
+import { useAuth } from '@/context/AuthContext';
 
 const fmtExportDate = (val) => {
   if (!val) return '';
@@ -194,6 +195,7 @@ function RazaFilters({ filters, setF, suggestions, loading, onLoad, onClear }) {
 
 function SafaiChitthiInner() {
   const router = useRouter();
+  const { permissions } = useAuth();
 
   const [filters,      setFilters]      = useState(makeEmptyFilters);
   const [allRows,      setAllRows]      = useState([]);
@@ -488,15 +490,21 @@ function SafaiChitthiInner() {
                   {/* Action — icon only */}
                   <td className="px-2 py-1.5 border-t border-border">
                     <div className="flex gap-1">
-                      <button className="btn btn-secondary btn-sm p-1.5" title="Edit" onClick={() => openEdit(r)}>
-                        <EditIcon className="w-3.5 h-3.5" />
-                      </button>
-                      <button className="btn btn-secondary btn-sm p-1.5" title="Print">
-                        <PrintIcon className="w-3.5 h-3.5" />
-                      </button>
-                      <button className="btn btn-sm p-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100" title="Delete" onClick={() => openDelete(r)}>
-                        <TrashIcon className="w-3.5 h-3.5" />
-                      </button>
+                      {permissions.SafaiEdit && (
+                        <button className="btn btn-secondary btn-sm p-1.5" title="Edit" onClick={() => openEdit(r)}>
+                          <EditIcon className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {permissions.SafaiPrint && (
+                        <button className="btn btn-secondary btn-sm p-1.5" title="Print" onClick={() => window.print()}>
+                          <PrintIcon className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {permissions.SafaiDelete && (
+                        <button className="btn btn-sm p-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100" title="Delete" onClick={() => openDelete(r)}>
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-2 border-t border-border font-semibold">{r.SerialNo}</td>

@@ -57,6 +57,7 @@ export default function DueSummaryCards({ takhmeen = [], onOverallDue }) {
           </tr>
         </tfoot>
       </table>
+      
       {onOverallDue && (
         <div className="px-3 py-2 border-t border-gray-100">
           <button
@@ -67,6 +68,7 @@ export default function DueSummaryCards({ takhmeen = [], onOverallDue }) {
           </button>
         </div>
       )}
+      
     </div>
   );
 }

@@ -86,7 +86,7 @@ function ActionBtn({ label, onClick, className, children, disabled }) {
 // ── Main Tab ─────────────────────────────────────────────────────────────────
 export default function SafaiChitthiTab({ member, onCountChange }) {
   const accNo = member?.accno || member?.AccNo || '';
-  const { user } = useAuth();
+  const { user, permissions } = useAuth();
 
   const [rows,          setRows]          = useState([]);
   const [loading,       setLoading]       = useState(false);
@@ -340,7 +340,9 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
             {[20, 50, 100, 200, 500, 1000, 'All'].map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={openAdd}>+ Add Raza</button>
+        {permissions.MDAddSafai && (
+          <button className="btn btn-primary btn-sm" onClick={openAdd}>+ Add Raza</button>
+        )}
       </div>
 
       <div className="rounded-lg overflow-hidden border border-border overflow-x-auto safai-scroll">
@@ -357,13 +359,17 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
               <tr key={i} className="hover:bg-blue-500/[0.025]">
                 <td className="px-2 py-2 border-t border-border">
                   <div className="flex gap-1">
-                    <ActionBtn label="Edit" onClick={() => openEdit(r)}>
-                      <EditIcon className="w-3.5 h-3.5" />
-                    </ActionBtn>
-                    <ActionBtn label="Print">
-                      <PrintIcon className="w-3.5 h-3.5" />
-                    </ActionBtn>
-                    {r.RazaStatus !== 'Raza Done' && r.RazaStatus !== 'Raza Approved' && (
+                    {permissions.MDEditSafai && (
+                      <ActionBtn label="Edit" onClick={() => openEdit(r)}>
+                        <EditIcon className="w-3.5 h-3.5" />
+                      </ActionBtn>
+                    )}
+                    {permissions.MDSafaiPrint && (
+                      <ActionBtn label="Print">
+                        <PrintIcon className="w-3.5 h-3.5" />
+                      </ActionBtn>
+                    )}
+                    {permissions.RazaStatus && r.RazaStatus !== 'Raza Done' && r.RazaStatus !== 'Raza Approved' && (
                       <ActionBtn
                         label="Approve"
                         className="bg-white border-green-200 text-green-600 hover:bg-green-50 hover:border-green-400"
@@ -372,7 +378,7 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
                         <CheckIcon className="w-3.5 h-3.5" />
                       </ActionBtn>
                     )}
-                    {(r.RazaStatus === 'Raza Done' || r.RazaStatus === 'Raza Approved') && (
+                    {permissions.RazaStatus && (r.RazaStatus === 'Raza Done' || r.RazaStatus === 'Raza Approved') && (
                       <ActionBtn
                         label="Revert to Pending"
                         className="bg-white border-orange-200 text-orange-500 hover:bg-orange-50 hover:border-orange-400"
@@ -381,13 +387,15 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
                         <RefreshIcon className="w-3.5 h-3.5" />
                       </ActionBtn>
                     )}
-                    <ActionBtn
-                      label="Delete"
-                      className="bg-white border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400"
-                      onClick={() => openDelete(r)}
-                    >
-                      <TrashIcon className="w-3.5 h-3.5" />
-                    </ActionBtn>
+                    {permissions.MDDeleteSafai && (
+                      <ActionBtn
+                        label="Delete"
+                        className="bg-white border-red-200 text-red-500 hover:bg-red-50 hover:border-red-400"
+                        onClick={() => openDelete(r)}
+                      >
+                        <TrashIcon className="w-3.5 h-3.5" />
+                      </ActionBtn>
+                    )}
                   </div>
                 </td>
                 <td className="px-3 py-2 border-t border-border font-semibold">{r.SerialNo}</td>

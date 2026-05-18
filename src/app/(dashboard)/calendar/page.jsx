@@ -340,6 +340,7 @@ export default function CalendarPage() {
   const canAdd = !!permissions?.BookingAdd;
   const canEdit = !!permissions?.BookingEdit;
   const canDelete = !!permissions?.BookingDelete;
+  const canPrint = !!permissions?.BookingPrint;
 
   return (
     <div>
@@ -366,6 +367,7 @@ export default function CalendarPage() {
           canDelete={canDelete}
           onAddEvent={() => openAdd(selectedCell)}
           onEdit={openEdit}
+          canPrint={canPrint}
           onDelete={handleDelete}
           onApproveRaza={handleApproveRaza}
           onRevertRaza={handleRevertRaza}
