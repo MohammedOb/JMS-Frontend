@@ -129,23 +129,6 @@ export default function AccessControlPage() {
     } catch { toast.error('Failed to delete'); }
   };
 
-  const quickCreatePermission = async (item) => {
-    // item.code is "module.action" — derive module from the code prefix
-    const module = item.code.split('.')[0];
-    try {
-      await rbacService.createPermission({
-        code:        item.code,
-        module,
-        action:      item.action,
-        description: item.description,
-      });
-      toast.success(`Permission "${item.code}" created`);
-      load('permissions');
-    } catch (e) {
-      toast.error(e.response?.data?.message || `Failed to create "${item.code}"`);
-    }
-  };
-
   // ── scope handlers ────────────────────────────────────────────────────────
   const openAddScope  = () => { setEditScope(null); setScopeModalOpen(true); };
   const openEditScope = (s) => { setEditScope(s); setScopeModalOpen(true); };
@@ -230,7 +213,6 @@ export default function AccessControlPage() {
           onAddPermission={openAddPermission}
           onEditPermission={openEditPermission}
           onDeletePermission={deletePermission}
-          onQuickCreate={quickCreatePermission}
         />
       )}
 

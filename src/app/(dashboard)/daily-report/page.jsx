@@ -13,6 +13,7 @@ import {
   DownloadIcon, PrintIcon, SearchIcon, XIcon, EditIcon, TrashIcon,
   BarChartIcon, FileTextIcon,
 } from '@/components/shared/Icons';
+import { useAuth } from '@/context/AuthContext';
 
 const today = () => new Date().toISOString().split('T')[0];
 const fmt   = (n) => n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
@@ -64,6 +65,7 @@ const normalizeArr = (data) => {
 
 export default function DailyReportPage() {
   const router = useRouter();
+  const { can, user } = useAuth();
 
   // ── Lookup data ──────────────────────────────────────────────────────────────
   const [hubHeads,    setHubHeads]    = useState([]);
@@ -528,6 +530,7 @@ export default function DailyReportPage() {
             <SearchIcon className="w-3.5 h-3.5 mr-1.5" />
             {loading ? 'Loading…' : 'Search'}
           </button>
+          {can('daily_report.export') && (
           <button
             ref={exportBtnRef}
             className="btn btn-secondary btn-sm"
@@ -536,6 +539,7 @@ export default function DailyReportPage() {
           >
             <DownloadIcon className="w-3.5 h-3.5 mr-1.5" />Export
           </button>
+          )}
           <label className="flex items-center gap-1.5 ml-1 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -645,6 +649,7 @@ export default function DailyReportPage() {
                     {/* Actions */}
                     <td className={`${td} w-[76px]`}>
                       <div className="flex items-center gap-0.5">
+                        {can('daily_report.edit') && (
                         <button
                           title="Edit receipt"
                           onClick={() => handleEdit(r)}
@@ -652,6 +657,7 @@ export default function DailyReportPage() {
                         >
                           <EditIcon className="w-3.5 h-3.5" />
                         </button>
+                          )}
                         <button
                           title="Print preview"
                           onClick={() => handlePrint(r)}
@@ -659,7 +665,7 @@ export default function DailyReportPage() {
                         >
                           <PrintIcon className="w-3.5 h-3.5" />
                         </button>
-                        {!cancelled && (
+                        {can('daily_report.cancel') && !cancelled && (
                           <button
                             title="Cancel receipt"
                             onClick={() => handleCancel(r)}
