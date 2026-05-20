@@ -1,328 +1,856 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAuth }        from '@/context/AuthContext';
-import { memberService, receiptService } from '@/services';
-import toast              from 'react-hot-toast';
-import PageHeader         from '@/components/shared/PageHeader';
-import { TrashIcon, PrintIcon, SaveIcon, SearchIcon, PlusIcon, XIcon } from '@/components/shared/Icons';
+import { useState, useEffect, useRef } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { memberService, receiptService, takhmeenService } from '@/services';
+import toast from 'react-hot-toast';
+import PageHeader from '@/components/shared/PageHeader';
+import { TrashIcon, PrintIcon, SaveIcon, EditIcon } from '@/components/shared/Icons';
 
 const today = () => new Date().toISOString().split('T')[0];
-const fmt   = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
+const fmt   = (n) => n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
+
+const DEFAULT_CASH_LIMIT = 9500;
 
 const SUB_HEADS = {
-  'Sabeel':   ['Sabeel Regular', 'Sabeel Mutaveteen'],
-  'FMB':      ['FMB Regular', 'FMB Half Thaali'],
-  'Vajebaat': ['Vajebaat', 'Vajebaat House', 'Sila Fitra', 'Shehrullah Niyaz', 'HIM', 'Taherabad Safar'],
-  'Other':    ['General', 'Other'],
+  Sabeel:   ['Sabeel Regular', 'Sabeel Mutaveteen'],
+  FMB:      ['FMB Regular', 'FMB Half Thaali'],
+  Vajebaat: ['Vajebaat', 'Vajebaat House', 'Sila Fitra', 'Shehrullah Niyaz', 'HIM', 'Taherabad Safar'],
+  Other:    ['General', 'Other'],
 };
+
+function getMainHead(subHead) {
+  for (const [main, subs] of Object.entries(SUB_HEADS)) {
+    if (subs.includes(subHead)) return main;
+  }
+  return 'Other';
+}
+
+function normList(data) {
+  if (!data) return [];
+  if (Array.isArray(data)) return data;
+  if (data.recordset) return data.recordset;
+  if (Array.isArray(data.recordsets?.[0])) return data.recordsets[0];
+  if (Array.isArray(data.data)) return data.data;
+  return [];
+}
+
+function extractMuminRow(data, searchAccno) {
+  let list = [];
+  if (Array.isArray(data?.recordsets?.[0])) list = data.recordsets[0];
+  else if (Array.isArray(data?.recordset))  list = data.recordset;
+  else if (Array.isArray(data?.data))       list = data.data;
+  else if (Array.isArray(data))             list = data;
+  else if (data)                            list = [data?.member ?? data];
+
+  const exact = searchAccno
+    ? list.find(r => String(r?.AccNo || r?.accno || '') === String(searchAccno))
+    : null;
+  const raw = exact ?? list[0];
+
+  if (!raw || !(raw.AccNo || raw.accno || raw.FullName)) return null;
+  return {
+    accno:       raw.AccNo        || raw.accno        || '',
+    fullName:    raw.FullName     || raw.fullName     || '',
+    mobile:      raw.Mobile       || raw.mobile       || '',
+    itsNo:       raw.ITSNo        || raw.itsNo        || '',
+    localHofIts: raw.LocalHOFITSNo                   || '',
+    sector:      raw.Sector       || raw.sector       || '',
+    grade:       raw.CurrentGrade || raw.grade        || '',
+  };
+}
+
+function sortFamilyMembers(members, hofIts) {
+  return [...members].sort((a, b) => {
+    const aIsHof = String(a.ITS_ID) === String(hofIts);
+    const bIsHof = String(b.ITS_ID) === String(hofIts);
+    if (aIsHof !== bIsHof) return aIsHof ? -1 : 1;
+    return Number(b.Age || b.age || 0) - Number(a.Age || a.age || 0);
+  });
+}
+
+function distributeItems(items, splitRows) {
+  const pool = items.map(it => ({ ...it, amount: Number(it.amount) }));
+  return splitRows.map(row => {
+    let budget = Number(row.amount);
+    const receiptItems = [];
+    while (budget > 0.005 && pool.length > 0) {
+      const head = pool[0];
+      if (head.amount <= budget + 0.005) {
+        receiptItems.push({ ...head });
+        budget -= head.amount;
+        pool.shift();
+      } else {
+        receiptItems.push({ ...head, amount: budget });
+        head.amount -= budget;
+        budget = 0;
+      }
+    }
+    return { ...row, items: receiptItems };
+  });
+}
+
+const EMPTY_PROFILE = { accno: '', fullName: '', mobile: '', itsNo: '', localHofIts: '', sector: '', grade: '' };
+const EMPTY_RC_FORM = { date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false, isCashMemo: false };
+const EMPTY_RC_ITEM = { hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', grade: '', amount: '', remark: '' };
 
 export default function AddReceiptPage() {
   const { user } = useAuth();
 
-  // Member lookup
-  const [accno,   setAccno]   = useState('');
-  const [member,  setMember]  = useState(null);
-  const [looking, setLooking] = useState(false);
+  const [profile,        setProfile]        = useState(EMPTY_PROFILE);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [familyMembers,  setFamilyMembers]  = useState([]);
+  const [familyLoading,  setFamilyLoading]  = useState(false);
 
-  // Receipt header
-  const [rcDate,  setRcDate]  = useState(today());
-  const [mode,    setMode]    = useState('Cash');
-  const [transType, setTransType] = useState('VOLUNTARY CONTRIBUTION');
-  const [remark,  setRemark]  = useState('');
-  const [sendSMS, setSendSMS] = useState(false);
+  const [hubHeads,       setHubHeads]       = useState([]);
 
-  // Item form
-  const [itemHub,    setItemHub]    = useState('Sabeel Regular');
-  const [itemYear,   setItemYear]   = useState(user?.ForYearAll || '');
-  const [itemAmount, setItemAmount] = useState('');
+  const [rcForm,         setRcForm]         = useState(EMPTY_RC_FORM);
+  const [rcItem,         setRcItem]         = useState(EMPTY_RC_ITEM);
+  const [rcItems,        setRcItems]        = useState([]);
 
-  // Receipt items list
-  const [items, setItems] = useState([]);
+  const [remainingAmt,   setRemainingAmt]   = useState(null);
+  const [remainingLoad,  setRemainingLoad]  = useState(false);
 
-  const [saving, setSaving] = useState(false);
+  const [editingId,      setEditingId]      = useState(null);
+  const [editBuf,        setEditBuf]        = useState({});
 
-  // ── Look up member ────────────────────────────────────────────────────────
-  const lookupMember = useCallback(async () => {
-    if (!accno.trim()) return;
-    setLooking(true);
-    try {
-      const res = await memberService.getByAccno(accno.trim());
-      setMember(res.data);
-    } catch {
-      toast.error('Member not found');
-      setMember(null);
-    } finally {
-      setLooking(false);
-    }
-  }, [accno]);
+  const [splitRows,      setSplitRows]      = useState([]);
+  const [openSuggestIdx, setOpenSuggestIdx] = useState(null);
 
-  // ── Add item to receipt ───────────────────────────────────────────────────
-  const addItem = () => {
-    if (!itemHub || !itemAmount || Number(itemAmount) <= 0) {
-      toast.error('Enter hub type and amount');
-      return;
-    }
-    setItems(prev => [...prev, {
-      id: Date.now(),
-      hubType:  itemHub,
-      forYear:  itemYear,
-      grade:    member?.grade || '',
-      amount:   Number(itemAmount),
-    }]);
-    setItemAmount('');
+  const [saving,         setSaving]         = useState(false);
+
+  const accTimer     = useRef(null);
+  const itsTimer     = useRef(null);
+  const forYearTimer = useRef(null);
+
+  const currentSubHead  = rcItem.hubSubHead || rcItem.hubType || '';
+  const currentFundType = rcItem.fundType || hubHeads.find(h => h.HubSubHead === currentSubHead)?.FundType || '';
+  const selectedHead    = hubHeads.find(h => h.HubSubHead === currentSubHead);
+  const cashLimit       = Number(selectedHead?.CashLimit ?? selectedHead?.Cash_Limit ?? DEFAULT_CASH_LIMIT);
+
+  const grandTotal = rcItems.reduce((s, i) => s + Number(i.amount || 0), 0);
+  const isCashMemo = !!rcForm.isCashMemo;
+  const needsSplit = rcForm.mode === 'Cash' && grandTotal > cashLimit && !isCashMemo;
+  const splitTotal = splitRows.reduce((s, r) => s + Number(r.amount || 0), 0);
+  const splitDiff  = grandTotal - splitTotal;
+  const splitOk    = needsSplit ? Math.abs(splitDiff) < 0.01 : true;
+
+  // Load hub heads once
+  useEffect(() => {
+    takhmeenService.loadHubHeadDetails({ IsActive: 1 })
+      .then(res => setHubHeads(
+        normList(res.data).filter(h => h && h.HubSubHead).sort((a, b) => a.HubSubHead.localeCompare(b.HubSubHead))
+      ))
+      .catch(() => setHubHeads([]));
+  }, []);
+
+  // Auto-generate split rows when grand total or family list changes
+  useEffect(() => {
+    if (!needsSplit || grandTotal <= 0) { setSplitRows([]); return; }
+    const count   = Math.ceil(grandTotal / cashLimit);
+    const sorted  = sortFamilyMembers(familyMembers, profile.localHofIts);
+    setSplitRows(prev => Array.from({ length: count }, (_, i) => {
+      const prevRow = prev[i];
+      const fam     = sorted[i];
+      const amt     = i < count - 1 ? cashLimit : grandTotal - cashLimit * (count - 1);
+      return {
+        familyMemberName: prevRow?.familyMemberName || fam?.Full_Name        || '',
+        itsId:            prevRow?.itsId            || String(fam?.ITS_ID  || ''),
+        mobile:           prevRow?.mobile           || String(fam?.Mobile  || ''),
+        amount: amt,
+      };
+    }));
+  }, [grandTotal, needsSplit, familyMembers]); // eslint-disable-line
+
+  // ── AccNo change (debounced auto-fill) ───────────────────────────────────────
+  const onAccNoChange = (val) => {
+    setProfile(p => ({ ...p, accno: val }));
+    clearTimeout(accTimer.current);
+    if (!val) return;
+    accTimer.current = setTimeout(async () => {
+      setProfileLoading(true);
+      try {
+        const res  = await memberService.loadMuminDetails({ Search: val });
+        const norm = extractMuminRow(res.data, val);
+        if (norm) {
+          setProfile(norm);
+          setRcItem(p => ({ ...p, grade: norm.grade || p.grade }));
+          if (norm.localHofIts) {
+            setFamilyLoading(true);
+            memberService.loadFamilyMembersDetails({ HOF_ID: norm.localHofIts })
+              .then(fr => setFamilyMembers(normList(fr.data)))
+              .catch(() => setFamilyMembers([]))
+              .finally(() => setFamilyLoading(false));
+          }
+        } else {
+          toast.error(`No member found for Acc# ${val}`);
+        }
+      } catch { toast.error('Failed to look up member'); }
+      finally  { setProfileLoading(false); }
+    }, 700);
   };
 
-  const removeItem = (id) => setItems(prev => prev.filter(i => i.id !== id));
+  // ── ITS No change ────────────────────────────────────────────────────────────
+  const onItsChange = (val) => {
+    const found = familyMembers.find(m => String(m.ITS_ID) === String(val));
+    setProfile(p => ({
+      ...p,
+      itsNo:       val,
+      fullName:    found?.Full_Name                           || p.fullName,
+      mobile:      found?.Mobile || found?.mobile             || p.mobile,
+      localHofIts: found ? String(found.LocalHOFITSNo || found.HOF_ID || p.localHofIts) : p.localHofIts,
+    }));
+    if (!val) return;
+    clearTimeout(itsTimer.current);
+    itsTimer.current = setTimeout(async () => {
+      setProfileLoading(true);
+      try {
+        const res  = await memberService.loadFamilyMembersDetails({ ITS_ID: val });
+        const list = normList(res.data);
+        const rec  = list.find(m => String(m.ITS_ID) === String(val)) || list[0];
+        if (rec) {
+          setProfile(p => ({
+            ...p,
+            fullName:    rec.Full_Name                             || p.fullName,
+            mobile:      rec.Mobile    || rec.mobile               || p.mobile,
+            localHofIts: String(rec.LocalHOFITSNo || rec.HOF_ID   || p.localHofIts),
+            accno:       rec.AccNo     || rec.accno                || p.accno,
+            sector:      rec.Sector    || rec.sector               || p.sector,
+            grade:       rec.CurrentGrade || rec.grade             || p.grade,
+          }));
+          setRcItem(p => ({ ...p, grade: rec.CurrentGrade || rec.grade || p.grade }));
+        }
+      } catch { } finally { setProfileLoading(false); }
+    }, 500);
+  };
 
-  const grandTotal = items.reduce((s, i) => s + i.amount, 0);
+  // ── Hub Sub Head change ───────────────────────────────────────────────────────
+  const onHubSubHeadChange = (val) => {
+    const found = hubHeads.find(h => h.HubSubHead === val);
+    setRcItem(p => ({
+      ...p,
+      hubSubHead:  val,
+      hubType:     val,
+      hubMainHead: found?.HubMainHead || '',
+      fundType:    found?.FundType    || '',
+      forYear:     '',
+      grade:       '',
+      amount:      '',
+    }));
+    setRemainingAmt(null);
+  };
 
-  // ── Save receipt ──────────────────────────────────────────────────────────
-  const saveReceipt = async (printAfter = false) => {
-    if (!member) { toast.error('Search for a member first'); return; }
-    if (items.length === 0) { toast.error('Add at least one item'); return; }
+  // ── For Year change ───────────────────────────────────────────────────────────
+  const onForYearChange = (val) => {
+    setRcItem(p => ({ ...p, forYear: val }));
+    setRemainingAmt(null);
+    clearTimeout(forYearTimer.current);
+    const subHead = rcItem.hubSubHead || rcItem.hubType;
+    if (!val || !subHead || !profile.accno) return;
+    forYearTimer.current = setTimeout(() => fetchRemaining(profile.accno, val, subHead), 600);
+  };
+
+  const fetchRemaining = async (accno, forYear, hubSubHead) => {
+    setRemainingLoad(true);
+    try {
+      const res  = await takhmeenService.loadDetails({ AccNo: accno, ForYear: forYear, HubSubHead: hubSubHead });
+      const list = normList(res.data);
+      const rec  = list[0];
+      const amt  = rec?.RemainingAmount ?? rec?.Remaining ?? rec?.remaining ?? null;
+      setRemainingAmt(amt);
+      const grade = rec?.Grade || rec?.grade || rec?.CurrentGrade || '';
+      if (grade) setRcItem(p => ({ ...p, grade }));
+      if (amt != null && Number(amt) > 0) {
+        setRcItem(p => ({ ...p, amount: Number(amt) }));
+      } else {
+        try {
+          const hdRes  = await takhmeenService.loadHubHeadDetails({ HubSubHead: hubSubHead, IsActive: 1 });
+          const hdList = normList(hdRes.data);
+          const hdRec  = hdList[0];
+          const defAmt = hdRec?.DefaultLaagat ?? hdRec?.defaultLaagat ?? null;
+          if (defAmt != null) setRcItem(p => ({ ...p, amount: Number(defAmt) || '' }));
+        } catch { }
+      }
+    } catch { setRemainingAmt(null); }
+    finally  { setRemainingLoad(false); }
+  };
+
+  // ── Add item ──────────────────────────────────────────────────────────────────
+  const addItem = () => {
+    if (!rcItem.amount || Number(rcItem.amount) <= 0) return;
+    const subHead      = rcItem.hubSubHead || rcItem.hubType || hubHeads[0]?.HubSubHead || '';
+    const existingHead = rcItems[0]?.hubSubHead || rcItems[0]?.hubType;
+    if (existingHead && existingHead !== subHead) {
+      if (!window.confirm(
+        `Receipt already has items under "${existingHead}".\n` +
+        `Adding "${subHead}" will remove all existing items. Continue?`
+      )) return;
+      setRcItems([]);
+      setSplitRows([]);
+    }
+    setRcItems(p => [...p, {
+      ...rcItem,
+      id:          Date.now(),
+      hubSubHead:  subHead,
+      hubType:     subHead,
+      hubMainHead: rcItem.hubMainHead || '',
+      fundType:    rcItem.fundType    || '',
+      amount:      Number(rcItem.amount),
+      grade:       rcItem.grade || '',
+    }]);
+    setRcItem(p => ({ ...p, amount: '', remark: '' }));
+    setRemainingAmt(null);
+  };
+
+  const saveEdit = () => {
+    setRcItems(p => p.map(x => x.id === editingId ? { ...editBuf, amount: Number(editBuf.amount || 0) } : x));
+    setEditingId(null);
+  };
+
+  // ── Split row helpers ─────────────────────────────────────────────────────────
+  const setSplitMember = (i, member) => {
+    setSplitRows(p => p.map((r, j) => j === i ? {
+      ...r,
+      familyMemberName: member.Full_Name     || '',
+      itsId:            String(member.ITS_ID || ''),
+      mobile:           String(member.Mobile || ''),
+    } : r));
+    setOpenSuggestIdx(null);
+  };
+
+  // ── Clear form ────────────────────────────────────────────────────────────────
+  const clearForm = () => {
+    setProfile(EMPTY_PROFILE);
+    setFamilyMembers([]);
+    setRcForm(EMPTY_RC_FORM);
+    setRcItem(EMPTY_RC_ITEM);
+    setRcItems([]);
+    setSplitRows([]);
+    setRemainingAmt(null);
+    setEditingId(null);
+  };
+
+  // ── Save ──────────────────────────────────────────────────────────────────────
+  const handleSave = async (printOnly = false) => {
+    if (saving) return;
+    if (!String(profile.accno   ?? '').trim()) { toast.error('Acc No. is required');     return; }
+    if (!String(profile.fullName?? '').trim()) { toast.error('Full Name is required');   return; }
+    if (!rcForm.date)                          { toast.error('Received Date is required'); return; }
+    if (!rcForm.mode)                          { toast.error('Mode is required');         return; }
+    if (rcItems.length === 0)                  { toast.error('Add at least one item');    return; }
+    if (!splitOk) {
+      const dir = splitDiff > 0 ? `${fmt(splitDiff)} unallocated` : `${fmt(-splitDiff)} over-allocated`;
+      alert(`Split amounts must equal Grand Total (${fmt(grandTotal)}). Currently ${dir}.`);
+      return;
+    }
+
     setSaving(true);
     try {
-      const payload = {
-        accno: member.accno,
-        date:  rcDate,
-        mode,
-        transType,
-        remark,
-        sendSMS,
-        items: items.map(({ hubType, forYear, grade, amount }) => ({ hubType, forYear, grade, amount })),
+      const createdBy  = user?.username || user?.UserName || user?.name || '';
+      const baseParams = {
+        AccNo:            profile.accno,
+        Mobile:           profile.mobile,
+        ITSNo:            profile.itsNo,
+        ReceivedDate:     rcForm.date,
+        Mode:             rcForm.mode,
+        Remark:           rcForm.remark,
+        Createdby:        createdBy,
+        ContributionType: rcForm.transType || 'VOLUNTARY CONTRIBUTION',
       };
-      const res = await receiptService.save(payload);
-      toast.success(`Receipt #${res.data.receiptNo} saved`);
-      setItems([]);
-      setMember(null);
-      setAccno('');
-      if (printAfter) window.open(`/print/receipt/${res.data.receiptNo}`, '_blank');
-    } catch {
-      toast.error('Failed to save receipt');
+
+      const envelopes = (needsSplit && splitRows.length > 0)
+        ? distributeItems(rcItems, splitRows)
+        : [{ familyMemberName: profile.fullName, amount: grandTotal, items: rcItems }];
+
+      const savedNos = [];
+      for (const env of envelopes) {
+        const firstItem = env.items[0] || {};
+        const subHead   = firstItem.hubSubHead || firstItem.hubType || '';
+        const mainHead  = firstItem.hubMainHead || getMainHead(subHead);
+
+        const txRes = await receiptService.addTransaction({
+          ...baseParams,
+          ReceivedFrom:   env.familyMemberName || profile.fullName,
+          ITSNo:          env.itsId            || baseParams.ITSNo,
+          Mobile:         env.mobile           || baseParams.Mobile,
+          ReceivedAmount: env.amount,
+          HubMainHead:    mainHead,
+          HubSubHead:     subHead,
+          IsCashMemo:     rcForm.isCashMemo ? 1 : 0,
+        });
+
+        const { insertId, receiptNo } = txRes.data;
+
+        for (const item of env.items) {
+          const itemSubHead = item.hubSubHead || item.hubType || subHead;
+          await receiptService.addTransactionItem({
+            AccNo:        profile.accno,
+            newReceiptNo: receiptNo,
+            HubMainHead:  item.hubMainHead || getMainHead(itemSubHead),
+            HubSubHead:   itemSubHead,
+            ForYear:      item.forYear || '',
+            Grade:        item.grade   || profile.grade || '',
+            Amount:       item.amount,
+            Remark:       item.remark  || '',
+            Status:       'Active',
+            insertId,
+          });
+        }
+
+        savedNos.push(receiptNo);
+        if (printOnly) window.open(`/print/receipt/${receiptNo}`, '_blank');
+      }
+
+      toast.success(`${savedNos.length} receipt(s) saved: ${savedNos.join(', ')}`);
+      await takhmeenService.updateTakhmeenReceived({ AccNo: profile.accno }).catch(() => {});
+      clearForm();
+    } catch (err) {
+      toast.error('Failed to save: ' + (err?.response?.data?.message || err?.message || 'Unknown error'));
     } finally {
       setSaving(false);
     }
   };
 
-  const clearForm = () => {
-    setItems([]);
-    setMember(null);
-    setAccno('');
-    setRemark('');
-  };
-
   return (
     <div>
-      <PageHeader title="Add Receipt" subtitle="Record a new payment entry">
-        <button className="btn btn-secondary btn-sm" onClick={clearForm}><TrashIcon className="w-3.5 h-3.5 mr-1.5" />Clear Form</button>
-        <button className="btn btn-secondary btn-sm" onClick={() => saveReceipt(true)} disabled={saving}><PrintIcon className="w-3.5 h-3.5 mr-1.5" />Print Only</button>
-        <button className="btn btn-primary btn-sm" onClick={() => saveReceipt(false)} disabled={saving}>
-          {saving ? 'Saving…' : <><SaveIcon className="w-3.5 h-3.5 mr-1.5" />Save Receipt</>}
-        </button>
-      </PageHeader>
+      <PageHeader title="Add Receipt" subtitle="Record a new payment entry" />
 
-      <div className="grid grid-cols-[1fr_280px] gap-3">
-        {/* Left column */}
-        <div className="space-y-3">
+      <div className="space-y-3">
 
-          {/* Member lookup */}
-          <div className="card">
-            <div className="card-header">Member Information</div>
-            <div className="card-body space-y-3">
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="form-label">Account No.</label>
+        {/* ── 1. Mumin Profile ─────────────────────────────────────────────── */}
+        <div className="card">
+          <div className="card-header flex items-center justify-between">
+            <span>Mumin Profile</span>
+            {(profileLoading || familyLoading) && (
+              <span className="text-[10px] text-blue-400 animate-pulse">
+                {familyLoading ? 'Loading family…' : 'Loading…'}
+              </span>
+            )}
+          </div>
+          <div className="card-body">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="form-label">Acc No.</label>
+                <input
+                  className="form-input"
+                  placeholder="Type to auto-fill…"
+                  value={profile.accno || ''}
+                  onChange={e => onAccNoChange(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="form-label">Full Name</label>
+                <input
+                  className="form-input"
+                  value={profile.fullName || ''}
+                  onChange={e => setProfile(p => ({ ...p, fullName: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label">Mobile</label>
+                <input
+                  className="form-input"
+                  value={profile.mobile || ''}
+                  onChange={e => setProfile(p => ({ ...p, mobile: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label">ITS No.</label>
+                {familyMembers.length > 0 ? (
+                  <select className="form-select" value={profile.itsNo || ''} onChange={e => onItsChange(e.target.value)}>
+                    <option value="">— Select ITS —</option>
+                    {sortFamilyMembers(familyMembers, profile.localHofIts).map(m => (
+                      <option key={m.ITS_ID} value={String(m.ITS_ID)}>
+                        {m.ITS_ID} — {m.Full_Name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
                   <input
                     className="form-input"
-                    placeholder="Enter Acc No."
-                    value={accno}
-                    onChange={e => setAccno(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && lookupMember()}
+                    value={profile.itsNo || ''}
+                    onChange={e => setProfile(p => ({ ...p, itsNo: e.target.value }))}
                   />
-                </div>
-                <div className="flex items-end">
-                  <button className="btn btn-primary" onClick={lookupMember} disabled={looking}>
-                    {looking ? 'Searching…' : <><SearchIcon className="w-3.5 h-3.5 mr-1.5" />Search</>}
-                  </button>
-                </div>
+                )}
               </div>
+              <div>
+                <label className="form-label">Local HOF ITS No.</label>
+                <input
+                  className="form-input"
+                  value={profile.localHofIts || ''}
+                  onChange={e => setProfile(p => ({ ...p, localHofIts: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label">Sector</label>
+                <input
+                  className="form-input"
+                  value={profile.sector || ''}
+                  onChange={e => setProfile(p => ({ ...p, sector: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
 
-              {member && (
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="form-label">Full Name</label>
-                    <input className="form-input bg-surface" value={member.name} readOnly />
-                  </div>
-                  <div>
-                    <label className="form-label">Mobile</label>
-                    <input className="form-input bg-surface" value={member.mobile || '—'} readOnly />
-                  </div>
-                  <div>
-                    <label className="form-label">ITS No.</label>
-                    <input className="form-input bg-surface" value={member.itsNo || '—'} readOnly />
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="form-label">Receipt Date</label>
-                  <input type="date" className="form-input" value={rcDate} onChange={e => setRcDate(e.target.value)} />
-                </div>
-                <div>
-                  <label className="form-label">Payment Mode</label>
-                  <select className="form-select" value={mode} onChange={e => setMode(e.target.value)}>
-                    {['Cash','Online','Cheque','UPI'].map(m => <option key={m}>{m}</option>)}
+        {/* ── 2. Transaction Info ───────────────────────────────────────────── */}
+        <div className="card">
+          <div className="card-header">Transaction Info</div>
+          <div className="card-body">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="form-label">Received Date</label>
+                <input type="date" className="form-input" value={rcForm.date || ''} onChange={e => setRcForm(p => ({ ...p, date: e.target.value }))} />
+              </div>
+              <div>
+                <label className="form-label">Mode</label>
+                <div className="flex items-center gap-2">
+                  <select
+                    className="form-select flex-1"
+                    value={rcForm.mode || 'Cash'}
+                    onChange={e => setRcForm(p => ({ ...p, mode: e.target.value, isCashMemo: false }))}
+                  >
+                    {['Cash', 'Online', 'Cheque', 'UPI'].map(m => <option key={m}>{m}</option>)}
                   </select>
-                </div>
-                <div>
-                  <label className="form-label">Trans Type</label>
-                  <select className="form-select" value={transType} onChange={e => setTransType(e.target.value)}>
-                    <option>VOLUNTARY CONTRIBUTION</option>
-                    <option>SABEEL</option>
-                  </select>
+                  {rcForm.mode === 'Cash' && (
+                    <label className="flex items-center gap-1 cursor-pointer shrink-0" title="Cash Memo — bypasses cash limit">
+                      <input
+                        type="checkbox"
+                        checked={isCashMemo}
+                        onChange={e => setRcForm(p => ({ ...p, isCashMemo: e.target.checked }))}
+                        className="w-3.5 h-3.5 accent-blue-600"
+                      />
+                      <span className={`text-[11px] font-medium ${isCashMemo ? 'text-blue-600' : 'text-gray-500'}`}>
+                        Cash Memo
+                      </span>
+                    </label>
+                  )}
                 </div>
               </div>
               <div>
                 <label className="form-label">Remark</label>
-                <input className="form-input" placeholder="Optional note" value={remark} onChange={e => setRemark(e.target.value)} />
+                <input
+                  className="form-input"
+                  placeholder="Optional"
+                  value={rcForm.remark || ''}
+                  onChange={e => setRcForm(p => ({ ...p, remark: e.target.value }))}
+                />
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Add item */}
-          <div className="card">
-            <div className="card-header">Add Receipt Item</div>
-            <div className="card-body space-y-3">
-              <div className="grid grid-cols-4 gap-3">
-                <div>
-                  <label className="form-label">Hub Type</label>
-                  <select className="form-select" value={itemHub} onChange={e => setItemHub(e.target.value)}>
-                    {Object.values(SUB_HEADS).flat().map(s => <option key={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="form-label">For Year</label>
-                  <input className="form-input" placeholder={user?.ForYearAll} value={itemYear} onChange={e => setItemYear(e.target.value)} />
-                </div>
-                <div>
-                  <label className="form-label">Amount (₹)</label>
-                  <input type="number" className="form-input" placeholder="0" value={itemAmount} onChange={e => setItemAmount(e.target.value)} onKeyDown={e => e.key === 'Enter' && addItem()} />
-                </div>
-                <div className="flex items-end">
-                  <button className="btn btn-secondary w-full justify-center" onClick={addItem}><PlusIcon className="w-3.5 h-3.5 mr-1.5" />Add Item</button>
-                </div>
-              </div>
-              {member && (
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="form-label">Grade (auto)</label>
-                    <input className="form-input bg-surface" value={member.grade || '—'} readOnly />
-                  </div>
-                  <div>
-                    <label className="form-label">Remaining Takhmeen</label>
-                    <input className="form-input bg-surface" value={member.sabeelRemaining != null ? fmt(member.sabeelRemaining) : '—'} readOnly />
-                  </div>
-                </div>
-              )}
-            </div>
+        {/* ── 3. Add Item ───────────────────────────────────────────────────── */}
+        <div className="card">
+          <div className="card-header relative flex items-center">
+            <span>Add Item</span>
+            {currentFundType && (
+              <span className="absolute left-1/2 -translate-x-1/2 text-[15px] font-bold text-navy-800 uppercase tracking-wide">
+                {currentFundType}
+              </span>
+            )}
           </div>
-
-          {/* Items table */}
-          <div className="card">
-            <div className="card-header">Receipt Items</div>
-            <table className="w-full border-collapse text-[12px]">
-              <thead>
-                <tr>
-                  {['#','Type','For Year','Grade','Amount',''].map(h => (
-                    <th key={h} className="th-navy">{h}</th>
+          <div className="card-body">
+            <div className="grid grid-cols-5 gap-3">
+              <div>
+                <label className="form-label">Hub Sub Head</label>
+                <select
+                  className="form-select"
+                  value={currentSubHead}
+                  onChange={e => onHubSubHeadChange(e.target.value)}
+                >
+                  <option value="">— Select Sub Head —</option>
+                  {hubHeads.map((h, idx) => (
+                    <option key={h.HubSubHead || idx} value={h.HubSubHead}>{h.HubSubHead}</option>
                   ))}
+                </select>
+              </div>
+              <div>
+                <label className="form-label">For Year</label>
+                <input
+                  className="form-input"
+                  placeholder={String(user?.ForYearAll || new Date().getFullYear())}
+                  value={rcItem.forYear || ''}
+                  onChange={e => onForYearChange(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="form-label">Grade</label>
+                <input
+                  className="form-input"
+                  placeholder="e.g. A"
+                  value={rcItem.grade || ''}
+                  onChange={e => setRcItem(p => ({ ...p, grade: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label flex items-center gap-2">
+                  Amount (₹)
+                  {remainingLoad && (
+                    <span className="text-[10px] text-gray-400 animate-pulse">loading…</span>
+                  )}
+                  {remainingAmt !== null && !remainingLoad && (
+                    <span className="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded font-semibold">
+                      Due: {fmt(remainingAmt)}
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="number"
+                  className="form-input"
+                  placeholder="0"
+                  value={rcItem.amount || ''}
+                  onChange={e => setRcItem(p => ({ ...p, amount: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && addItem()}
+                />
+              </div>
+              <div className="flex items-end">
+                <button className="btn btn-secondary w-full" onClick={addItem}>+ Add</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 4. Items Grid ─────────────────────────────────────────────────── */}
+        <div className="card overflow-hidden">
+          <div className="card-header">Receipt Items</div>
+          <table className="w-full border-collapse text-[12px]">
+            <thead>
+              <tr>
+                {['Action', 'S.No#', 'Hub Sub Head', 'For Year', 'Grade', 'Amount (₹)', 'Remark'].map(h => (
+                  <th key={h} className="th-navy whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rcItems.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-3 py-6 text-center text-gray-400 text-[11px]">
+                    No items added — use the form above to add items.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-6 text-gray-400 text-sm border-t border-border">No items added yet</td></tr>
-                ) : items.map((it, i) => (
+              )}
+              {rcItems.map((it, i) =>
+                editingId === it.id ? (
+                  <tr key={it.id} className="bg-blue-50">
+                    <td className="px-2 py-1.5 border-t border-border">
+                      <button className="text-[11px] px-1.5 py-0.5 bg-green-600 text-white rounded mr-1" onClick={saveEdit}>Save</button>
+                      <button className="text-[11px] px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded" onClick={() => setEditingId(null)}>✕</button>
+                    </td>
+                    <td className="px-2 py-1.5 border-t border-border text-gray-400">{i + 1}</td>
+                    <td className="px-2 py-1.5 border-t border-border">
+                      <select
+                        className="form-select text-[11px]"
+                        value={editBuf.hubSubHead || editBuf.hubType || ''}
+                        onChange={e => {
+                          const val   = e.target.value;
+                          const found = hubHeads.find(h => h.HubSubHead === val);
+                          setEditBuf(p => ({ ...p, hubSubHead: val, hubType: val, hubMainHead: found?.HubMainHead || p.hubMainHead || '' }));
+                        }}
+                      >
+                        <option value="">— Select —</option>
+                        {hubHeads.map(h => <option key={h.HubSubHead} value={h.HubSubHead}>{h.HubSubHead}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-2 py-1.5 border-t border-border">
+                      <input className="form-input text-[11px]" value={editBuf.forYear || ''} onChange={e => setEditBuf(p => ({ ...p, forYear: e.target.value }))} />
+                    </td>
+                    <td className="px-2 py-1.5 border-t border-border">
+                      <input className="form-input text-[11px] w-16" value={editBuf.grade || ''} onChange={e => setEditBuf(p => ({ ...p, grade: e.target.value }))} />
+                    </td>
+                    <td className="px-2 py-1.5 border-t border-border">
+                      <input type="number" className="form-input text-[11px]" value={editBuf.amount || ''} onChange={e => setEditBuf(p => ({ ...p, amount: e.target.value }))} />
+                    </td>
+                    <td className="px-2 py-1.5 border-t border-border">
+                      <input className="form-input text-[11px]" value={editBuf.remark || ''} onChange={e => setEditBuf(p => ({ ...p, remark: e.target.value }))} />
+                    </td>
+                  </tr>
+                ) : (
                   <tr key={it.id} className="hover:bg-blue-500/[0.025]">
-                    <td className="px-3 py-2 border-t border-border">{i + 1}</td>
-                    <td className="px-3 py-2 border-t border-border">{it.hubType}</td>
+                    <td className="px-2 py-2 border-t border-border">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          className="p-1 rounded text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                          title="Edit"
+                          onClick={() => { setEditingId(it.id); setEditBuf({ ...it }); }}
+                        >
+                          <EditIcon className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          className="p-1 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Delete"
+                          onClick={() => setRcItems(p => p.filter(x => x.id !== it.id))}
+                        >
+                          <TrashIcon className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 border-t border-border text-gray-500">{i + 1}</td>
+                    <td className="px-3 py-2 border-t border-border">{it.hubSubHead || it.hubType || '—'}</td>
                     <td className="px-3 py-2 border-t border-border">{it.forYear || '—'}</td>
                     <td className="px-3 py-2 border-t border-border">{it.grade || '—'}</td>
                     <td className="px-3 py-2 border-t border-border font-semibold">{fmt(it.amount)}</td>
-                    <td className="px-3 py-2 border-t border-border">
-                      <button onClick={() => removeItem(it.id)} className="text-gray-400 hover:text-red-500 transition-colors"><XIcon className="w-3.5 h-3.5" /></button>
+                    <td className="px-3 py-2 border-t border-border text-gray-500">{it.remark || '—'}</td>
+                  </tr>
+                )
+              )}
+            </tbody>
+            {rcItems.length > 0 && (
+              <tfoot>
+                <tr className="bg-navy-800">
+                  <td colSpan={5} className="px-3 py-2.5 text-white font-semibold">Grand Total</td>
+                  <td className="px-3 py-2.5 text-white font-bold text-[13px]">{fmt(grandTotal)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+
+        {/* ── 5. Family split receipts (Cash > limit) ───────────────────────── */}
+        {needsSplit && (
+          <div className="border border-amber-300 bg-amber-50/40 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">
+                Receipt for Family Members
+              </span>
+              <span className="text-[10px] bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full font-medium">
+                Cash Limit: {fmt(cashLimit)} / receipt
+              </span>
+            </div>
+            <p className="text-[11px] text-amber-600 mb-2.5">
+              Grand total {fmt(grandTotal)} exceeds the per-receipt cash limit.
+              Assign each split receipt to a family member:
+            </p>
+            <div className="rounded-lg overflow-hidden border border-amber-200">
+              <table className="w-full border-collapse text-[12px]">
+                <thead>
+                  <tr>
+                    <th className="th-navy w-12">Rcpt #</th>
+                    <th className="th-navy">Family Member Name</th>
+                    <th className="th-navy w-28 text-center">ITS ID</th>
+                    <th className="th-navy w-32 text-center">Mobile</th>
+                    <th className="th-navy w-28 text-center">Amount (₹)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {splitRows.map((row, i) => {
+                    const query       = row.familyMemberName || '';
+                    const suggestions = familyMembers.filter(m =>
+                      !query || m.Full_Name?.toLowerCase().includes(query.toLowerCase())
+                    );
+                    return (
+                      <tr key={i} className="hover:bg-amber-50">
+                        <td className="px-3 py-2 border-t border-amber-200 text-center text-gray-500 font-medium">{i + 1}</td>
+                        <td className="px-3 py-2 border-t border-amber-200">
+                          <div className="relative">
+                            <input
+                              className="form-input"
+                              placeholder="Search family member…"
+                              value={query}
+                              autoComplete="off"
+                              onChange={e => {
+                                const val = e.target.value;
+                                setSplitRows(p => p.map((r, j) =>
+                                  j === i ? { ...r, familyMemberName: val, itsId: '', mobile: '' } : r
+                                ));
+                                setOpenSuggestIdx(i);
+                              }}
+                              onFocus={() => setOpenSuggestIdx(i)}
+                              onBlur={() => setTimeout(() => setOpenSuggestIdx(p => p === i ? null : p), 150)}
+                            />
+                            {openSuggestIdx === i && suggestions.length > 0 && (
+                              <div className="absolute z-50 top-full left-0 right-0 bg-white border border-border rounded shadow-lg max-h-44 overflow-y-auto">
+                                {suggestions.map(m => (
+                                  <div
+                                    key={m.ITS_ID}
+                                    className="px-3 py-1.5 text-[12px] hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-0"
+                                    onMouseDown={() => setSplitMember(i, m)}
+                                  >
+                                    <span className="font-medium">{m.Full_Name}</span>
+                                    <span className="text-gray-400 ml-1.5 text-[11px]">
+                                      ITS: {m.ITS_ID} · {m.Mobile || '—'}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-2 py-1.5 border-t border-amber-200">
+                          <input
+                            className="form-input text-[11px] text-center"
+                            placeholder="ITS ID"
+                            value={row.itsId || ''}
+                            onChange={e => setSplitRows(p => p.map((r, j) =>
+                              j === i ? { ...r, itsId: e.target.value } : r
+                            ))}
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 border-t border-amber-200">
+                          <input
+                            className="form-input text-[11px] text-center"
+                            placeholder="Mobile"
+                            value={row.mobile || ''}
+                            onChange={e => setSplitRows(p => p.map((r, j) =>
+                              j === i ? { ...r, mobile: e.target.value } : r
+                            ))}
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 border-t border-amber-200">
+                          <input
+                            type="number"
+                            className="form-input text-[11px] text-center font-semibold"
+                            value={row.amount || ''}
+                            onChange={e => setSplitRows(p => p.map((r, j) =>
+                              j === i ? { ...r, amount: Number(e.target.value) } : r
+                            ))}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className={splitOk ? 'bg-green-50' : 'bg-red-50'}>
+                    <td colSpan={2} className={`px-3 py-2 text-[11px] font-semibold ${splitOk ? 'text-green-700' : 'text-red-600'}`}>
+                      {splitOk ? '✓ Amounts balanced' : `⚠ ${splitDiff > 0 ? fmt(splitDiff) + ' unallocated' : fmt(-splitDiff) + ' over-allocated'}`}
+                    </td>
+                    <td colSpan={2} className="px-3 py-2 text-center text-[11px] text-gray-500">Split Total</td>
+                    <td className={`px-3 py-2 text-center font-bold text-[12px] ${splitOk ? 'text-green-700' : 'text-red-600'}`}>
+                      {fmt(splitTotal)} / {fmt(grandTotal)}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-              {items.length > 0 && (
-                <tfoot>
-                  <tr className="bg-navy-800">
-                    <td colSpan={4} className="px-3 py-2.5 text-white font-semibold text-[12px]">Grand Total</td>
-                    <td className="px-3 py-2.5 text-white font-bold text-[14px]">{fmt(grandTotal)}</td>
-                    <td className="border-t-0" />
-                  </tr>
                 </tfoot>
-              )}
-            </table>
-          </div>
-        </div>
-
-        {/* Right column — summary */}
-        <div className="space-y-3">
-          <div className="card">
-            <div className="card-header">Receipt Summary</div>
-            <div className="card-body">
-              <div className="mb-3">
-                <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Grand Total</div>
-                <div className="font-display text-[26px] font-bold text-navy-900">{fmt(grandTotal)}</div>
-              </div>
-              <div className="h-px bg-border mb-3" />
-              {items.map(it => (
-                <div key={it.id} className="flex justify-between mb-1.5 text-[12px]">
-                  <span className="text-gray-500">{it.hubType}</span>
-                  <span className="font-medium">{fmt(it.amount)}</span>
-                </div>
-              ))}
-              {items.length > 0 && <div className="h-px bg-border mt-2 mb-3" />}
-              {/* SMS */}
-              <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer p-2.5 bg-surface rounded-md border border-border">
-                <input
-                  type="checkbox"
-                  checked={sendSMS}
-                  onChange={e => setSendSMS(e.target.checked)}
-                  className="accent-blue-500 w-3.5 h-3.5"
-                />
-                Send SMS to {member?.mobile || 'member'}
-              </label>
+              </table>
             </div>
           </div>
+        )}
 
-          {/* Takhmeen status */}
-          {member && (
-            <div className="card">
-              <div className="card-header text-[12px]">Current Takhmeen Status</div>
-              <div className="card-body space-y-3">
-                <div>
-                  <div className="text-[10px] text-gray-400 mb-1">Sabeel Remaining</div>
-                  <div className={`font-display text-[20px] font-bold ${member.sabeelRemaining > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {fmt(member.sabeelRemaining)}
-                  </div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">Grade {member.grade} · {user?.ForYearAll}</div>
-                </div>
-                <div className="h-px bg-border" />
-                <div>
-                  <div className="text-[10px] text-gray-400 mb-1">FMB Remaining</div>
-                  <div className={`font-display text-[18px] font-bold ${member.fmbRemaining > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    {fmt(member.fmbRemaining)}
-                  </div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">{member.fmbRemaining > 0 ? 'Due' : 'Fully Paid'} · {user?.ForYearFMB}</div>
-                </div>
-              </div>
-            </div>
-          )}
+        {/* ── 6. SMS ────────────────────────────────────────────────────────── */}
+        <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer p-2.5 bg-surface rounded-md border border-border">
+          <input
+            type="checkbox"
+            className="accent-blue-500 w-3.5 h-3.5"
+            checked={rcForm.sendSMS || false}
+            onChange={e => setRcForm(p => ({ ...p, sendSMS: e.target.checked }))}
+          />
+          Send SMS confirmation to {profile.mobile || 'member'}
+        </label>
+
+        {/* ── 7. Action buttons ─────────────────────────────────────────────── */}
+        <div className="flex justify-end gap-2 pt-1">
+          <button className="btn btn-secondary" onClick={clearForm}>
+            <TrashIcon className="w-3.5 h-3.5 mr-1.5" />Clear Form
+          </button>
+          <button className="btn btn-secondary" onClick={() => handleSave(true)} disabled={saving}>
+            <PrintIcon className="w-3.5 h-3.5 mr-1.5" />Print Only
+          </button>
+          <button className="btn btn-primary" onClick={() => handleSave(false)} disabled={saving}>
+            {saving ? 'Saving…' : <><SaveIcon className="w-3.5 h-3.5 mr-1.5" />Save Receipt</>}
+          </button>
         </div>
+
       </div>
     </div>
   );

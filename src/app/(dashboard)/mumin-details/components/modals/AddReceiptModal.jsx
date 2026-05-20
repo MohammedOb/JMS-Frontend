@@ -10,6 +10,15 @@ import toast from 'react-hot-toast';
 
 const DEFAULT_CASH_LIMIT = 9500;
 
+function sortFamilyMembers(members, hofIts) {
+  return [...members].sort((a, b) => {
+    const aIsHof = String(a.ITS_ID) === String(hofIts);
+    const bIsHof = String(b.ITS_ID) === String(hofIts);
+    if (aIsHof !== bIsHof) return aIsHof ? -1 : 1;
+    return Number(b.Age || b.age || 0) - Number(a.Age || a.age || 0);
+  });
+}
+
 function normList(data) {
   if (!data) return [];
   if (Array.isArray(data)) return data;
@@ -148,10 +157,11 @@ export default function AddReceiptModal({
   // Auto-generate split rows whenever grand total or family list changes
   useEffect(() => {
     if (!needsSplit || grandTotal <= 0) { setSplitRows([]); return; }
-    const count = Math.ceil(grandTotal / cashLimit);
+    const count  = Math.ceil(grandTotal / cashLimit);
+    const sorted = sortFamilyMembers(familyMembers, profile.localHofIts);
     setSplitRows(prev => Array.from({ length: count }, (_, i) => {
       const prevRow = prev[i];
-      const fam     = familyMembers[i];
+      const fam     = sorted[i];
       const amt = i < count - 1
         ? cashLimit
         : grandTotal - cashLimit * (count - 1);
@@ -461,7 +471,7 @@ export default function AddReceiptModal({
                   onChange={e => onItsChange(e.target.value)}
                 >
                   <option value="">— Select ITS —</option>
-                  {familyMembers.map(m => (
+                  {sortFamilyMembers(familyMembers, profile.localHofIts).map(m => (
                     <option key={m.ITS_ID} value={String(m.ITS_ID)}>
                       {m.ITS_ID} — {m.Full_Name}
                     </option>

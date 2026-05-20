@@ -68,7 +68,10 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
 
     if (hasItemFilter) {
       // Per-item view when SubType or ForYear filter is active
-      return base.sort((a, b) => new Date(b.receivedDate) - new Date(a.receivedDate));
+      return base.sort((a, b) => {
+        const d = new Date(b.receivedDate) - new Date(a.receivedDate);
+        return d !== 0 ? d : Number(b.receiptNo) - Number(a.receiptNo);
+      });
     }
 
     // Summary view — one row per TransactionsDetail header (t.ID), amount = sum of its items
@@ -88,7 +91,10 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
     });
 
     return Array.from(map.values())
-      .sort((a, b) => new Date(b.receivedDate) - new Date(a.receivedDate));
+      .sort((a, b) => {
+        const d = new Date(b.receivedDate) - new Date(a.receivedDate);
+        return d !== 0 ? d : Number(b.receiptNo) - Number(a.receiptNo);
+      });
   }, [receipts, filterHubType, filterSubType, filterForYear]);
 
   const totalPages = pageSize === 'All' ? 1 : Math.ceil(filteredReceipts.length / pageSize);
