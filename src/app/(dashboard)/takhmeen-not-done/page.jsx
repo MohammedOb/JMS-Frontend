@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
-import { takhmeenService, memberService } from '@/services';
+import { takhmeenService, memberService, lookupService } from '@/services';
+import { useAuth } from '@/context/AuthContext';
 import { SearchIcon, XIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon } from '@/components/shared/Icons';
 
 const INIT_FILTERS = {
@@ -119,12 +120,29 @@ export default function TakhmeenNotDonePage() {
   const router        = useRouter();
   const exportBtnRef  = useRef(null);
   const exportMenuRef = useRef(null);
+  const { user, hasScope } = useAuth();
 
-  const [listType,     setListType]     = useState('notDone');
-  const [allRows,      setAllRows]      = useState([]);
-  const [refRows,      setRefRows]      = useState([]);
-  const [hubHeadRows,  setHubHeadRows]  = useState([]);
-  const [mohallaRows,  setMohallaRows]  = useState([]);
+  const allowedSubHeadSet = useMemo(() => {
+    if (!user) return null;
+    if (Array.isArray(user.roles) && user.roles.includes('super_admin')) return null;
+    if (!user.scopes) return null;
+    const skip = new Set(['sector', 'Sector', 'ForYear', 'createdBy', 'HubMainHead']);
+    const allowed = [];
+    Object.entries(user.scopes).forEach(([type, arr]) => {
+      if (!skip.has(type) && Array.isArray(arr) && arr.length > 0)
+        allowed.push(...arr.map(v => v.toLowerCase()));
+    });
+    return allowed.length > 0 ? new Set(allowed) : null;
+  }, [user]);
+
+  const [listType,      setListType]      = useState('notDone');
+  const [allRows,       setAllRows]       = useState([]);
+  const [hubHeadRows,   setHubHeadRows]   = useState([]);
+  const [mohallaRows,   setMohallaRows]   = useState([]);
+  const [forYears,      setForYears]      = useState([]);
+  const [sabeelTypes,   setSabeelTypes]   = useState([]);
+  const [stayingIns,    setStayingIns]    = useState([]);
+  const [thaaliStatuses,setThaaliStatuses]= useState([]);
   const [loading,      setLoading]      = useState(false);
   const [showExport,   setShowExport]   = useState(false);
   const [exportPos,    setExportPos]    = useState({});
@@ -134,11 +152,8 @@ export default function TakhmeenNotDonePage() {
 
   const setF = useCallback((k, v) => setFilters(p => ({ ...p, [k]: v })), []);
 
-  // Load master data once for dropdown options
+  // Load lookup data once for dropdown options
   useEffect(() => {
-    takhmeenService.loadDetails({})
-      .then(res => setRefRows(normalizeResults(res.data)))
-      .catch(() => {});
     takhmeenService.loadHubHeadDetails({})
       .then(res => {
         const data = res.data;
@@ -153,6 +168,10 @@ export default function TakhmeenNotDonePage() {
         setMohallaRows(raw);
       })
       .catch(() => {});
+    lookupService.getYears()         .then(res => setForYears(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
+    lookupService.getSabeelTypes()   .then(res => setSabeelTypes(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
+    lookupService.getStayingIn()     .then(res => setStayingIns(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
+    lookupService.getThaliStatuses() .then(res => setThaaliStatuses(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
   }, []);
 
   // load accepts the filter snapshot so it can be called with INIT_FILTERS on list-type switch
@@ -195,8 +214,7 @@ export default function TakhmeenNotDonePage() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Dropdown options derived from master reference data
-  const forYears       = useMemo(() => uniq(refRows.map(r => r.forYear)),      [refRows]);
+  // Dropdown options
   const hubSubHeads    = useMemo(() => {
     const seen = new Map();
     hubHeadRows.forEach(r => {
@@ -207,21 +225,30 @@ export default function TakhmeenNotDonePage() {
     });
     return [...seen.entries()]
       .map(([name, active]) => ({ name, active }))
+      .filter(h => !allowedSubHeadSet || allowedSubHeadSet.has(h.name.toLowerCase()))
       .sort((a, b) => {
         if (a.active !== b.active) return a.active ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-  }, [hubHeadRows]);
-  const sabeelTypes    = useMemo(() => uniq(refRows.map(r => r.sabeelType)),   [refRows]);
+  }, [hubHeadRows, allowedSubHeadSet]);
+
+  const scopedForYears = useMemo(() =>
+    forYears.filter(y => hasScope('ForYear', y)),
+    [forYears, hasScope]);
+
   const sectors        = useMemo(() =>
-    uniq(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim())), [mohallaRows]);
-  const stayingIns     = useMemo(() => uniq(refRows.map(r => r.stayingIn)),    [refRows]);
-  const thaaliStatuses = useMemo(() => uniq(refRows.map(r => r.thaaliStatus)), [refRows]);
+    uniq(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim()))
+      .filter(s => hasScope('sector', s)),
+    [mohallaRows, hasScope]);
 
   const subsectorOptions = useMemo(() => {
     const seen = new Set();
     return mohallaRows
-      .filter(r => !filters.sector || String(r.Sector ?? r.sector ?? '') === filters.sector)
+      .filter(r => {
+        const s = String(r.Sector ?? r.sector ?? '').trim();
+        if (filters.sector) return s === filters.sector;
+        return hasScope('sector', s);
+      })
       .reduce((acc, r) => {
         const code = String(r.Subsector ?? r.subsector ?? '').trim();
         const name = String(r.MohallaDescription ?? r.SubsectorName ?? r.subsectorName ?? '').trim();
@@ -232,7 +259,7 @@ export default function TakhmeenNotDonePage() {
         return acc;
       }, [])
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [mohallaRows, filters.sector]);
+  }, [mohallaRows, filters.sector, hasScope]);
 
   // ── pagination ─────────────────────────────────────────────────────────────
 
@@ -368,7 +395,7 @@ export default function TakhmeenNotDonePage() {
               <label className="form-label">For Year</label>
               <select className="form-select" value={filters.forYear} onChange={e => setF('forYear', e.target.value)}>
                 <option value="">All Years</option>
-                {forYears.map(y => <option key={y}>{y}</option>)}
+                {scopedForYears.map(y => <option key={y}>{y}</option>)}
               </select>
             </div>
             <div>

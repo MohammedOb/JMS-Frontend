@@ -195,7 +195,7 @@ function RazaFilters({ filters, setF, suggestions, loading, onLoad, onClear }) {
 
 function SafaiChitthiInner() {
   const router = useRouter();
-  const { permissions } = useAuth();
+  const { can } = useAuth();
 
   const [filters,      setFilters]      = useState(makeEmptyFilters);
   const [allRows,      setAllRows]      = useState([]);
@@ -490,17 +490,17 @@ function SafaiChitthiInner() {
                   {/* Action — icon only */}
                   <td className="px-2 py-1.5 border-t border-border">
                     <div className="flex gap-1">
-                      {permissions.SafaiEdit && (
+                      {can('safai.edit') && (
                         <button className="btn btn-secondary btn-sm p-1.5" title="Edit" onClick={() => openEdit(r)}>
                           <EditIcon className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      {permissions.SafaiPrint && (
+                      {can('safai.print') && (
                         <button className="btn btn-secondary btn-sm p-1.5" title="Print" onClick={() => window.print()}>
                           <PrintIcon className="w-3.5 h-3.5" />
                         </button>
                       )}
-                      {permissions.SafaiDelete && (
+                      {can('safai.delete') && (
                         <button className="btn btn-sm p-1.5 bg-red-50 text-red-600 border border-red-200 hover:bg-red-100" title="Delete" onClick={() => openDelete(r)}>
                           <TrashIcon className="w-3.5 h-3.5" />
                         </button>

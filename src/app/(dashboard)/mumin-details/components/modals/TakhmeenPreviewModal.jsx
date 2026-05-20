@@ -4,8 +4,10 @@ import clsx from 'clsx';
 import Modal from '@/components/shared/Modal';
 import { PrintIcon } from '@/components/shared/Icons';
 import { fmt } from '../../utils';
+import { useAuth } from '@/context/AuthContext';
 
-export default function TakhmeenPreviewModal({ open, onClose, member, permissions, takhmeen }) {
+export default function TakhmeenPreviewModal({ open, onClose, member, takhmeen }) {
+  const { user } = useAuth();
   const totalRemaining = takhmeen.reduce((s, t) => s + (Number(t.remaining) || 0), 0);
 
   return (
@@ -24,7 +26,7 @@ export default function TakhmeenPreviewModal({ open, onClose, member, permission
           <div className="font-display text-[16px] font-bold text-navy-800">Sagwara Jamaat — Takhmeen Form</div>
           <div className="text-[11px] text-gray-400 mt-1">Annual Contribution Statement</div>
           <div className="font-display text-[13px] font-bold text-blue-500 mt-2 uppercase tracking-wider">
-            Year: {permissions?.ForYearAll} H
+            Year: {user?.ForYearAll} H
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-4 text-[12px]">

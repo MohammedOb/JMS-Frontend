@@ -5,15 +5,17 @@ import Modal from '@/components/shared/Modal';
 import { SaveIcon } from '@/components/shared/Icons';
 import { fmt, SUB_HEADS, ComboBox, normalizeArray } from '../../utils';
 import { takhmeenService } from '@/services';
+import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 
 export default function TakhmeenModal({
   open, onClose,
   mode = 'add',
-  member, permissions,
+  member,
   row, setRow,
   onSave,
 }) {
+  const { user } = useAuth();
   const [headOptions, setHeadOptions] = useState([]);
   const [gradeOptions, setGradeOptions] = useState([]);
 
@@ -148,7 +150,7 @@ export default function TakhmeenModal({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="form-label">For Year</label>
-            <input ref={forYearRef} className="form-input" placeholder={permissions?.ForYearAll} value={row.forYear || ''}
+            <input ref={forYearRef} className="form-input" placeholder={user?.ForYearAll} value={row.forYear || ''}
               onChange={e => set('forYear', e.target.value)} />
           </div>
           <div>

@@ -1,5 +1,8 @@
 'use client';
 
+import { useMemo } from 'react';
+import { useAuth } from '@/context/AuthContext';
+
 // ── Configure which takhmeen alerts appear per sabeel type ────────────────────
 //
 // Fields:
@@ -29,18 +32,34 @@ const REQUIRED_TAKHMEEN = {
 };
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function AlertBanners({ takhmeen = [], permissions = {}, member, onAddTakhmeen }) {
+export default function AlertBanners({ takhmeen = [], member, onAddTakhmeen }) {
+  const { user } = useAuth();
   const sabeelType = member?.sabeelType || '';
   const isRegular    = sabeelType.toLowerCase().includes('regular');
   const isMutaveteen = sabeelType.toLowerCase().includes('mutaveteen');
 
-  if (!permissions.ForYearAll || (!isRegular && !isMutaveteen)) return null;
+  // Same allowedSubHeadSet pattern as mumin-takhmeen report and TakhmeenTab.
+  // null = no restriction; Set = only show alerts for sub-heads the user can access.
+  const allowedSubHeadSet = useMemo(() => {
+    if (!user) return null;
+    if (Array.isArray(user.roles) && user.roles.includes('super_admin')) return null;
+    if (!user.scopes) return null;
+    const skip = new Set(['sector', 'Sector', 'ForYear', 'createdBy', 'HubMainHead']);
+    const allowed = [];
+    Object.entries(user.scopes).forEach(([type, arr]) => {
+      if (!skip.has(type) && Array.isArray(arr) && arr.length > 0)
+        allowed.push(...arr.map(v => v.toLowerCase()));
+    });
+    return allowed.length > 0 ? new Set(allowed) : null;
+  }, [user]);
 
-  // Resolve the year for a rule: literal year > yearKey from permissions > ForYearAll
+  if (!user?.ForYearAll || (!isRegular && !isMutaveteen)) return null;
+
+  // Resolve the year for a rule: literal year > yearKey from user > ForYearAll
   const resolveYear = (rule) =>
     rule.year
       ? String(rule.year)
-      : String(permissions[rule.yearKey] || permissions.ForYearAll || '');
+      : String(user[rule.yearKey] || user.ForYearAll || '');
 
   const hasEntry = (rule) => {
     const yr = resolveYear(rule);
@@ -65,7 +84,9 @@ export default function AlertBanners({ takhmeen = [], permissions = {}, member, 
   };
 
   const typeKey = isRegular ? 'Regular' : 'Mutaveteen';
-  const alerts  = (REQUIRED_TAKHMEEN[typeKey] || []).filter(r => shouldShow(r) && !hasEntry(r));
+  const alerts  = (REQUIRED_TAKHMEEN[typeKey] || [])
+    .filter(r => !allowedSubHeadSet || allowedSubHeadSet.has(r.sub.toLowerCase()))
+    .filter(r => shouldShow(r) && !hasEntry(r));
 
   return (
     <div className="flex flex-col gap-2 h-full">

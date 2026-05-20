@@ -5,9 +5,11 @@ import { EditIcon, PrintIcon } from '@/components/shared/Icons';
 import { StatusBadge } from '@/components/shared/Badge';
 import { fmt, fmtDate, normalizeArray } from '../../utils';
 import { receiptService } from '@/services';
+import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 
-export default function ReceiptsTab({ receipts, setReceipts, accno, permissions, onAddReceipt, onEditReceipt, onPrintReceipt }) {
+export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt, onEditReceipt, onPrintReceipt }) {
+  const { can } = useAuth();
   const [loading, setLoading] = useState(false);
 
   // Filters
@@ -156,7 +158,7 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, permissions,
           
         </div>
         <div className="flex items-center gap-3 pl-3">
-          {permissions?.MDNewInsert && (
+          {can('receipts.create') && (
             <button className="btn btn-primary btn-sm whitespace-nowrap" onClick={onAddReceipt}>+ New Receipt</button>
           )}
         </div>
@@ -185,12 +187,12 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, permissions,
               return (
                 <tr key={i} className={isCancelled ? 'bg-red-500 text-white' : 'hover:bg-blue-500/[0.025]'}>
                   <td className={`${td} whitespace-nowrap`}>
-                    {!isCancelled && permissions?.MDEditReceipt && (
+                    {!isCancelled && can('receipts.edit') && (
                       <button className="btn btn-secondary btn-sm mr-1" onClick={() => onEditReceipt(r)}>
                         <EditIcon className="w-3.5 h-3.5" />
                       </button>
                     )}
-                    {permissions?.MDEditReceipt && (
+                    {can('receipts.edit') && (
                       <button className="btn btn-secondary btn-sm" onClick={() => onPrintReceipt(r)}>
                         <PrintIcon className="w-3.5 h-3.5" />
                       </button>

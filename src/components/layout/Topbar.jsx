@@ -28,13 +28,14 @@ const PAGE_TITLES = {
   '/musaida':          'Musaida List',
   '/fmb-daily-menu':   'FMB Daily Menu',
   '/manage-users':     'Manage Users',
-  '/utility':          'Utility',
-  '/notifications':    'Notifications',
+  '/utility':           'Utility',
+  '/notifications':     'Notifications',
+  '/system-variables':  'System Variables',
 };
 
 export default function Topbar({ sidebarOpen, onToggleSidebar }) {
   const pathname  = usePathname();
-  const { user, permissions } = useAuth();
+  const { user } = useAuth();
 
   const pageTitle = PAGE_TITLES[pathname] || 'JMS';
 
@@ -78,16 +79,16 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }) {
       <div className="ml-auto flex items-center gap-3">
 
         {/* Running Year indicator */}
-        {permissions.ForYearAll && (
+        {user?.ForYearAll && (
           <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-gray-500
                           bg-surface border border-border rounded-full px-3 py-1">
             <span className="text-gray-400">Year:</span>
-            <span className="font-semibold text-navy-900">{permissions.ForYearAll}</span>
-            {permissions.ForYearFMB && permissions.ForYearFMB !== permissions.ForYearAll && (
+            <span className="font-semibold text-navy-900">{user.ForYearAll}</span>
+            {user.ForYearFMB && user.ForYearFMB !== user.ForYearAll && (
               <>
                 <span className="text-gray-300">|</span>
                 <span className="text-gray-400">FMB:</span>
-                <span className="font-semibold text-navy-900">{permissions.ForYearFMB}</span>
+                <span className="font-semibold text-navy-900">{user.ForYearFMB}</span>
               </>
             )}
           </div>

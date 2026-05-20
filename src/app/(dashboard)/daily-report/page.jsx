@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { receiptService, takhmeenService, memberService } from '@/services';
+import { receiptService, takhmeenService, memberService, lookupService } from '@/services';
 import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/Badge';
@@ -65,11 +65,26 @@ const normalizeArr = (data) => {
 
 export default function DailyReportPage() {
   const router = useRouter();
-  const { can, user } = useAuth();
+  const { can, user, hasScope } = useAuth();
+
+  // Collect all allowed subhead values from user scope (type names like 'Sabeel', 'Vajebaat')
+  const allowedSubHeadSet = useMemo(() => {
+    if (!user) return null;
+    if (Array.isArray(user.roles) && user.roles.includes('super_admin')) return null;
+    if (!user.scopes) return null;
+    const skip = new Set(['sector', 'Sector', 'ForYear', 'createdBy', 'HubMainHead']);
+    const allowed = [];
+    Object.entries(user.scopes).forEach(([type, arr]) => {
+      if (!skip.has(type) && Array.isArray(arr) && arr.length > 0)
+        allowed.push(...arr.map(v => v.toLowerCase()));
+    });
+    return allowed.length > 0 ? new Set(allowed) : null;
+  }, [user]);
 
   // ── Lookup data ──────────────────────────────────────────────────────────────
   const [hubHeads,    setHubHeads]    = useState([]);
   const [mohallaRows, setMohallaRows] = useState([]);
+  const [years,       setYears]       = useState([]);
 
   // ── Filters ──────────────────────────────────────────────────────────────────
   const [filters, setFilters] = useState({
@@ -122,26 +137,32 @@ export default function DailyReportPage() {
     memberService.loadMohallaDetails({ Sector: '', Subsector: '', MohallaDescription: '' })
       .then(res => setMohallaRows(normalizeArr(res.data)))
       .catch(() => {});
+
+    lookupService.getYears()
+      .then(res => setYears(Array.isArray(res.data?.data) ? res.data.data : []))
+      .catch(() => {});
   }, []);
 
   // ── Cascaded dropdown options ────────────────────────────────────────────────
   const mainHeadOptions = useMemo(() => {
-    const map = new Map(); // mainHead -> isActive (true if any sub head is active)
-    hubHeads.forEach(h => {
-      if (!h.HubMainHead) return;
-      const active = h.IsActive === 1 || h.IsActive === '1';
-      map.set(h.HubMainHead, (map.get(h.HubMainHead) ?? false) || active);
-    });
+    const map = new Map();
+    hubHeads
+      .filter(h => !allowedSubHeadSet || allowedSubHeadSet.has(String(h.HubSubHead ?? '').toLowerCase()))
+      .forEach(h => {
+        if (!h.HubMainHead) return;
+        const active = h.IsActive === 1 || h.IsActive === '1';
+        map.set(h.HubMainHead, (map.get(h.HubMainHead) ?? false) || active);
+      });
     return [...map.entries()]
       .map(([name, active]) => ({ name, active }))
       .sort((a, b) => {
         if (a.active !== b.active) return a.active ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-  }, [hubHeads]);
+  }, [hubHeads, allowedSubHeadSet]);
 
   const subHeadOptions = useMemo(() => {
-    const seen = new Map(); // subHead -> isActive
+    const seen = new Map();
     hubHeads
       .filter(h => !filters.HubMainHead || h.HubMainHead === filters.HubMainHead)
       .forEach(h => {
@@ -151,21 +172,32 @@ export default function DailyReportPage() {
       });
     return [...seen.entries()]
       .map(([name, active]) => ({ name, active }))
+      .filter(h => !allowedSubHeadSet || allowedSubHeadSet.has(h.name.toLowerCase()))
       .sort((a, b) => {
         if (a.active !== b.active) return a.active ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-  }, [hubHeads, filters.HubMainHead]);
+  }, [hubHeads, filters.HubMainHead, allowedSubHeadSet]);
+
+  const forYears = useMemo(() =>
+    years.filter(y => hasScope('ForYear', y)),
+    [years, hasScope]);
 
   const sectorOptions = useMemo(() =>
-    [...new Set(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '')).filter(Boolean))].sort(),
-    [mohallaRows]
+    [...new Set(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '')).filter(Boolean))]
+      .filter(s => hasScope('sector', s))
+      .sort(),
+    [mohallaRows, hasScope]
   );
 
   const subsectorOptions = useMemo(() => {
     const seen = new Set();
     return mohallaRows
-      .filter(r => !filters.Sector || String(r.Sector ?? r.sector ?? '') === filters.Sector)
+      .filter(r => {
+        const s = String(r.Sector ?? r.sector ?? '').trim();
+        if (filters.Sector) return s === filters.Sector;
+        return hasScope('sector', s);
+      })
       .reduce((acc, r) => {
         const code = String(r.Subsector ?? r.subsector ?? '').trim();
         const name = String(r.MohallaDescription ?? r.SubsectorName ?? '').trim();
@@ -176,16 +208,8 @@ export default function DailyReportPage() {
         return acc;
       }, [])
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [mohallaRows, filters.Sector]);
+  }, [mohallaRows, filters.Sector, hasScope]);
 
-  const yearOptions = useMemo(() => {
-    const now = new Date();
-    const fy  = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
-    return Array.from({ length: 6 }, (_, i) => {
-      const y = fy - i;
-      return (y % 100).toString().padStart(2, '0') + ((y + 1) % 100).toString().padStart(2, '0');
-    });
-  }, []);
 
   // ── Search ───────────────────────────────────────────────────────────────────
   const search = useCallback(async () => {
@@ -495,7 +519,7 @@ export default function DailyReportPage() {
             <select className="form-select w-[95px]" value={filters.ForYear}
               onChange={e => setF('ForYear', e.target.value)}>
               <option value="">All</option>
-              {yearOptions.map(y => <option key={y}>{y}</option>)}
+              {forYears.map(y => <option key={y}>{y}</option>)}
             </select>
           </div>
           <div>

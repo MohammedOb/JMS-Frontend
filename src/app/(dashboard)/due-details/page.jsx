@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
-import { dueService, takhmeenService, memberService } from '@/services';
+import { dueService, takhmeenService, memberService, lookupService } from '@/services';
+import { useAuth } from '@/context/AuthContext';
 import {
   RefreshIcon, XIcon, DownloadIcon,
   BarChartIcon, FileTextIcon, PrintIcon,
@@ -164,11 +165,27 @@ export default function DueDetailsPage() {
   const router        = useRouter();
   const exportBtnRef  = useRef(null);
   const exportMenuRef = useRef(null);
+  const { user, hasScope } = useAuth();
 
-  const [allRows,      setAllRows]      = useState([]);
-  const [lookupRows,   setLookupRows]   = useState([]); // full unfiltered dataset — for option lists
-  const [hubRows,      setHubRows]      = useState([]);
-  const [mohallaRows,  setMohallaRows]  = useState([]);
+  const allowedSubHeadSet = useMemo(() => {
+    if (!user) return null;
+    if (Array.isArray(user.roles) && user.roles.includes('super_admin')) return null;
+    if (!user.scopes) return null;
+    const skip = new Set(['sector', 'Sector', 'ForYear', 'createdBy', 'HubMainHead']);
+    const allowed = [];
+    Object.entries(user.scopes).forEach(([type, arr]) => {
+      if (!skip.has(type) && Array.isArray(arr) && arr.length > 0)
+        allowed.push(...arr.map(v => v.toLowerCase()));
+    });
+    return allowed.length > 0 ? new Set(allowed) : null;
+  }, [user]);
+
+  const [allRows,       setAllRows]       = useState([]);
+  const [lookupRows,    setLookupRows]    = useState([]); // full unfiltered dataset — for year options
+  const [hubRows,       setHubRows]       = useState([]);
+  const [mohallaRows,   setMohallaRows]   = useState([]);
+  const [sabeelTypes,   setSabeelTypes]   = useState([]);
+  const [thaaliStatuses,setThaaliStatuses]= useState([]);
   const [loading,      setLoading]      = useState(false);
   const [showExport,  setShowExport]  = useState(false);
   const [exportPos,   setExportPos]   = useState({});
@@ -230,6 +247,8 @@ export default function DueDetailsPage() {
         setMohallaRows(raw);
       })
       .catch(() => {});
+    lookupService.getSabeelTypes()   .then(res => setSabeelTypes(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
+    lookupService.getThaliStatuses() .then(res => setThaaliStatuses(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -250,23 +269,25 @@ export default function DueDetailsPage() {
   const toYears   = useMemo(() => uniq(lookupRows.map(r => r.toYear)),   [lookupRows]);
 
   const hubMainHeads = useMemo(() => {
-    const map = new Map(); // mainHead -> isActive (true if any sub head is active)
-    hubRows.forEach(r => {
-      const name = pick(r, 'HubMainHead', 'hubMainHead');
-      if (!name) return;
-      const active = r.IsActive === 1 || r.IsActive === '1';
-      map.set(name, (map.get(name) ?? false) || active);
-    });
+    const map = new Map();
+    hubRows
+      .filter(r => !allowedSubHeadSet || allowedSubHeadSet.has(String(pick(r, 'HubSubHead', 'hubSubHead')).toLowerCase()))
+      .forEach(r => {
+        const name = pick(r, 'HubMainHead', 'hubMainHead');
+        if (!name) return;
+        const active = r.IsActive === 1 || r.IsActive === '1';
+        map.set(name, (map.get(name) ?? false) || active);
+      });
     return [...map.entries()]
       .map(([name, active]) => ({ name, active }))
       .sort((a, b) => {
         if (a.active !== b.active) return a.active ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-  }, [hubRows]);
+  }, [hubRows, allowedSubHeadSet]);
 
   const hubSubHeadOptions = useMemo(() => {
-    const seen = new Map(); // subHead -> isActive
+    const seen = new Map();
     hubRows
       .filter(r => !filters.hubMainHead || pick(r, 'HubMainHead', 'hubMainHead') === filters.hubMainHead)
       .forEach(r => {
@@ -277,19 +298,26 @@ export default function DueDetailsPage() {
       });
     return [...seen.entries()]
       .map(([name, active]) => ({ name, active }))
+      .filter(h => !allowedSubHeadSet || allowedSubHeadSet.has(h.name.toLowerCase()))
       .sort((a, b) => {
         if (a.active !== b.active) return a.active ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-  }, [hubRows, filters.hubMainHead]);
+  }, [hubRows, filters.hubMainHead, allowedSubHeadSet]);
 
   const sectors = useMemo(() =>
-    uniq(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim())), [mohallaRows]);
+    uniq(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim()))
+      .filter(s => hasScope('sector', s)),
+    [mohallaRows, hasScope]);
 
   const subsectorOptions = useMemo(() => {
     const seen = new Set();
     return mohallaRows
-      .filter(r => !filters.sector || String(r.Sector ?? r.sector ?? '') === filters.sector)
+      .filter(r => {
+        const s = String(r.Sector ?? r.sector ?? '').trim();
+        if (filters.sector) return s === filters.sector;
+        return hasScope('sector', s);
+      })
       .reduce((acc, r) => {
         const code = String(r.Subsector ?? r.subsector ?? '').trim();
         const name = String(r.MohallaDescription ?? r.SubsectorName ?? r.subsectorName ?? '').trim();
@@ -300,23 +328,24 @@ export default function DueDetailsPage() {
         return acc;
       }, [])
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [mohallaRows, filters.sector]);
+  }, [mohallaRows, filters.sector, hasScope]);
 
-  const thaaliStatuses = useMemo(() => uniq(lookupRows.map(r => r.thaaliStatus)), [lookupRows]);
-  const sabeelTypes    = useMemo(() => uniq(lookupRows.map(r => r.sabeelType)),   [lookupRows]);
 
   // ── client-side filtering ─────────────────────────────────────────────────
 
   // fromYear/toYear/sabeelType/hubMainHead/hubSubHead already filtered server-side by API
   const filteredRows = useMemo(() => {
-    let rows = allRows;
+    let rows = allRows.filter(r =>
+      hasScope('sector', r.sector) &&
+      (!allowedSubHeadSet || allowedSubHeadSet.has(r.hubSubHead.toLowerCase()))
+    );
     if (filters.receivedFrom !== '') rows = rows.filter(r => r.received >= Number(filters.receivedFrom));
     if (filters.receivedTo   !== '') rows = rows.filter(r => r.received <= Number(filters.receivedTo));
     if (filters.sector)       rows = rows.filter(r => r.sector       === filters.sector);
     if (filters.subsector)    rows = rows.filter(r => r.subsector    === filters.subsector);
     if (filters.thaaliStatus) rows = rows.filter(r => r.thaaliStatus === filters.thaaliStatus);
     return rows;
-  }, [allRows, filters.receivedFrom, filters.receivedTo, filters.sector, filters.subsector, filters.thaaliStatus]);
+  }, [allRows, filters.receivedFrom, filters.receivedTo, filters.sector, filters.subsector, filters.thaaliStatus, hasScope, allowedSubHeadSet]);
 
   useEffect(() => { setCurrentPage(1); }, [filteredRows, pageSize]);
 

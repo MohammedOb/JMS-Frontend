@@ -18,7 +18,7 @@ const SUB_HEADS = {
 };
 
 export default function AddReceiptPage() {
-  const { permissions } = useAuth();
+  const { user } = useAuth();
 
   // Member lookup
   const [accno,   setAccno]   = useState('');
@@ -34,7 +34,7 @@ export default function AddReceiptPage() {
 
   // Item form
   const [itemHub,    setItemHub]    = useState('Sabeel Regular');
-  const [itemYear,   setItemYear]   = useState(permissions.ForYearAll || '');
+  const [itemYear,   setItemYear]   = useState(user?.ForYearAll || '');
   const [itemAmount, setItemAmount] = useState('');
 
   // Receipt items list
@@ -204,7 +204,7 @@ export default function AddReceiptPage() {
                 </div>
                 <div>
                   <label className="form-label">For Year</label>
-                  <input className="form-input" placeholder={permissions.ForYearAll} value={itemYear} onChange={e => setItemYear(e.target.value)} />
+                  <input className="form-input" placeholder={user?.ForYearAll} value={itemYear} onChange={e => setItemYear(e.target.value)} />
                 </div>
                 <div>
                   <label className="form-label">Amount (₹)</label>
@@ -309,7 +309,7 @@ export default function AddReceiptPage() {
                   <div className={`font-display text-[20px] font-bold ${member.sabeelRemaining > 0 ? 'text-red-600' : 'text-green-600'}`}>
                     {fmt(member.sabeelRemaining)}
                   </div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">Grade {member.grade} · {permissions.ForYearAll}</div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">Grade {member.grade} · {user?.ForYearAll}</div>
                 </div>
                 <div className="h-px bg-border" />
                 <div>
@@ -317,7 +317,7 @@ export default function AddReceiptPage() {
                   <div className={`font-display text-[18px] font-bold ${member.fmbRemaining > 0 ? 'text-red-600' : 'text-green-600'}`}>
                     {fmt(member.fmbRemaining)}
                   </div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">{member.fmbRemaining > 0 ? 'Due' : 'Fully Paid'} · {permissions.ForYearFMB}</div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">{member.fmbRemaining > 0 ? 'Due' : 'Fully Paid'} · {user?.ForYearFMB}</div>
                 </div>
               </div>
             </div>

@@ -2,74 +2,72 @@
 // All API calls. Each function maps to a backend endpoint / stored procedure.
 
 import api from '@/lib/api';
+import * as cache from '@/lib/cache';
+
+const TTL = {
+  lookup: 10 * 60_000, // 10 min – static dropdown values
+  ref:     5 * 60_000, // 5 min  – reference tables (mohallahs, heads)
+  list:       60_000,  // 1 min  – list / summary results
+  report:  2 * 60_000, // 2 min  – report / aggregation results
+  search:     30_000,  // 30 sec – user-filtered search results
+};
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
 export const dashboardService = {
-  getStats:              ()       => api.get('/dashboard/stats'),
-  getRecentTransactions: (limit=5)=> api.get(`/dashboard/recent?limit=${limit}`),
+  getStats:              cache.cached(() => api.get('/dashboard/stats'),                        () => 'dash:stats',              TTL.list),
+  getRecentTransactions: cache.cached((limit=5) => api.get(`/dashboard/recent?limit=${limit}`),(limit=5) => `dash:recent:${limit}`, TTL.search),
 };
 
 // ── Receipts ─────────────────────────────────────────────────────────────────
 export const receiptService = {
-  save:          (data)    => api.post('/receipts', data),
-  update:        (id, data)=> api.put(`/receipts/${id}`, data),
-  cancel:        (id)      => api.put(`/receipts/${id}/cancel`),
-  delete:        (id)      => api.delete(`/receipts/${id}`),
-  getDailyReport:(params)  => api.get('/receipts/daily', { params }),
-  getDailyTotals:(params)  => api.get('/receipts/daily/totals', { params }),
-  getDailyItemTotals:(params)=> api.get('/receipts/daily/item-totals', { params }),
+  save:          cache.mutates((data)    => api.post('/receipts', data),         'receipt', 'dash'),
+  update:        cache.mutates((id, data)=> api.put(`/receipts/${id}`, data),    'receipt', 'dash'),
+  cancel:        cache.mutates((id)      => api.put(`/receipts/${id}/cancel`),   'receipt', 'dash'),
+  delete:        cache.mutates((id)      => api.delete(`/receipts/${id}`),       'receipt', 'dash'),
+  getDailyReport:     cache.cached((params) => api.get('/receipts/daily',             { params }), (p) => cache.makeKey('receipt:daily',  p), TTL.report),
+  getDailyTotals:     cache.cached((params) => api.get('/receipts/daily/totals',      { params }), (p) => cache.makeKey('receipt:totals', p), TTL.report),
+  getDailyItemTotals: cache.cached((params) => api.get('/receipts/daily/item-totals', { params }), (p) => cache.makeKey('receipt:items',  p), TTL.report),
   print:         (id)      => api.get(`/receipts/${id}/print`),
-  loadTransactionDetails: (data) => api.post('/LoadTransactionDetails', data),
-  addTransaction:         (data) => api.post('/AddTransactionDetails',     data),
-  addTransactionItem:     (data) => api.post('/AddTransactionItemDetails', data),
-  loadTransactionItemDetails:  (data) => api.post('/LoadTransactionItemDetails',   data),
-  updateTransaction:           (data) => api.post('/UpdateTransactionDetails',     data),
-  updateTransactionItem:       (data) => api.post('/UpdateTransactionItemsDetails',data),
+  loadTransactionDetails:     cache.cached((data) => api.post('/LoadTransactionDetails',     data), (d) => cache.makeKey('receipt:tx',      d), TTL.search),
+  addTransaction:             cache.mutates((data) => api.post('/AddTransactionDetails',     data), 'receipt', 'dash'),
+  addTransactionItem:         cache.mutates((data) => api.post('/AddTransactionItemDetails', data), 'receipt'),
+  loadTransactionItemDetails: cache.cached((data) => api.post('/LoadTransactionItemDetails', data), (d) => cache.makeKey('receipt:tx-item', d), TTL.search),
+  updateTransaction:          cache.mutates((data) => api.post('/UpdateTransactionDetails',          data), 'receipt', 'dash'),
+  updateTransactionItem:      cache.mutates((data) => api.post('/UpdateTransactionItemsDetails',     data), 'receipt'),
 };
 
 // ── Members ──────────────────────────────────────────────────────────────────
 export const memberService = {
-  // search:        (params)  => api.post('/members/search', { params }),
-  // getByAccno:    (accno)   => api.post(`/members/${accno}`),
-  // create:        (data)    => api.post('/members', data),
-  // update:        (accno, data) => api.put(`/members/${accno}`, data),
-  // resetPassword: (accno)   => api.post(`/members/${accno}/reset-password`),
-  // getFamily:     (accno)   => api.post(`/members/${accno}/family`),
-  // getItsData:    (accno)   => api.post(`/members/${accno}/its-data`),
-  // getOverallDue: (accno)   => api.post(`/members/${accno}/overall-due`),
-  // getSabeelDue:  (accno)   => api.post(`/members/${accno}/sabeel-due`),
-  loadMuminDetails:          (filters) => api.post('/LoadMuminDetails',          filters),
-  loadFamilyMembersDetails:  (data)    => api.post('/LoadFamilyMembersDetails',  data),
-  loadFamilyMembersCount:    (data)    => api.post('/LoadFamilyMembersCount',    data),
-  updateMuminDetails:        (data)    => api.post('/UpdateMuminDetails',        data),
-  addMuminDetails:           (data)    => api.post('/AddMuminDetails',           data),
-  updateMuminDetailsFMB:     (data)    => api.post('/UpdateMuminDetailsFMB',     data),
-  updateMuminDetailsVaj:     (data)    => api.post('/UpdateMuminDetailsVaj',     data),
-  loadMohallaDetails:        (filters) => api.post('/LoadMohallaDetails',        filters),
+  loadMuminDetails:         cache.cached((filters) => api.post('/LoadMuminDetails',         filters), (f) => cache.makeKey('mumin',        f), TTL.search),
+  loadFamilyMembersDetails: cache.cached((data)    => api.post('/LoadFamilyMembersDetails', data),    (d) => cache.makeKey('mumin:family',  d), TTL.search),
+  loadFamilyMembersCount:   cache.cached((data)    => api.post('/LoadFamilyMembersCount',   data),    (d) => cache.makeKey('mumin:fcount',  d), TTL.search),
+  updateMuminDetails:       cache.mutates((data)   => api.post('/UpdateMuminDetails',    data), 'mumin'),
+  addMuminDetails:          cache.mutates((data)   => api.post('/AddMuminDetails',       data), 'mumin'),
+  updateMuminDetailsFMB:    cache.mutates((data)   => api.post('/UpdateMuminDetailsFMB', data), 'mumin'),
+  updateMuminDetailsVaj:    cache.mutates((data)   => api.post('/UpdateMuminDetailsVaj', data), 'mumin'),
+  loadMohallaDetails:       cache.cached((filters) => api.post('/LoadMohallaDetails',    filters), (f) => cache.makeKey('mohallah', f), TTL.ref),
 };
 
 // ── Takhmeen ─────────────────────────────────────────────────────────────────
 export const takhmeenService = {
-  // SP-based endpoints
-  loadDetails:   (params) => api.post('/LoadTakhmeenDetails',   params),
-  addDetails:    (data)   => api.post('/AddTakhmeenDetails',    data),
-  updateDetails: (data)   => api.post('/UpdateTakhmeenDetails', data),
-  deleteDetails: (data)   => api.delete('/DeleteTakhmeenDetails', { data }),
+  loadDetails:   cache.cached((params) => api.post('/LoadTakhmeenDetails',   params), (p) => cache.makeKey('takhmeen',       p), TTL.list),
+  addDetails:    cache.mutates((data)  => api.post('/AddTakhmeenDetails',    data),   'takhmeen'),
+  updateDetails: cache.mutates((data)  => api.post('/UpdateTakhmeenDetails', data),   'takhmeen'),
+  deleteDetails: cache.mutates((data)  => api.delete('/DeleteTakhmeenDetails', { data }), 'takhmeen'),
 
-  // Legacy REST endpoints (used by mumin-takhmeen list page)
-  getAll:          (params)      => api.get('/takhmeen',           { params }),
-  getSummary:      (params)      => api.get('/takhmeen/summary',   { params }),
-  create:          (data)        => api.post('/takhmeen',           data),
-  update:          (id, data)    => api.put(`/takhmeen/${id}`,      data),
-  delete:          (id)          => api.delete(`/takhmeen/${id}`),
-  getNotDone:      (params)      => api.get('/takhmeen/not-done',  { params }),
-  getMuminTakhmeen:(params)      => api.get('/takhmeen/mumin',     { params }),
+  getAll:           cache.cached((params) => api.get('/takhmeen',          { params }), (p) => cache.makeKey('takhmeen:all',     p), TTL.list),
+  getSummary:       cache.cached((params) => api.get('/takhmeen/summary',  { params }), (p) => cache.makeKey('takhmeen:sum',     p), TTL.list),
+  create:           cache.mutates((data)  => api.post('/takhmeen',          data),      'takhmeen'),
+  update:           cache.mutates((id, d) => api.put(`/takhmeen/${id}`,     d),         'takhmeen'),
+  delete:           cache.mutates((id)    => api.delete(`/takhmeen/${id}`),             'takhmeen'),
+  getNotDone:       cache.cached((params) => api.get('/takhmeen/not-done', { params }), (p) => cache.makeKey('takhmeen:notdone', p), TTL.list),
+  getMuminTakhmeen: cache.cached((params) => api.get('/takhmeen/mumin',    { params }), (p) => cache.makeKey('takhmeen:mumin',   p), TTL.search),
 
-  loadTakhmeenNotDoneList:   (data) => api.post('/LoadTakhmeenNotDoneList',   data),
-  loadNotContributeList:     (data) => api.post('/LoadNotContributeList',     data),
-  loadGradeDetails:          (data) => api.post('/LoadGradeDetails',          data),
-  loadHubHeadDetails:        (data) => api.post('/LoadHubHeadDetails',        data),
-  updateTakhmeenReceived:    (data) => api.post('/UpdateTakhmeenReceived',    data),
+  loadTakhmeenNotDoneList: cache.cached((data) => api.post('/LoadTakhmeenNotDoneList', data), (d) => cache.makeKey('takhmeen:notdone-list', d), TTL.list),
+  loadNotContributeList:   cache.cached((data) => api.post('/LoadNotContributeList',   data), (d) => cache.makeKey('takhmeen:no-contrib',   d), TTL.list),
+  loadGradeDetails:        cache.cached((data) => api.post('/LoadGradeDetails',        data), (d) => cache.makeKey('takhmeen:grades',        d), TTL.ref),
+  loadHubHeadDetails:      cache.cached((data) => api.post('/LoadHubHeadDetails',      data), (d) => cache.makeKey('hub-head',               d), TTL.ref),
+  updateTakhmeenReceived:  cache.mutates((data) => api.post('/UpdateTakhmeenReceived', data), 'takhmeen'),
 };
 
 // ── Vajebaat ─────────────────────────────────────────────────────────────────
@@ -95,17 +93,17 @@ export const safaiService = {
   update:        (id, data)=> api.put(`/safai-chitthi/${id}`, data),
   cancel:        (id)      => api.put(`/safai-chitthi/${id}/cancel`),
 
-  loadRazaDetails:        (data) => api.post('/LoadRazaDetails',        data),
-  addRazaDetails:         (data) => api.post('/AddRazaDetails',         data),
-  updateRazaDetails:      (data) => api.post('/UpdateRazaDetails',      data),
-  deleteRazaDetails:      (data) => api.delete('/DeleteRazaDetails',    { data }),
-  loadRazaDropdownDetails:(data) => api.post('/LoadRazaDropdownDetails', data),
+  loadRazaDetails:         cache.cached((data) => api.post('/LoadRazaDetails',         data), (d) => cache.makeKey('raza',          d), TTL.search),
+  addRazaDetails:          cache.mutates((data) => api.post('/AddRazaDetails',         data), 'raza'),
+  updateRazaDetails:       cache.mutates((data) => api.post('/UpdateRazaDetails',      data), 'raza'),
+  deleteRazaDetails:       cache.mutates((data) => api.delete('/DeleteRazaDetails',    { data }), 'raza'),
+  loadRazaDropdownDetails: cache.cached((data) => api.post('/LoadRazaDropdownDetails', data), (d) => cache.makeKey('raza:dropdown',  d), TTL.ref),
 };
 
 // ── Due ──────────────────────────────────────────────────────────────────────
 export const dueService = {
-  getGeneralDue:         (params) => api.get('/due/general', { params }),
-  loadGeneralDueDetails: (data)   => api.post('/LoadGeneralDueDetails', data),
+  getGeneralDue:         cache.cached((params) => api.get('/due/general',         { params }), (p) => cache.makeKey('due:general', p), TTL.list),
+  loadGeneralDueDetails: cache.cached((data)   => api.post('/LoadGeneralDueDetails', data),   (d) => cache.makeKey('due:load',    d), TTL.list),
   sendBulkSMS:           (ids)    => api.post('/due/bulk-sms', { ids }),
   export:                (params) => api.get('/due/export', { params, responseType: 'blob' }),
 };
@@ -120,34 +118,33 @@ export const followupService = {
 
 // ── Expenses ─────────────────────────────────────────────────────────────────
 export const expenseService = {
-  getAll:     (params)     => api.get('/expenses', { params }),
-  create:     (data)       => api.post('/expenses', data),
-  update:     (id, data)   => api.put(`/expenses/${id}`, data),
-  delete:     (id)         => api.delete(`/expenses/${id}`),
-  getReport:  (params)     => api.get('/expenses/report', { params }),
-  getCategories:()         => api.get('/expenses/categories'),
+  getAll:        cache.cached((params) => api.get('/expenses',        { params }), (p) => cache.makeKey('expense:all',    p), TTL.list),
+  create:        cache.mutates((data)  => api.post('/expenses',        data),      'expense'),
+  update:        cache.mutates((id, d) => api.put(`/expenses/${id}`,   d),         'expense'),
+  delete:        cache.mutates((id)    => api.delete(`/expenses/${id}`),           'expense'),
+  getReport:     cache.cached((params) => api.get('/expenses/report', { params }), (p) => cache.makeKey('expense:report', p), TTL.report),
+  getCategories: cache.cached(() => api.get('/expenses/categories'),               () => 'expense:cats',                      TTL.ref),
 
-  // SP-based endpoints
-  loadExpenseDetails:   (data) => api.post('/LoadExpenseDetails',   data),
-  addExpenseDetails:    (data) => api.post('/AddExpenseDetails',    data),
-  updateExpenseDetails: (data) => api.post('/UpdateExpenseDetails', data),
-  deleteExpenseDetails: (data) => api.delete('/DeleteExpenseDetails', { data }),
+  loadExpenseDetails:   cache.cached((data) => api.post('/LoadExpenseDetails',   data), (d) => cache.makeKey('expense:load', d), TTL.search),
+  addExpenseDetails:    cache.mutates((data) => api.post('/AddExpenseDetails',    data), 'expense'),
+  updateExpenseDetails: cache.mutates((data) => api.post('/UpdateExpenseDetails', data), 'expense'),
+  deleteExpenseDetails: cache.mutates((data) => api.delete('/DeleteExpenseDetails', { data }), 'expense'),
 };
 
 // ── Income Head (Hub Head) ────────────────────────────────────────────────────
 export const incomeHeadService = {
-  load:   (data)  => api.post('/LoadHubHeadDetails',   data),
-  add:    (data)  => api.post('/AddHubHeadDetails',    data),
-  update: (data)  => api.post('/UpdateHubHeadDetails', data),
-  delete: (data)  => api.delete('/DeleteHubHeadDetails', { data }),
+  load:   cache.cached((data) => api.post('/LoadHubHeadDetails',   data), (d) => cache.makeKey('income-head', d), TTL.ref),
+  add:    cache.mutates((data) => api.post('/AddHubHeadDetails',    data), 'income-head', 'hub-head'),
+  update: cache.mutates((data) => api.post('/UpdateHubHeadDetails', data), 'income-head', 'hub-head'),
+  delete: cache.mutates((data) => api.delete('/DeleteHubHeadDetails', { data }), 'income-head', 'hub-head'),
 };
 
 // ── Expense Head ──────────────────────────────────────────────────────────────
 export const expenseHeadService = {
-  load:   (data)  => api.post('/LoadExpenseHeadDetails',   data),
-  add:    (data)  => api.post('/AddExpenseHeadDetails',    data),
-  update: (data)  => api.post('/UpdateExpenseHeadDetails', data),
-  delete: (data)  => api.delete('/DeleteExpenseHeadDetails', { data }),
+  load:   cache.cached((data) => api.post('/LoadExpenseHeadDetails',   data), (d) => cache.makeKey('expense-head', d), TTL.ref),
+  add:    cache.mutates((data) => api.post('/AddExpenseHeadDetails',    data), 'expense-head'),
+  update: cache.mutates((data) => api.post('/UpdateExpenseHeadDetails', data), 'expense-head'),
+  delete: cache.mutates((data) => api.delete('/DeleteExpenseHeadDetails', { data }), 'expense-head'),
 };
 
 // ── Distribution ─────────────────────────────────────────────────────────────
@@ -158,14 +155,14 @@ export const distributionService = {
 
 // ── Mohallah ─────────────────────────────────────────────────────────────────
 export const mohallahService = {
-  LoadMohallaDetails:               (data) => api.post('/LoadMohallaDetails',               data),
-  AddMohallaDetails:                (data) => api.post('/AddMohallaDetails',                data),
-  UpdateMohallaDetails:             (data) => api.post('/UpdateMohallaDetails',             data),
-  DeleteMohallaDetails:             (data) => api.delete('/DeleteMohallaDetails',           { data }),
-  LoadMohallaCordinatorsDetails:    (data) => api.post('/LoadMohallaCordinatorsDetails',    data),
-  AddMohallaCordinatorsDetails:     (data) => api.post('/AddMohallaCordinatorsDetails',     data),
-  UpdateMohallaCordinatorsDetails:  (data) => api.post('/UpdateMohallaCordinatorsDetails',  data),
-  DeleteMohallaCordinatorsDetails:  (data) => api.delete('/DeleteMohallaCordinatorsDetails',{ data }),
+  LoadMohallaDetails:              cache.cached((data) => api.post('/LoadMohallaDetails',               data), (d) => cache.makeKey('mohallah',       d), TTL.ref),
+  AddMohallaDetails:               cache.mutates((data) => api.post('/AddMohallaDetails',               data), 'mohallah'),
+  UpdateMohallaDetails:            cache.mutates((data) => api.post('/UpdateMohallaDetails',            data), 'mohallah'),
+  DeleteMohallaDetails:            cache.mutates((data) => api.delete('/DeleteMohallaDetails',          { data }), 'mohallah'),
+  LoadMohallaCordinatorsDetails:   cache.cached((data) => api.post('/LoadMohallaCordinatorsDetails',    data), (d) => cache.makeKey('mohallah:coord',  d), TTL.ref),
+  AddMohallaCordinatorsDetails:    cache.mutates((data) => api.post('/AddMohallaCordinatorsDetails',    data), 'mohallah:coord'),
+  UpdateMohallaCordinatorsDetails: cache.mutates((data) => api.post('/UpdateMohallaCordinatorsDetails', data), 'mohallah:coord'),
+  DeleteMohallaCordinatorsDetails: cache.mutates((data) => api.delete('/DeleteMohallaCordinatorsDetails',{ data }), 'mohallah:coord'),
 };
 
 // ── Bookings ─────────────────────────────────────────────────────────────────
@@ -253,17 +250,17 @@ export const notificationService = {
 
 // ── Sabeel Statistics ─────────────────────────────────────────────────────────
 export const sabeelStatsService = {
-  getSummary:          (params) => api.get('/sabeel/statistics/summary',           { params }),
-  getByYear:           (year)   => api.get(`/sabeel/statistics/${year}`),
-  getMohallahBreakdown:(year)   => api.get(`/sabeel/statistics/${year}/mohallah`),
+  getSummary:           cache.cached((params) => api.get('/sabeel/statistics/summary',          { params }), (p)    => cache.makeKey('sabeel:sum',      p), TTL.report),
+  getByYear:            cache.cached((year)   => api.get(`/sabeel/statistics/${year}`),                      (year) => `sabeel:year:${year}`,              TTL.report),
+  getMohallahBreakdown: cache.cached((year)   => api.get(`/sabeel/statistics/${year}/mohallah`),             (year) => `sabeel:mohallah:${year}`,          TTL.report),
 };
 
 // ── FMB Statistics ────────────────────────────────────────────────────────────
 export const fmbStatsService = {
-  getSummary:  (params) => api.get('/fmb/statistics/summary',         { params }),
-  getMonthly:  (year)   => api.get(`/fmb/statistics/${year}/monthly`),
-  getMohallah: (year)   => api.get(`/fmb/statistics/${year}/mohallah`),
-  getThaali:   (params) => api.get('/fmb/statistics/thaali',          { params }),
+  getSummary:  cache.cached((params) => api.get('/fmb/statistics/summary',          { params }), (p)    => cache.makeKey('fmb:sum',     p), TTL.report),
+  getMonthly:  cache.cached((year)   => api.get(`/fmb/statistics/${year}/monthly`),              (year) => `fmb:monthly:${year}`,          TTL.report),
+  getMohallah: cache.cached((year)   => api.get(`/fmb/statistics/${year}/mohallah`),             (year) => `fmb:mohallah:${year}`,         TTL.report),
+  getThaali:   cache.cached((params) => api.get('/fmb/statistics/thaali',           { params }), (p)    => cache.makeKey('fmb:thaali',  p), TTL.report),
 };
 
 // ── Ohbat Majlis ─────────────────────────────────────────────────────────────
@@ -277,57 +274,69 @@ export const ohbatService = {
 
 // ── Utility ──────────────────────────────────────────────────────────────────
 export const utilityService = {
-  updateTakhmeenDetails: ()      => api.post('/utility/update-takhmeen-details'),
-  updateMohallahNames:   ()      => api.post('/utility/update-mohallah-names'),
-  countNotes:            (data)  => api.post('/utility/count-notes', data),
-  recalcDues:            ()      => api.post('/utility/recalc-dues'),
-  clearCache:            ()      => api.post('/utility/clear-cache'),
-  backupData:            ()      => api.post('/utility/backup'),
-  generateReport:        (type)  => api.post('/utility/generate-report', { type }),
+  updateTakhmeenDetails: () => api.post('/utility/update-takhmeen-details'),
+  updateMohallahNames:   () => api.post('/utility/update-mohallah-names'),
+  countNotes:            (data) => api.post('/utility/count-notes', data),
+  recalcDues:            () => api.post('/utility/recalc-dues'),
+  clearCache:            async () => { cache.clear(); return api.post('/utility/clear-cache'); },
+  backupData:            () => api.post('/utility/backup'),
+  generateReport:        (type) => api.post('/utility/generate-report', { type }),
+};
+
+// ── System Variables ─────────────────────────────────────────────────────────
+export const systemVarsService = {
+  getAll:  (data) => api.post('/LoadSystemVariables',   data),
+  save:    (data) => api.post('/SaveSystemVariable',    data),
+  delete:  (data) => api.delete('/DeleteSystemVariable', { data }),
 };
 
 // ── Hall Seating Layout ───────────────────────────────────────────────────────
 export const hallService = {
   // Halls
-  loadLayouts:          (data) => api.post('/LoadHallLayouts',         data),
-  addLayout:            (data) => api.post('/AddHallLayout',           data),
-  updateLayout:         (data) => api.post('/UpdateHallLayout',        data),
-  deleteLayout:         (data) => api.delete('/DeleteHallLayout',      { data }),
+  loadLayouts:          cache.cached((data) => api.post('/LoadHallLayouts',   data), (d) => cache.makeKey('hall:layouts',  d), TTL.ref),
+  addLayout:            cache.mutates((data) => api.post('/AddHallLayout',    data), 'hall:layouts'),
+  updateLayout:         cache.mutates((data) => api.post('/UpdateHallLayout', data), 'hall:layouts'),
+  deleteLayout:         cache.mutates((data) => api.delete('/DeleteHallLayout', { data }), 'hall:layouts'),
 
   // Sections
-  loadSections:         (data) => api.post('/LoadHallSections',        data),
-  addSection:           (data) => api.post('/AddHallSection',          data),
-  updateSection:        (data) => api.post('/UpdateHallSection',       data),
-  deleteSection:        (data) => api.delete('/DeleteHallSection',     { data }),
+  loadSections:         cache.cached((data) => api.post('/LoadHallSections',   data), (d) => cache.makeKey('hall:sections', d), TTL.ref),
+  addSection:           cache.mutates((data) => api.post('/AddHallSection',    data), 'hall:sections'),
+  updateSection:        cache.mutates((data) => api.post('/UpdateHallSection', data), 'hall:sections'),
+  deleteSection:        cache.mutates((data) => api.delete('/DeleteHallSection', { data }), 'hall:sections'),
 
   // Seating
-  loadSeatGrid:         (data) => api.post('/LoadSeatGrid',            data),
-  allocateSeat:         (data) => api.post('/AllocateSeat',            data),
-  blockSeat:            (data) => api.post('/BlockSeat',               data),
-  clearSeat:            (data) => api.post('/ClearSeat',               data),
-  clearAllSeats:        (data) => api.post('/ClearAllSeats',           data),
-  autoAssignSeats:      (data) => api.post('/AutoAssignSeats',         data),
-  loadMembersForAssign: (data) => api.post('/LoadMembersForAssign',    data),
-  blockSeatRange:       (data) => api.post('/BlockSeatRange',          data),
-  clearSeatRange:       (data) => api.post('/ClearSeatRange',          data),
+  loadSeatGrid:         cache.cached((data) => api.post('/LoadSeatGrid',           data), (d) => cache.makeKey('hall:grid',    d), TTL.search),
+  allocateSeat:         cache.mutates((data) => api.post('/AllocateSeat',          data), 'hall:grid'),
+  blockSeat:            cache.mutates((data) => api.post('/BlockSeat',             data), 'hall:grid'),
+  clearSeat:            cache.mutates((data) => api.post('/ClearSeat',             data), 'hall:grid'),
+  clearAllSeats:        cache.mutates((data) => api.post('/ClearAllSeats',         data), 'hall:grid'),
+  autoAssignSeats:      cache.mutates((data) => api.post('/AutoAssignSeats',       data), 'hall:grid'),
+  loadMembersForAssign: cache.cached((data) => api.post('/LoadMembersForAssign',   data), (d) => cache.makeKey('hall:members', d), TTL.search),
+  blockSeatRange:       cache.mutates((data) => api.post('/BlockSeatRange',        data), 'hall:grid'),
+  clearSeatRange:       cache.mutates((data) => api.post('/ClearSeatRange',        data), 'hall:grid'),
 };
 
 // ── Void Seats ────────────────────────────────────────────────────────────────
 export const voidService = {
-  loadVoidGroups: (data) => api.post('/LoadVoidGroups', data),
-  saveVoidGroups: (data) => api.post('/SaveVoidGroups', data),
+  loadVoidGroups: cache.cached((data) => api.post('/LoadVoidGroups',  data), (d) => cache.makeKey('hall:void', d), TTL.ref),
+  saveVoidGroups: cache.mutates((data) => api.post('/SaveVoidGroups', data), 'hall:void'),
 };
 
 // ── Seating Lookups ───────────────────────────────────────────────────────────
 export const seatingLookupService = {
-  loadLookups:    (data) => api.post('/LoadSeatingLookups', data),
-  addLookupValue: (data) => api.post('/AddLookupValue',     data),
+  loadLookups:    cache.cached((data) => api.post('/LoadSeatingLookups', data), (d) => cache.makeKey('seating:lookups', d), TTL.ref),
+  addLookupValue: cache.mutates((data) => api.post('/AddLookupValue',    data), 'seating:lookups'),
 };
 
 // ── Lookup helpers ────────────────────────────────────────────────────────────
 export const lookupService = {
-  getMohallahs:   ()       => api.get('/lookup/mohallahs'),
-  getDistributors:()       => api.get('/lookup/distributors'),
-  getAreas:       ()       => api.get('/lookup/areas'),
-  getYears:       ()       => api.get('/lookup/years'),
+  getMohallahs:    cache.cached(() => api.get('/lookup/mohallahs'),       () => 'lookup:mohallahs',     TTL.lookup),
+  getDistributors: cache.cached(() => api.get('/lookup/distributors'),    () => 'lookup:distributors',  TTL.lookup),
+  getAreas:        cache.cached(() => api.get('/lookup/areas'),           () => 'lookup:areas',         TTL.lookup),
+  getYears:        cache.cached(() => api.get('/lookup/years'),           () => 'lookup:years',         TTL.lookup),
+  getGrades:       cache.cached(() => api.get('/lookup/grades'),          () => 'lookup:grades',        TTL.lookup),
+  getSabeelTypes:  cache.cached(() => api.get('/lookup/sabeel-types'),    () => 'lookup:sabeel-types',  TTL.lookup),
+  getThaliStatuses:cache.cached(() => api.get('/lookup/thali-statuses'),  () => 'lookup:thali-statuses',TTL.lookup),
+  getThaliSizes:   cache.cached(() => api.get('/lookup/thali-sizes'),     () => 'lookup:thali-sizes',   TTL.lookup),
+  getStayingIn:    cache.cached(() => api.get('/lookup/staying-in'),      () => 'lookup:staying-in',    TTL.lookup),
 };

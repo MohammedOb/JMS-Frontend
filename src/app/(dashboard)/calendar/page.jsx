@@ -15,7 +15,7 @@ import AddEventModal from './components/AddEventModal';
 import EditEventModal from './components/EditEventModal';
 
 export default function CalendarPage() {
-  const { permissions, user } = useAuth();
+  const { can, user } = useAuth();
   const now = new Date();
   const todayKey = toDateKey(now);
 
@@ -337,10 +337,10 @@ export default function CalendarPage() {
     finally  { setChitthiSaving(false); }
   };
 
-  const canAdd = !!permissions?.BookingAdd;
-  const canEdit = !!permissions?.BookingEdit;
-  const canDelete = !!permissions?.BookingDelete;
-  const canPrint = !!permissions?.BookingPrint;
+  const canAdd    = can('bookings.create');
+  const canEdit   = can('bookings.edit');
+  const canDelete = can('bookings.delete');
+  const canPrint  = can('bookings.print_safaichitthi');
 
   return (
     <div>

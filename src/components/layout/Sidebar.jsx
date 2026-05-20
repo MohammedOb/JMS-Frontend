@@ -15,62 +15,63 @@ import {
   UtensilsIcon, UserCogIcon, SettingsIcon, MosqueIcon, LogoutIcon, LayersIcon, TableIcon,
 } from '@/components/shared/Icons';
 
-// ── Nav config — mirrors LinkButton visibility rules in Master.cs ─────────
-// permission: key from permissions object (null = always visible)
+// ── Nav config ────────────────────────────────────────────────────────────
+// permission: can() code string, or array of codes (OR logic). null = always visible.
 const NAV_SECTIONS = [
   {
     label: 'Core',
     items: [
-      { label: 'Dashboard',         href: '/dashboard',           icon: DashboardIcon,      permission: 'MPBasicMenu' },
-      { label: 'Add Receipt',        href: '/add-receipt',         icon: ReceiptIcon,        permission: 'MPBasicMenu' },
-      { label: 'Daily Report',       href: '/daily-report',        icon: BarChartIcon,       permission: 'MPBasicMenu' },
-      { label: 'Member Search',      href: '/mumin-search',        icon: SearchIcon,         permission: 'MPMuminDetails' },
-      { label: 'Takhmeen Not Done',  href: '/takhmeen-not-done',   icon: AlertTriangleIcon,  permission: 'MPMuminTakhmeen' },
-      { label: 'Notifications',      href: '/notifications',       icon: BellIcon,           permission: 'MPnotifications' },
+      { label: 'Dashboard',        href: '/dashboard',         icon: DashboardIcon,     permission: ['member_search.view', 'receipt_quick.create', 'daily_report.view'] },
+      { label: 'Add Receipt',      href: '/add-receipt',       icon: ReceiptIcon,       permission: 'receipt_quick.create' },
+      { label: 'Daily Report',     href: '/daily-report',      icon: BarChartIcon,      permission: 'daily_report.view' },
+      { label: 'Member Search',    href: '/mumin-search',      icon: SearchIcon,        permission: 'members.view' },
+      { label: 'Takhmeen Not Done',href: '/takhmeen-not-done', icon: AlertTriangleIcon, permission: 'takhmeen.report_view' },
+      { label: 'Notifications',    href: '/notifications',     icon: BellIcon,          permission: 'notifications.view' },
     ],
   },
   {
     label: 'Members',
     items: [
-      { label: 'Mumin Details',     href: '/mumin-details',      icon: UsersIcon,    permission: 'MPMuminDetails' },
-      { label: 'Mumin Takhmeen',    href: '/mumin-takhmeen',     icon: CoinsIcon,    permission: 'MPMuminTakhmeen' },
+      { label: 'Mumin Details',  href: '/mumin-details',  icon: UsersIcon, permission: 'members.view' },
+      { label: 'Mumin Takhmeen', href: '/mumin-takhmeen', icon: CoinsIcon, permission: 'takhmeen.report_view' },
     ],
   },
   {
     label: 'Reports & Due',
     items: [
-      { label: 'Due Details',        href: '/due-details',        icon: AlertCircleIcon,  permission: 'MPMuminTakhmeen' },
-      { label: 'Follow Up List',     href: '/followup',           icon: ClipboardListIcon, permission: 'MPFollowupList' },
-      { label: 'Sabeel Statistics',  href: '/sabeel-statistics',  icon: TrendingUpIcon,   permission: 'MPSabeelStatistics' },
-      { label: 'FMB Statistics',     href: '/fmb-statistics',     icon: TrendingDownIcon, permission: 'MPFMBStatistics' },
+      { label: 'Due Details',       href: '/due-details',       icon: AlertCircleIcon,   permission: 'due.view' },
+      { label: 'Follow Up List',    href: '/followup',          icon: ClipboardListIcon, permission: 'followup.view' },
+      { label: 'Sabeel Statistics', href: '/sabeel-statistics', icon: TrendingUpIcon,    permission: 'sabeel_stats.view' },
+      { label: 'FMB Statistics',    href: '/fmb-statistics',    icon: TrendingDownIcon,  permission: 'fmb_stats.view' },
     ],
   },
   {
     label: 'Finance',
     items: [
-      { label: 'Expense Report',       href: '/expense-report',        icon: FileTextIcon,   permission: 'MPExpense' },
-      { label: 'Income & Expense Heads', href: '/income-expense-heads', icon: LayersIcon,     permission: 'MPExpense' },
-      { label: 'Distribution List',    href: '/distribution',          icon: TruckIcon,      permission: 'MPDistributor' },
+      { label: 'Expense Report',        href: '/expense-report',        icon: FileTextIcon, permission: 'expenses.view' },
+      { label: 'Income & Expense Heads',href: '/income-expense-heads',  icon: LayersIcon,   permission: 'expenses.view' },
+      { label: 'Distribution List',     href: '/distribution',          icon: TruckIcon,    permission: 'distribution.view' },
     ],
   },
   {
     label: 'Community',
     items: [
-      { label: 'Mohallah Details',  href: '/mohallah',           icon: MapPinIcon,    permission: 'MPMohallah' },
-      { label: 'Seating Layout',    href: '/seating-layout',      icon: TableIcon,     permission: 'MPSeatingLayout' },
-      { label: 'Bookings',          href: '/calendar',            icon: CalendarIcon,  permission: 'MPBooking' },
-      { label: 'Ohbat Majlis',      href: '/ohbat-majlis',       icon: StarIcon,      permission: 'MPOhbatMajlis' },
-      { label: 'Majlis List',       href: '/majlis',             icon: ListIcon,      permission: 'MPOhbatMajlis' },
-      { label: 'Safai Chitthi',     href: '/safai-chitthi',      icon: MailIcon,      permission: 'MPSafaiChitthi' },
-      { label: 'Musaida List',      href: '/musaida',            icon: GiftIcon,      permission: 'MPMusaida' },
+      { label: 'Mohallah Details', href: '/mohallah',        icon: MapPinIcon,  permission: 'mohallah.view' },
+      { label: 'Seating Layout',   href: '/seating-layout',  icon: TableIcon,   permission: 'seating.view' },
+      { label: 'Bookings',         href: '/calendar',        icon: CalendarIcon,permission: ['bookings.view', 'seating.view'] },
+      { label: 'Ohbat Majlis',     href: '/ohbat-majlis',    icon: StarIcon,    permission: ['ohbat_majlis.view', 'majlis.view'] },
+      { label: 'Majlis List',      href: '/majlis',          icon: ListIcon,    permission: ['ohbat_majlis.view', 'majlis.view'] },
+      { label: 'Safai Chitthi',    href: '/safai-chitthi',   icon: MailIcon,    permission: 'safai.view' },
+      { label: 'Musaida List',     href: '/musaida',         icon: GiftIcon,    permission: 'musaida.view' },
     ],
   },
   {
     label: 'System',
     items: [
-      { label: 'FMB Daily Menu',    href: '/fmb-daily-menu',     icon: UtensilsIcon,  permission: 'MPFMBDailyMenu' },
-      { label: 'Access Control',     href: '/access-control',     icon: UserCogIcon,   permission: 'MPManagUser' },
-      { label: 'Utility',           href: '/utility',            icon: SettingsIcon,  permission: 'MPUtility' },
+      { label: 'FMB Daily Menu',    href: '/fmb-daily-menu',     icon: UtensilsIcon,  permission: 'fmb_menu.view' },
+      { label: 'Access Control',    href: '/access-control',     icon: UserCogIcon,   permission: 'users.view' },
+      { label: 'System Variables',  href: '/system-variables',   icon: SettingsIcon,  permission: 'utility.view' },
+      { label: 'Utility',           href: '/utility',            icon: SettingsIcon,  permission: 'utility.view' },
     ],
   },
 ];
@@ -105,7 +106,7 @@ function NavItem({ item, active }) {
 
 export default function Sidebar({ isOpen, setIsOpen }) {
   const pathname = usePathname();
-  const { user, permissions, logout } = useAuth();
+  const { user, can, logout } = useAuth();
 
   // Initials from username
   const initials = (user?.username || 'U')
@@ -155,10 +156,10 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       <nav className="flex-1 overflow-y-auto overflow-x-hidden py-2
                       scrollbar-thin scrollbar-thumb-white/10">
         {NAV_SECTIONS.map((section) => {
-          // Filter items by permission
+          // Filter items by permission (string = single code, array = OR)
           const visible = section.items.filter(item => {
             if (!item.permission) return true;
-            return permissions[item.permission] === true;
+            return [].concat(item.permission).some(code => can(code));
           });
 
           if (visible.length === 0) return null;

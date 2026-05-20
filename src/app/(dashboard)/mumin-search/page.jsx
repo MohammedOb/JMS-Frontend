@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { memberService } from '@/services';
+import { memberService, lookupService } from '@/services';
 import { useRouter }     from 'next/navigation';
 import toast             from 'react-hot-toast';
 import PageHeader        from '@/components/shared/PageHeader';
 import { XIcon, RefreshIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon } from '@/components/shared/Icons';
+import { useAuth } from '@/context/AuthContext';
 
 const ACCOUNT_STATUSES = ['Active', 'Closed', 'BlackList'];
 const FMB_STATUSES     = ['Regular', 'Temporary', 'Only Amount Pay', 'Not Taken', 'Temp Closed', 'Closed', 'Closed with Due', 'N/A'];
@@ -32,9 +33,12 @@ export default function MuminSearchPage() {
   const router        = useRouter();
   const exportBtnRef  = useRef(null);
   const exportMenuRef = useRef(null);
+  const { can, hasScope } = useAuth();
 
-  const [allRows,      setAllRows]      = useState([]);
-  const [mohallaRows,  setMohallaRows]  = useState([]);
+  const [allRows,       setAllRows]       = useState([]);
+  const [mohallaRows,   setMohallaRows]   = useState([]);
+  const [sabeelTypes,   setSabeelTypes]   = useState([]);
+  const [stayingIns,    setStayingIns]    = useState([]);
   const [loading,      setLoading]      = useState(false);
   const [loaded,          setLoaded]          = useState(false);
   const [showExport,      setShowExport]      = useState(false);
@@ -103,6 +107,8 @@ export default function MuminSearchPage() {
         setMohallaRows(raw);
       })
       .catch(() => {});
+    lookupService.getSabeelTypes().then(res => setSabeelTypes(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
+    lookupService.getStayingIn()  .then(res => setStayingIns(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -125,14 +131,27 @@ export default function MuminSearchPage() {
   };
 
   const sectors = useMemo(() =>
-    [...new Set(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim()).filter(Boolean))].sort(),
-    [mohallaRows]
+    [...new Set(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim()).filter(Boolean))]
+      .filter(s => hasScope('sector', s))
+      .sort(),
+    [mohallaRows, hasScope]
   );
+
+  // Auto-select sector when scope restricts to exactly one
+  useEffect(() => {
+    if (sectors.length === 1) {
+      setFilters(p => p.sector ? p : { ...p, sector: sectors[0] });
+    }
+  }, [sectors]);
 
   const subsectorOptions = useMemo(() => {
     const seen = new Set();
     return mohallaRows
-      .filter(r => !filters.sector || String(r.Sector ?? r.sector ?? '') === filters.sector)
+      .filter(r => {
+        const s = String(r.Sector ?? r.sector ?? '').trim();
+        if (filters.sector) return s === filters.sector;
+        return hasScope('sector', s);
+      })
       .reduce((acc, r) => {
         const code = String(r.Subsector ?? r.subsector ?? '').trim();
         const name = String(r.MohallaDescription ?? r.SubsectorName ?? r.subsectorName ?? '').trim();
@@ -143,13 +162,11 @@ export default function MuminSearchPage() {
         return acc;
       }, [])
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [mohallaRows, filters.sector]);
+  }, [mohallaRows, filters.sector, hasScope]);
 
-  const stayingIns  = useMemo(() => [...new Set(allRows.map(r => r.stayingIn).filter(Boolean))].sort(),  [allRows]);
-  const sabeelTypes = useMemo(() => [...new Set(allRows.map(r => r.sabeelType).filter(Boolean))].sort(), [allRows]);
 
   const filteredRows = useMemo(() => {
-    let rows = allRows;
+    let rows = allRows.filter(r => hasScope('sector', r.sector));
     const q = filters.search.toLowerCase().trim();
     if (q) rows = rows.filter(r =>
       r.name.toLowerCase().includes(q) ||
@@ -164,7 +181,7 @@ export default function MuminSearchPage() {
     if (filters.fmbStatus)  rows = rows.filter(r => r.thaliStatus === filters.fmbStatus);
     if (filters.sabeelType) rows = rows.filter(r => r.sabeelType  === filters.sabeelType);
     return rows;
-  }, [allRows, filters]);
+  }, [allRows, filters, hasScope]);
 
   const clearFilters = () => setFilters({ search: '', sector: '', subsector: '', stayingIn: '', status: '', fmbStatus: '', sabeelType: '' });
   const hasFilters   = Object.values(filters).some(v => v !== '');

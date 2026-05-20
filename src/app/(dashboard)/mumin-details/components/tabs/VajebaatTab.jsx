@@ -6,6 +6,7 @@ import VajebaatTakhmeenSection from './vajebaat/VajebaatTakhmeenSection';
 import HimTakhmeenSection      from './vajebaat/HimTakhmeenSection';
 import ShehrullahNiyazSection  from './vajebaat/ShehrullahNiyazSection';
 import SilaFitraSection        from './vajebaat/SilaFitraSection';
+import { useAuth }             from '@/context/AuthContext';
 
 // ── Section visibility — set false to hide any section ───────────────────────
 const VAJ_SECTIONS = {
@@ -21,12 +22,13 @@ export default function VajebaatTab({
   member,
   vajebaat, himList, sniyazList, silaFitra,
   vajForm, setVajForm,
-  permissions,
   onSaveVajebaat, onAddHim, onHimForm, onEditHim, onDeleteHim, onAddSniyaz, onSniyazForm, onEditSniyaz, onDeleteSniyaz, onAddReceipt,
   onAddVaj, onVajForm, onEditVaj, onDeleteVaj, onPrintVaj,
   onEditVajInfo,
   onAddSf, onUpdateSf, onDeleteSf,
 }) {
+  const { can } = useAuth();
+
   return (
     <div className="p-4 flex flex-col gap-6">
 
@@ -36,21 +38,20 @@ export default function VajebaatTab({
         </div>
       )}
 
-      {VAJ_SECTIONS.quickEntry && permissions.MDSpeedVajebaatView && (
+      {VAJ_SECTIONS.quickEntry && can('members.quick_entry') && (
         <>
           <hr className="border-border" />
           <div>
             <VajebaatQuickEntry
               vajForm={vajForm}
               setVajForm={setVajForm}
-              permissions={permissions}
               onSave={onSaveVajebaat}
             />
           </div>
         </>
       )}
 
-      {VAJ_SECTIONS.takhmeenDetails && permissions.MDVajebaatDetailsView && (
+      {VAJ_SECTIONS.takhmeenDetails && can('members.view_vajebaat_details') && (
         <>
           <hr className="border-border" />
           <div>
@@ -66,7 +67,7 @@ export default function VajebaatTab({
         </>
       )}
 
-      {VAJ_SECTIONS.himTakhmeen && permissions.MDHIMView && (
+      {VAJ_SECTIONS.himTakhmeen && can('members.view_him') && (
         <>
           <hr className="border-border" />
           <div>

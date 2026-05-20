@@ -11,7 +11,7 @@ import toast                   from 'react-hot-toast';
 const fmt = (n) => n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
 
 export default function DashboardPage() {
-  const { user, permissions } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
   const [stats,  setStats]  = useState(null);
   const [recent, setRecent] = useState([]);

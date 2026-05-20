@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { fmt, fmtDate, toInputDate } from '../../utils';
+import { useAuth } from '@/context/AuthContext';
 
 export default function TakhmeenTab({
-  takhmeen, permissions,
+  takhmeen,
   takYear, setTakYear,
   takMainHead, setTakMainHead,
   takSubHead, setTakSubHead,
   onAdd, onEdit, onDelete,
 }) {
+  const { user, can } = useAuth();
   const parseYear = y => Number(String(y).split('-')[0]) || 0;
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
@@ -18,7 +20,30 @@ export default function TakhmeenTab({
 
   useEffect(() => { setCurrentPage(1); }, [takYear, takMainHead, takSubHead]);
 
-  const filteredTakhmeen = takhmeen
+  // Build allowed sub-head set from user's HubSubHead scopes (same logic as mumin-takhmeen report).
+  // null = no restriction (super_admin or no scopes configured).
+  const allowedSubHeadSet = useMemo(() => {
+    if (!user) return null;
+    if (Array.isArray(user.roles) && user.roles.includes('super_admin')) return null;
+    if (!user.scopes) return null;
+    const skip = new Set(['sector', 'Sector', 'ForYear', 'createdBy', 'HubMainHead']);
+    const allowed = [];
+    Object.entries(user.scopes).forEach(([type, arr]) => {
+      if (!skip.has(type) && Array.isArray(arr) && arr.length > 0)
+        allowed.push(...arr.map(v => v.toLowerCase()));
+    });
+    return allowed.length > 0 ? new Set(allowed) : null;
+  }, [user]);
+
+  // Pre-filter takhmeen by the user's allowed sub-heads before building options/display
+  const scopedTakhmeen = useMemo(() =>
+    !allowedSubHeadSet
+      ? takhmeen
+      : takhmeen.filter(t => allowedSubHeadSet.has((t.subHead || '').toLowerCase())),
+    [takhmeen, allowedSubHeadSet]
+  );
+
+  const filteredTakhmeen = scopedTakhmeen
     .filter(t =>
       (!takYear     || String(t.forYear)  === String(takYear)) &&
       (!takMainHead || t.mainHead === takMainHead) &&
@@ -31,10 +56,10 @@ export default function TakhmeenTab({
       return parseYear(b.forYear) - parseYear(a.forYear);
     });
 
-  const takYearOptions     = [...new Set(takhmeen.map(t => t.forYear).filter(Boolean))].sort((a, b) => parseYear(b) - parseYear(a));
-  const takMainHeadOptions = [...new Set(takhmeen.map(t => t.mainHead).filter(Boolean))].sort();
+  const takYearOptions     = [...new Set(scopedTakhmeen.map(t => t.forYear).filter(Boolean))].sort((a, b) => parseYear(b) - parseYear(a));
+  const takMainHeadOptions = [...new Set(scopedTakhmeen.map(t => t.mainHead).filter(Boolean))].sort();
   const takSubHeadOptions  = [...new Set(
-    takhmeen.filter(t => !takMainHead || t.mainHead === takMainHead).map(t => t.subHead).filter(Boolean)
+    scopedTakhmeen.filter(t => !takMainHead || t.mainHead === takMainHead).map(t => t.subHead).filter(Boolean)
   )].sort();
 
   const totalPages = pageSize === 'All' ? 1 : Math.ceil(filteredTakhmeen.length / pageSize);
@@ -95,7 +120,7 @@ export default function TakhmeenTab({
             <span className="text-[11px] text-gray-600">Update info</span>
           </label>
         </div>
-        {permissions.MDNewInsert && (
+        {(can('members.add') || can('receipts.create')) && (
           <button className="btn btn-primary btn-sm" onClick={onAdd}>+ Add Takhmeen</button>
         )}
       </div>
@@ -122,7 +147,7 @@ export default function TakhmeenTab({
                 <tr key={t.id} className="hover:bg-blue-500/[0.025]">
                   <td className="px-2 py-2.5 border-t border-border text-center whitespace-nowrap">
                     <div className="flex items-center justify-center gap-1.5">
-                      {permissions.MDEditTakhmeen && (
+                      {can('takhmeen.edit') && (
                         <button
                           title="Edit"
                           className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-colors"
@@ -134,7 +159,7 @@ export default function TakhmeenTab({
                           </svg>
                         </button>
                       )}
-                      {permissions.MDDeleteTakhmeen && (
+                      {can('takhmeen.delete') && (
                         <button
                           title="Delete"
                           className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition-colors"

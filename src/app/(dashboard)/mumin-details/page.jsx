@@ -83,31 +83,31 @@ import EditVajInfoModal    from './components/modals/EditVajInfoModal';
 function MuminDetailsInner() {
   const params          = useSearchParams();
   const router          = useRouter();
-  const { permissions, user } = useAuth();
+  const { can, user } = useAuth();
 
-  // ── Feature flags — derived from permissions ──────────────────────────────
-  const hideButtons = permissions.MDHideAllButtons;
+  // ── Feature flags — derived from DB permissions ───────────────────────────
+  // ⚠ MDHideAllButtons is a restriction flag — super_admin must NOT bypass it.
+  const hideButtons = Array.isArray(user?.permissions) && user.permissions.includes('members.hide_actions');
   const FEATURES = {
     // Left panel cards
     fmbCard:          true,
-    editFMB:          !hideButtons && !!permissions.MDEditFMB,
-    printFMB:         !hideButtons && !!permissions.MDPrintFMB,
-    vajebaatInfoCard: !!permissions.MDVajebaatDetailsView,
+    editFMB:          !hideButtons && can('members.edit_fmb'),
+    printFMB:         !hideButtons && can('members.print_fmb'),
+    vajebaatInfoCard: can('members.view_vajebaat_details'),
 
     // Profile card actions
-    editProfile:      !hideButtons && (!!permissions.MDEditProfile || !!permissions.MDNewInsert),
-    resetPassword:    !hideButtons && (!!permissions.MDResetPassword || !!permissions.MPManagUser),
-    
+    editProfile:      !hideButtons && (can('members.edit') || can('members.add')),
+    resetPassword:    !hideButtons && (can('members.reset_password') || can('users.view')),
 
     // Due summary + alert banners always shown
     dueSummary:       true,
-    overallDue:       !hideButtons && !!permissions.MDOverallDue,
+    overallDue:       !hideButtons && can('members.print_overalldue'),
     alertBanners:     true,
 
     // Action bar buttons
-    addReceipt:       !hideButtons && !!permissions.MDNewInsert,
-    addTakhmeen:      !hideButtons && !!permissions.MDNewInsert,
-    vajebaatEntry:    !hideButtons && !!permissions.MDSpeedVajebaatView,
+    addReceipt:       !hideButtons && (can('members.add') || can('receipts.create')),
+    addTakhmeen:      !hideButtons && (can('members.add') || can('receipts.create')),
+    vajebaatEntry:    !hideButtons && can('members.quick_entry'),
     sabeelDue:        !hideButtons,
     addSafai:         !hideButtons,
     followup:         !hideButtons,
@@ -117,11 +117,11 @@ function MuminDetailsInner() {
     takhmeenTab:      true,
     receiptsTab:      true,
     familyTab:        true,
-    safaiTab:         !!permissions.MDSafaiChitthiTabView,
-    vajebaatTab:      !!permissions.MDVajebaatTabView,
+    safaiTab:         can('members.view.safaichitthi_tab'),
+    vajebaatTab:      can('members.view_vajebaat_tab'),
 
     // New member button in search bar
-    newMember:        !hideButtons && !!permissions.MDNewInsert,
+    newMember:        !hideButtons && (can('members.add') || can('receipts.create')),
   };
 
   const TAB_LIST = [
@@ -636,7 +636,7 @@ function MuminDetailsInner() {
       await Promise.all(entries.map(({ key, subHead }) =>
         takhmeenService.addDetails({
           AccNo:        member.accno,
-          ForYear:      permissions.ForYearAll,
+          ForYear:      user.ForYearAll,
           HubMainHead:  'Vajebaat',
           HubSubHead:   subHead,
           Takhmeen:     Number(vajForm[key]) || 0,
@@ -872,10 +872,9 @@ function MuminDetailsInner() {
                 <div className="flex-1">
                   <AlertBanners
                     takhmeen={takhmeen}
-                    permissions={permissions}
                     member={member}
                     onAddTakhmeen={(mainHead, subHead, forYear) => {
-                      setTakForm({ mainHead, subHead, forYear: forYear || permissions.ForYearAll || '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
+                      setTakForm({ mainHead, subHead, forYear: forYear || user.ForYearAll || '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
                       openModal('addTakhmeen');
                     }}
                   />
@@ -923,7 +922,6 @@ function MuminDetailsInner() {
               {tab === 'takhmeen' && (
                 <TakhmeenTab
                   takhmeen={takhmeen}
-                  permissions={permissions}
                   takYear={takYear}     setTakYear={setTakYear}
                   takMainHead={takMainHead} setTakMainHead={setTakMainHead}
                   takSubHead={takSubHead}   setTakSubHead={setTakSubHead}
@@ -940,7 +938,6 @@ function MuminDetailsInner() {
                   receipts={receipts}
                   setReceipts={setReceipts}
                   accno={member?.accno}
-                  permissions={permissions}
                   onAddReceipt={() => openModal('addReceipt')}
                   onEditReceipt={async (row) => {
                     // New data: TransactionsDetail.ID = transactionitemsdetail.TransID
@@ -998,7 +995,6 @@ function MuminDetailsInner() {
                   silaFitra={silaFitra}
                   vajForm={vajForm}
                   setVajForm={setVajForm}
-                  permissions={permissions}
                   onSaveVajebaat={saveVajebaat}
                   onAddHim={() => {
                     setTakForm({ mainHead: 'Vajebaat', subHead: 'HIM', forYear: '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
@@ -1049,7 +1045,7 @@ function MuminDetailsInner() {
       <TakhmeenModal
         mode="add"
         open={modals.addTakhmeen} onClose={() => closeModal('addTakhmeen')}
-        member={member} permissions={permissions}
+        member={member}
         row={takForm} setRow={setTakForm}
         onSave={saveTakhmeen}
       />
@@ -1061,7 +1057,7 @@ function MuminDetailsInner() {
       />
       <AddReceiptModal
         open={modals.addReceipt} onClose={() => closeModal('addReceipt')}
-        member={member} permissions={permissions}
+        member={member}
         rcForm={rcForm} setRcForm={setRcForm}
         rcItem={rcItem} setRcItem={setRcItem}
         rcItems={rcItems} setRcItems={setRcItems}
@@ -1069,7 +1065,7 @@ function MuminDetailsInner() {
       />
       <EditReceiptModal
         open={modals.editReceipt} onClose={() => closeModal('editReceipt')}
-        member={member} permissions={permissions}
+        member={member}
         rcForm={editReceiptRow || {}} setRcForm={setEditReceiptRow}
         onPrint={() => { closeModal('editReceipt'); openModal('printReceipt'); }}
         onSave={async () => {
@@ -1158,7 +1154,7 @@ function MuminDetailsInner() {
       />
       <TakhmeenPreviewModal
         open={modals.takPreview} onClose={() => closeModal('takPreview')}
-        member={member} permissions={permissions} takhmeen={takhmeen}
+        member={member} takhmeen={takhmeen}
       />
       <EditMemberModal
         open={modals.editMember} onClose={() => closeModal('editMember')}

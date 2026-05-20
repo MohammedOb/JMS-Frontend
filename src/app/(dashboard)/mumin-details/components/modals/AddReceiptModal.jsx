@@ -5,6 +5,7 @@ import Modal from '@/components/shared/Modal';
 import { SaveIcon, PrintIcon, EditIcon, TrashIcon } from '@/components/shared/Icons';
 import { fmt, today } from '../../utils';
 import { memberService, takhmeenService } from '@/services';
+import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 
 const DEFAULT_CASH_LIMIT = 9500;
@@ -45,12 +46,13 @@ function extractMuminRow(data, searchAccno) {
 }
 
 export default function AddReceiptModal({
-  open, onClose, member, permissions,
+  open, onClose, member,
   rcForm, setRcForm,
   rcItem, setRcItem,
   rcItems, setRcItems,
   onSave,
 }) {
+  const { user } = useAuth();
   // ── Profile card state ────────────────────────────────────────────────────
   const [profile, setProfile]               = useState({});
   const [profileEdit, setProfileEdit]       = useState(false);
@@ -579,7 +581,7 @@ export default function AddReceiptModal({
               <label className="form-label">For Year</label>
               <input
                 className="form-input"
-                placeholder={String(permissions?.ForYearAll || new Date().getFullYear())}
+                placeholder={String(user?.ForYearAll || new Date().getFullYear())}
                 value={rcItem.forYear || ''}
                 onChange={e => onForYearChange(e.target.value)}
               />

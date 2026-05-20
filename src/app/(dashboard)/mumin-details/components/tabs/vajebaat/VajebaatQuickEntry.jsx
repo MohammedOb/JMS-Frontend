@@ -2,15 +2,17 @@
 
 import { SaveIcon } from '@/components/shared/Icons';
 import { fmt } from '../../../utils';
+import { useAuth } from '@/context/AuthContext';
 
-export default function VajebaatQuickEntry({ vajForm, setVajForm, permissions, onSave }) {
+export default function VajebaatQuickEntry({ vajForm, setVajForm, onSave }) {
+  const { user } = useAuth();
   const grandTotal = ['sf', 'vaj', 'house', 'niyaz', 'other']
     .reduce((s, k) => s + (Number(vajForm[k]) || 0), 0);
 
   return (
     <div className="bg-surface border border-border rounded-lg p-4 mb-4">
       <div className="flex items-center gap-2 mb-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
-        <span>Vajebaat Quick Entry (Current Year: {permissions.ForYearAll})</span>
+        <span>Vajebaat Quick Entry (Current Year: {user?.ForYearAll})</span>
         <div className="flex-1 h-px bg-border" />
       </div>
       <div className="grid grid-cols-5 gap-2.5 mb-3">

@@ -1,0 +1,15 @@
+The mapping:
+
+Sidebar page	Permission code needed
+Dashboard	      member_search.view or receipt_quick.create or daily_report.view
+Add Receipt	      receipt_quick.create
+Daily Report	daily_report.view
+Member Search	members.view
+Mumin Details	members.view
+Due Details	      due.view
+Bookings/Calendar	bookings.view or seating.view
+Safai Chitthi	safai.view
+Seating Layout	seating.view
+Access Control	users.view
+System Variables	utility.view
+Utility	      utility.view

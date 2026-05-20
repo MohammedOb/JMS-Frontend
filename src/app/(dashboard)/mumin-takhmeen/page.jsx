@@ -5,7 +5,8 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
-import { takhmeenService, memberService } from '@/services';
+import { takhmeenService, memberService, lookupService } from '@/services';
+import { useAuth } from '@/context/AuthContext';
 import { RefreshIcon, XIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon } from '@/components/shared/Icons';
 
 const CY = new Date().getFullYear();
@@ -137,10 +138,32 @@ export default function MuminTakhmeenPage() {
   const router        = useRouter();
   const exportBtnRef  = useRef(null);
   const exportMenuRef = useRef(null);
+  const { user, hasScope, can } = useAuth();
 
-  const [allRows,      setAllRows]      = useState([]);
-  const [hubHeadRows,  setHubHeadRows]  = useState([]);
-  const [mohallaRows,  setMohallaRows]  = useState([]);
+  // Collect all allowed subhead values from any subhead-category scope type.
+  // Users may name these 'Sabeel', 'Vajebaat', etc. — we collect everything
+  // that isn't a known non-subhead type.
+  const allowedSubHeadSet = useMemo(() => {
+    if (!user) return null;
+    if (Array.isArray(user.roles) && user.roles.includes('super_admin')) return null;
+    if (!user.scopes) return null;
+    const skip = new Set(['sector', 'Sector', 'ForYear', 'createdBy', 'HubMainHead']);
+    const allowed = [];
+    Object.entries(user.scopes).forEach(([type, arr]) => {
+      if (!skip.has(type) && Array.isArray(arr) && arr.length > 0)
+        allowed.push(...arr.map(v => v.toLowerCase()));
+    });
+    return allowed.length > 0 ? new Set(allowed) : null; // null = no restriction
+  }, [user]);
+
+  const [allRows,       setAllRows]       = useState([]);
+  const [hubHeadRows,   setHubHeadRows]   = useState([]);
+  const [mohallaRows,   setMohallaRows]   = useState([]);
+  const [grades,        setGrades]        = useState([]);
+  const [sabeelTypes,   setSabeelTypes]   = useState([]);
+  const [thaaliStatuses,setThaaliStatuses]= useState([]);
+  const [thaaliSizes,   setThaaliSizes]   = useState([]);
+  const [yearOptions,   setYearOptions]   = useState([]);
   const [loading,      setLoading]      = useState(false);
   const [showExport,   setShowExport]   = useState(false);
   const [exportPos,    setExportPos]    = useState({});
@@ -179,6 +202,12 @@ export default function MuminTakhmeenPage() {
         setMohallaRows(raw);
       })
       .catch(() => {});
+
+    lookupService.getGrades()        .then(res => setGrades(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
+    lookupService.getSabeelTypes()   .then(res => setSabeelTypes(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
+    lookupService.getThaliStatuses() .then(res => setThaaliStatuses(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
+    lookupService.getThaliSizes()    .then(res => setThaaliSizes(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
+    lookupService.getYears()         .then(res => setYearOptions(Array.isArray(res.data?.data) ? res.data.data : [])).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -195,23 +224,26 @@ export default function MuminTakhmeenPage() {
   // ── filter options — all derived from DB data ─────────────────────────────
 
   const forYears = useMemo(() =>
-    uniq(allRows.map(r => r.forYear)), [allRows]);
+    yearOptions.filter(y => hasScope('ForYear', y)),
+    [yearOptions, hasScope]);
 
   const hubMainHeads = useMemo(() => {
-    const map = new Map(); // mainHead -> isActive (true if any sub head is active)
-    hubHeadRows.forEach(r => {
-      const name = String(r.HubMainHead ?? '').trim();
-      if (!name) return;
-      const active = r.IsActive === 1 || r.IsActive === '1';
-      map.set(name, (map.get(name) ?? false) || active);
-    });
+    const map = new Map();
+    hubHeadRows
+      .filter(r => !allowedSubHeadSet || allowedSubHeadSet.has(String(r.HubSubHead ?? '').toLowerCase()))
+      .forEach(r => {
+        const name = String(r.HubMainHead ?? '').trim();
+        if (!name) return;
+        const active = r.IsActive === 1 || r.IsActive === '1';
+        map.set(name, (map.get(name) ?? false) || active);
+      });
     return [...map.entries()]
       .map(([name, active]) => ({ name, active }))
       .sort((a, b) => {
         if (a.active !== b.active) return a.active ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-  }, [hubHeadRows]);
+  }, [hubHeadRows, allowedSubHeadSet]);
 
   const hubSubHeadOptions = useMemo(() => {
     const seen = new Map(); // subHead -> isActive
@@ -225,19 +257,26 @@ export default function MuminTakhmeenPage() {
       });
     return [...seen.entries()]
       .map(([name, active]) => ({ name, active }))
+      .filter(h => !allowedSubHeadSet || allowedSubHeadSet.has(h.name.toLowerCase()))
       .sort((a, b) => {
         if (a.active !== b.active) return a.active ? -1 : 1;
         return a.name.localeCompare(b.name);
       });
-  }, [hubHeadRows, filters.hubMainHead]);
+  }, [hubHeadRows, filters.hubMainHead, allowedSubHeadSet]);
 
   const sectors = useMemo(() =>
-    uniq(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim())), [mohallaRows]);
+    uniq(mohallaRows.map(r => String(r.Sector ?? r.sector ?? '').trim()))
+      .filter(s => hasScope('sector', s)),
+    [mohallaRows, hasScope]);
 
   const subsectorOptions = useMemo(() => {
     const seen = new Set();
     return mohallaRows
-      .filter(r => !filters.sector || String(r.Sector ?? r.sector ?? '') === filters.sector)
+      .filter(r => {
+        const s = String(r.Sector ?? r.sector ?? '').trim();
+        if (filters.sector) return s === filters.sector;
+        return hasScope('sector', s);
+      })
       .reduce((acc, r) => {
         const code = String(r.Subsector ?? r.subsector ?? '').trim();
         const name = String(r.MohallaDescription ?? r.SubsectorName ?? r.subsectorName ?? '').trim();
@@ -248,30 +287,18 @@ export default function MuminTakhmeenPage() {
         return acc;
       }, [])
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [mohallaRows, filters.sector]);
+  }, [mohallaRows, filters.sector, hasScope]);
 
-  const sabeelTypes    = useMemo(() => uniq(allRows.map(r => r.sabeelType)),    [allRows]);
-  const thaaliStatuses = useMemo(() => uniq(allRows.map(r => r.thaaliStatus)),  [allRows]);
-  const thaaliSizes    = useMemo(() => uniq(allRows.map(r => r.thaaliSize)),    [allRows]);
 
-  // Grade options cascade with all other active filters (excluding grade itself)
-  const gradeOptions = useMemo(() => {
-    let rows = allRows;
-    if (filters.forYear)      rows = rows.filter(r => r.forYear      === filters.forYear);
-    if (filters.hubMainHead)  rows = rows.filter(r => r.hubMainHead  === filters.hubMainHead);
-    if (filters.hubSubHead)   rows = rows.filter(r => r.hubSubHead   === filters.hubSubHead);
-    if (filters.sector)       rows = rows.filter(r => r.sector       === filters.sector);
-    if (filters.subsector)    rows = rows.filter(r => r.subsector    === filters.subsector);
-    if (filters.sabeelType)   rows = rows.filter(r => r.sabeelType   === filters.sabeelType);
-    if (filters.thaaliStatus) rows = rows.filter(r => r.thaaliStatus === filters.thaaliStatus);
-    if (filters.thaaliSize)   rows = rows.filter(r => r.thaaliSize   === filters.thaaliSize);
-    return uniq(rows.map(r => r.grade));
-  }, [allRows, filters.forYear, filters.hubMainHead, filters.hubSubHead, filters.sector, filters.subsector, filters.sabeelType, filters.thaaliStatus, filters.thaaliSize]);
 
   // ── client-side filtering ─────────────────────────────────────────────────
 
   const filteredRows = useMemo(() => {
-    let rows = allRows;
+    let rows = allRows.filter(r =>
+      hasScope('ForYear', r.forYear) &&
+      hasScope('sector', r.sector) &&
+      (!allowedSubHeadSet || allowedSubHeadSet.has(r.hubSubHead.toLowerCase()))
+    );
     if (filters.forYear)           rows = rows.filter(r => r.forYear      === filters.forYear);
     if (filters.hubMainHead)       rows = rows.filter(r => r.hubMainHead  === filters.hubMainHead);
     if (filters.hubSubHead)        rows = rows.filter(r => r.hubSubHead   === filters.hubSubHead);
@@ -284,7 +311,7 @@ export default function MuminTakhmeenPage() {
     if (filters.amountFrom !== '') rows = rows.filter(r => r.takhmeen >= Number(filters.amountFrom));
     if (filters.amountTo   !== '') rows = rows.filter(r => r.takhmeen <= Number(filters.amountTo));
     return [...rows].sort((a, b) => Number(a.accno) - Number(b.accno));
-  }, [allRows, filters]);
+  }, [allRows, filters, hasScope, allowedSubHeadSet]);
 
   // reset to page 1 whenever filter result or page size changes
   useEffect(() => { setCurrentPage(1); }, [filteredRows, pageSize]);
@@ -487,7 +514,7 @@ export default function MuminTakhmeenPage() {
               <label className="form-label">Grade</label>
               <select className="form-select" value={filters.grade} onChange={e => setF('grade', e.target.value)}>
                 <option value="">All</option>
-                {gradeOptions.map(g => <option key={g}>{g}</option>)}
+                {grades.map(g => <option key={g}>{g}</option>)}
               </select>
             </div>
             <div>
@@ -511,6 +538,7 @@ export default function MuminTakhmeenPage() {
             <button className="btn btn-secondary btn-sm" onClick={load} disabled={loading}>
               {loading ? 'Loading…' : <><RefreshIcon className="w-3.5 h-3.5 mr-1.5" />Refresh</>}
             </button>
+            {can('takhmeen.report_view') && (
             <button
               ref={exportBtnRef}
               className="btn btn-secondary btn-sm"
@@ -519,6 +547,7 @@ export default function MuminTakhmeenPage() {
             >
               <DownloadIcon className="w-3.5 h-3.5 mr-1.5" />Export
             </button>
+            )}
 
             {/* Page size selector */}
             <div className="flex items-center gap-1.5 ml-auto">

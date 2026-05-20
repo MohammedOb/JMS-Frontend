@@ -167,25 +167,29 @@ export default function UserModal({ open, onClose, editUser, roles, scopes, onSu
         {form.scope_ids !== null && (
           Object.keys(scopesByType).length === 0
             ? <p className="text-[12px] text-gray-400">No scopes defined. Add scopes in the Scopes tab first.</p>
-            : Object.entries(scopesByType).map(([type, typeScopes]) => (
-                <div key={type} className="mb-3">
-                  <div className="text-[11px] font-semibold text-gray-500 mb-1.5 capitalize">{type} Access</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {typeScopes.map(s => {
-                      const selected = (form.scope_ids || []).includes(s.id);
-                      return (
-                        <label key={s.id} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border cursor-pointer transition-colors ${
-                          selected ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-border text-gray-600 hover:border-gray-400'
-                        }`}>
-                          <input type="checkbox" className="hidden"
-                            checked={selected} onChange={() => toggleScope(s.id)} />
-                          {s.label || s.value}
-                        </label>
-                      );
-                    })}
+            : <div className="border border-border rounded-lg overflow-hidden divide-y divide-border">
+                {Object.entries(scopesByType).map(([type, typeScopes]) => (
+                  <div key={type} className="flex items-start gap-4 px-3 py-2.5">
+                    <div className="w-24 shrink-0 pt-0.5 text-[11px] font-semibold text-gray-600 capitalize">{type}</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {typeScopes.map(s => {
+                        const selected = (form.scope_ids || []).includes(s.id);
+                        return (
+                          <label key={s.id} className={`flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium border cursor-pointer select-none transition-colors ${
+                            selected
+                              ? 'bg-indigo-600 border-indigo-600 text-white'
+                              : 'border-border text-gray-600 bg-white hover:border-gray-400 hover:bg-gray-50'
+                          }`}>
+                            <input type="checkbox" className="hidden"
+                              checked={selected} onChange={() => toggleScope(s.id)} />
+                            {s.label || s.value}
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
         )}
       </div>
     </Modal>

@@ -2,9 +2,11 @@
 import { useAuth } from '@/context/AuthContext';
 
 export default function PermissionGuard({ permission, children }) {
-  const { permissions } = useAuth();
+  const { can } = useAuth();
 
-  if (!permission || permissions[permission]) return children;
+  if (!permission) return children;
+  const allowed = [].concat(permission).some(code => can(code));
+  if (allowed) return children;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
