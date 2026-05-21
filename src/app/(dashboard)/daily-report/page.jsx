@@ -547,9 +547,9 @@ export default function DailyReportPage() {
       </div>
 
       {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
         {/* Left: Search + Export + checkbox */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button className="btn btn-primary btn-sm" onClick={search} disabled={loading}>
             <SearchIcon className="w-3.5 h-3.5 mr-1.5" />
             {loading ? 'Loading…' : 'Search'}
@@ -576,7 +576,7 @@ export default function DailyReportPage() {
         </div>
 
         {/* Right: Rows per page + record count badge */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[12px] text-gray-500">Rows per page:</span>
           <select
             className="form-select w-[75px] py-1 text-[12px]"
@@ -668,12 +668,12 @@ export default function DailyReportPage() {
                 const cancelled = String(r.Status ?? '').toLowerCase().includes('cancel');
                 const td = `px-3 py-2.5 border-t border-border whitespace-nowrap`;
                 return (
-                  <tr key={i} className={cancelled ? 'bg-red-50' : 'hover:bg-blue-500/[0.025]'}>
+                  <tr key={i} className={cancelled ? 'bg-red-600 text-white' : 'hover:bg-blue-500/[0.025]'}>
 
                     {/* Actions */}
                     <td className={`${td} w-[76px]`}>
                       <div className="flex items-center gap-0.5">
-                        {can('daily_report.edit') && (
+                        {can('daily_report.edit') && !cancelled && (
                         <button
                           title="Edit receipt"
                           onClick={() => handleEdit(r)}
@@ -725,7 +725,11 @@ export default function DailyReportPage() {
                     <td className={`${td} !whitespace-normal max-w-[160px]`} title={r.Remark || ''}>
                       {r.Remark || '—'}
                     </td>
-                    <td className={td}><StatusBadge status={r.Status} /></td>
+                    <td className={td}>
+                      {cancelled
+                        ? <span className="inline-block bg-white text-red-600 text-xs font-semibold px-2 py-0.5 rounded">{r.Status}</span>
+                        : <StatusBadge status={r.Status} />}
+                    </td>
                     <td className={td}>{r.Createdby || '—'}</td>
 
                     {/* Update Info — only visible when checkbox ON, full text shown */}
@@ -767,7 +771,7 @@ export default function DailyReportPage() {
 
       {/* ── Summary tables ────────────────────────────────────────────────────── */}
       {searched && rows.length > 0 && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
           {/* Head Summary */}
           <div className="card">

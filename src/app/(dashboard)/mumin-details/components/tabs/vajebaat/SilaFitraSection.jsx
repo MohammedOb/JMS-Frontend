@@ -93,8 +93,8 @@ export default function SilaFitraSection({ silaFitra, onAdd, onUpdate, onDelete 
         <span>Sila Fitra Details</span>
         <div className="flex-1 h-px bg-border" />
       </div>
-      <div className="rounded-lg overflow-hidden border border-border mb-2">
-        <table className="w-full border-collapse text-[12px]">
+      <div className="overflow-x-auto rounded-lg border border-border mb-2">
+        <table className="w-full border-collapse text-[12px] min-w-[560px]">
           <thead>
             <tr>{COLS.map(h => <th key={h} className="th-navy">{h}</th>)}</tr>
           </thead>

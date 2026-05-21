@@ -114,7 +114,7 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
 
   return (
     <div className="p-4">
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-wrap justify-between items-center gap-2 mb-4">
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           <select
             className="form-input py-1 text-[12px] min-w-[130px]"
@@ -169,8 +169,8 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
           )}
         </div>
       </div>
-      <div className={`rounded-lg border border-border ${showUpdateInfo ? 'overflow-x-auto' : 'overflow-hidden'}`}>
-        <table className={`border-collapse text-[12px] ${showUpdateInfo ? 'min-w-max w-full' : 'w-full'}`}>
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full border-collapse text-[12px] min-w-[800px]">
           <thead>
             <tr>
               {['Actions', 'Receipt#', 'Received Date', 'Full Name', 'Type', 'Sub Type', 'For Year', 'Grade', 'Amount', 'Mode', 'Status'].map(h => (
@@ -191,7 +191,7 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
               const isCancelled = r.status === 'Cancelled' || r.status === 'Cancel Receipt' || r.status === 'Cancel';
               const td = `px-3 py-2 border-t ${isCancelled ? 'border-red-400' : 'border-border'}`;
               return (
-                <tr key={i} className={isCancelled ? 'bg-red-500 text-white' : 'hover:bg-blue-500/[0.025]'}>
+                <tr key={i} className={isCancelled ? 'bg-red-600 text-white' : 'hover:bg-blue-500/[0.025]'}>
                   <td className={`${td} whitespace-nowrap`}>
                     {!isCancelled && can('receipts.edit') && (
                       <button className="btn btn-secondary btn-sm mr-1" onClick={() => onEditReceipt(r)}>
@@ -204,7 +204,7 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
                       </button>
                     )}
                   </td>
-                  <td className={`${td} ${isCancelled ? 'text-white' : 'text-blue-500'} font-semibold`}>#{r.receiptNo}</td>
+                  <td className={`${td} ${isCancelled ? 'text-red-100' : 'text-blue-500'} font-semibold`}>#{r.receiptNo}</td>
                   <td className={`${td} whitespace-nowrap`}>{fmtDate(r.receivedDate)}</td>
                   <td className={td}>{r.ReceivedFrom || r.receivedFrom || r.fullName || '—'}</td>
                   <td className={td}>{r.mainHead}</td>
@@ -214,7 +214,9 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
                   <td className={`${td} font-semibold`}>{fmt(r.amount)}</td>
                   <td className={td}>{r.mode}</td>
                   <td className={td}>
-                    {isCancelled ? <span className="font-semibold">{r.status}</span> : <StatusBadge status={r.status} />}
+                    {isCancelled
+                      ? <span className="inline-block bg-white text-red-600 text-xs font-semibold px-2 py-0.5 rounded">{r.status}</span>
+                      : <StatusBadge status={r.status} />}
                   </td>
                   {showUpdateInfo && <>
                     <td className={`${td} max-w-[180px] truncate`} title={r.RecordUpdateReason || ''}>{r.RecordUpdateReason || '—'}</td>

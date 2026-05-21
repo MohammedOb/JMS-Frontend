@@ -168,7 +168,7 @@ export default function AccessControlPage() {
       </PageHeader>
 
       {/* Tab bar */}
-      <div className="flex gap-0 border-b border-border mb-5">
+      <div className="flex gap-0 border-b border-border mb-5 overflow-x-auto scrollbar-thin">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`px-4 py-2.5 text-[12.5px] font-semibold border-b-2 transition-colors ${

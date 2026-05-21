@@ -428,7 +428,7 @@ export default function AddReceiptPage() {
             )}
           </div>
           <div className="card-body">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
                 <label className="form-label">Acc No.</label>
                 <input
@@ -497,7 +497,7 @@ export default function AddReceiptPage() {
         <div className="card">
           <div className="card-header">Transaction Info</div>
           <div className="card-body">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               <div>
                 <label className="form-label">Received Date</label>
                 <input type="date" className="form-input" value={rcForm.date || ''} onChange={e => setRcForm(p => ({ ...p, date: e.target.value }))} />
@@ -551,7 +551,7 @@ export default function AddReceiptPage() {
             )}
           </div>
           <div className="card-body">
-            <div className="grid grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <div>
                 <label className="form-label">Hub Sub Head</label>
                 <select
@@ -614,7 +614,8 @@ export default function AddReceiptPage() {
         {/* ── 4. Items Grid ─────────────────────────────────────────────────── */}
         <div className="card overflow-hidden">
           <div className="card-header">Receipt Items</div>
-          <table className="w-full border-collapse text-[12px]">
+          <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-[12px] min-w-[600px]">
             <thead>
               <tr>
                 {['Action', 'S.No#', 'Hub Sub Head', 'For Year', 'Grade', 'Amount (₹)', 'Remark'].map(h => (
@@ -705,6 +706,7 @@ export default function AddReceiptPage() {
               </tfoot>
             )}
           </table>
+          </div>
         </div>
 
         {/* ── 5. Family split receipts (Cash > limit) ───────────────────────── */}
@@ -839,7 +841,7 @@ export default function AddReceiptPage() {
         </label>
 
         {/* ── 7. Action buttons ─────────────────────────────────────────────── */}
-        <div className="flex justify-end gap-2 pt-1">
+        <div className="flex justify-end gap-2 pt-1 flex-wrap">
           <button className="btn btn-secondary" onClick={clearForm}>
             <TrashIcon className="w-3.5 h-3.5 mr-1.5" />Clear Form
           </button>

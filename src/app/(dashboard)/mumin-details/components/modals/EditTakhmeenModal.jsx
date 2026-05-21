@@ -138,7 +138,7 @@ export default function EditTakhmeenModal({ open, onClose, member, editTakRow, s
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="form-label">Takhmeen (₹)</label>
               <input ref={takhmeenRef} type="number" className="form-input"

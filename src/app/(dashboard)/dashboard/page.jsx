@@ -51,14 +51,14 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Page header */}
-      <div className="mb-5 flex items-start justify-between">
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
         <div>
-          <h1 className="font-display text-[18px] font-bold text-navy-900">Dashboard</h1>
+          <h1 className="font-display text-[16px] sm:text-[18px] font-bold text-navy-900">Dashboard</h1>
           <p className="text-[11px] text-gray-400 mt-0.5">
             Welcome back, {user?.username} &nbsp;·&nbsp; {today}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button className="btn btn-secondary btn-sm"><BellIcon className="w-3.5 h-3.5 mr-1.5" />Notifications</button>
           <button className="btn btn-primary btn-sm" onClick={() => router.push('/add-receipt')}>
             + Add Receipt
@@ -67,7 +67,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         {STAT_CARDS.map(s => (
           <div key={s.label} className="card">
             <div className="card-body">
@@ -82,7 +82,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         {QUICK.map(q => (
           <button
             key={q.href}
@@ -98,15 +98,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Recent transactions + mini chart */}
-      <div className="grid grid-cols-[1fr_280px] gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-3">
         {/* Recent transactions */}
         <div className="card">
           <div className="card-header">
             Recent Transactions
             <span className="text-[11px] text-gray-400 font-normal">Last 5 entries</span>
           </div>
-          <div className="overflow-hidden rounded-b-lg">
-            <table className="w-full border-collapse text-[12.5px]">
+          <div className="overflow-x-auto rounded-b-lg">
+            <table className="w-full border-collapse text-[12.5px] min-w-max">
               <thead>
                 <tr>
                   {['Receipt#','Member','Type','Amount','Mode','Date','Status'].map(h => (

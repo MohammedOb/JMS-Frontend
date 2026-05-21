@@ -15,7 +15,7 @@ export default function VajebaatQuickEntry({ vajForm, setVajForm, onSave }) {
         <span>Vajebaat Quick Entry (Current Year: {user?.ForYearAll})</span>
         <div className="flex-1 h-px bg-border" />
       </div>
-      <div className="grid grid-cols-5 gap-2.5 mb-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-3">
         {[
           ['sf',    'Sila Fitra (SF)'],
           ['vaj',   'Vajebaat'],

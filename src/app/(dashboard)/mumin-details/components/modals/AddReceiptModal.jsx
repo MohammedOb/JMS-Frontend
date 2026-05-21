@@ -432,7 +432,7 @@ export default function AddReceiptModal({
               {profileEdit ? '✓ Done' : 'Edit'}
             </button>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="form-label">Acc No.</label>
               <input
@@ -512,7 +512,7 @@ export default function AddReceiptModal({
           <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">
             Transaction Info
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <label className="form-label">Received Date</label>
               <input
@@ -573,7 +573,7 @@ export default function AddReceiptModal({
               </span>
             )}
           </div>
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <div>
               <label className="form-label">Hub Sub Head</label>
               <select
@@ -632,7 +632,8 @@ export default function AddReceiptModal({
         </div>
 
         {/* ── 4. Items Grid ─────────────────────────────────────────────────── */}
-        <div className="rounded-lg overflow-hidden border border-border">
+        <div className="overflow-x-auto">
+        <div className="rounded-lg overflow-hidden border border-border min-w-[520px]">
           <table className="w-full border-collapse text-[12px]">
             <thead>
               <tr>
@@ -759,6 +760,7 @@ export default function AddReceiptModal({
             )}
           </table>
         </div>
+        </div>
 
         {/* ── 5. Receipt for Family Members (only when total > cash limit) ──── */}
         {needsSplit && (
@@ -775,7 +777,8 @@ export default function AddReceiptModal({
               Grand total {fmt(grandTotal)} exceeds the per-receipt cash limit.
               Assign each split receipt to a family member:
             </p>
-            <div className="rounded-lg overflow-hidden border border-amber-200">
+            <div className="overflow-x-auto">
+            <div className="rounded-lg overflow-hidden border border-amber-200 min-w-[480px]">
               <table className="w-full border-collapse text-[12px]">
                 <thead>
                   <tr>
@@ -880,6 +883,7 @@ export default function AddReceiptModal({
                   </tr>
                 </tfoot>
               </table>
+            </div>
             </div>
           </div>
         )}

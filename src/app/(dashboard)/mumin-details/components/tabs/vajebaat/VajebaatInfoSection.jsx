@@ -14,7 +14,7 @@ export default function VajebaatInfoSection({ member, onEdit }) {
           </button>
         )}
       </div>
-      <div className="p-4 grid grid-cols-3 gap-x-6 gap-y-3">
+      <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-3">
         {[
           ['Token No.',  member?.tokenNo   || '—'],
           ['Token Date', fmtDate(member?.tokenDate)],

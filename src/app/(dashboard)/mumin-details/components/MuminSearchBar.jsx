@@ -1,7 +1,7 @@
 'use client';
 
 import { createPortal } from 'react-dom';
-import { SearchIcon } from '@/components/shared/Icons';
+import { SearchIcon, XIcon, PlusIcon, RefreshIcon } from '@/components/shared/Icons';
 
 export default function MuminSearchBar({
   searchVal, setSearchVal,
@@ -26,11 +26,17 @@ export default function MuminSearchBar({
           }}
           autoComplete="off"
         />
-        <button className="btn btn-primary" onClick={() => onSearch(searchVal)} disabled={searching}>
-          {searching ? 'Searching…' : 'Search'}
+        <button className="btn btn-primary p-2" title="Search" onClick={() => onSearch(searchVal)} disabled={searching}>
+          {searching ? <RefreshIcon className="w-4 h-4 animate-spin" /> : <SearchIcon className="w-4 h-4" />}
         </button>
-        <button className="btn btn-secondary" onClick={onClear}>Clear</button>
-        {onNewMember && <button className="btn btn-secondary btn-sm" onClick={onNewMember}>+ New Member</button>}
+        <button className="btn btn-secondary p-2" title="Clear" onClick={onClear}>
+          <XIcon className="w-4 h-4" />
+        </button>
+        {onNewMember && (
+          <button className="btn btn-secondary p-2" title="New Member" onClick={onNewMember}>
+            <PlusIcon className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {typeof document !== 'undefined' && createPortal(

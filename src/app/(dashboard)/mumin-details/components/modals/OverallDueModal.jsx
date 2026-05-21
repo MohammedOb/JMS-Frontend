@@ -21,7 +21,7 @@ export default function OverallDueModal({ open, onClose, member, due, takhmeen }
         </>
       }
     >
-      <div className="grid grid-cols-5 gap-2 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
         {[
           { label: 'Sabeel Due', val: due?.sabeelDue },
           { label: 'FMB Due',    val: due?.fmbDue },
@@ -37,7 +37,8 @@ export default function OverallDueModal({ open, onClose, member, due, takhmeen }
           </div>
         ))}
       </div>
-      <div className="rounded-lg overflow-hidden border border-border">
+      <div className="overflow-x-auto">
+      <div className="rounded-lg overflow-hidden border border-border min-w-[400px]">
         <table className="w-full border-collapse text-[12px]">
           <thead>
             <tr>{['Type','For Year','Takhmeen','Received','Remaining'].map(h => <th key={h} className="th-navy">{h}</th>)}</tr>
@@ -60,6 +61,7 @@ export default function OverallDueModal({ open, onClose, member, due, takhmeen }
             </tr>
           </tfoot>
         </table>
+      </div>
       </div>
     </Modal>
   );

@@ -93,7 +93,7 @@ function MuminDetailsInner() {
     fmbCard:          true,
     editFMB:          !hideButtons && can('members.edit_fmb'),
     printFMB:         !hideButtons && can('members.print_fmb'),
-    vajebaatInfoCard: can('members.view_vajebaat_details'),
+    vajebaatInfoCard: !hideButtons && can('members.view_vajebaat_details'),
 
     // Profile card actions
     editProfile:      !hideButtons && (can('members.edit') || can('members.add')),
@@ -111,7 +111,7 @@ function MuminDetailsInner() {
     sabeelDue:        !hideButtons,
     addSafai:         !hideButtons,
     followup:         !hideButtons,
-    takhmeenPreview:  true,
+    takhmeenPreview:  false, // behind development flag for now
 
     // Tabs
     takhmeenTab:      true,
@@ -806,7 +806,7 @@ function MuminDetailsInner() {
       )}
 
       {member && (
-        <div className="grid grid-cols-[280px_1fr] gap-4 items-start">
+        <div className="grid grid-cols-1 xl:grid-cols-[280px_1fr] gap-4 items-start">
 
           {/* ── LEFT PANEL ─────────────────────────────────────────────── */}
           <div className="space-y-3">
@@ -862,9 +862,9 @@ function MuminDetailsInner() {
 
           {/* ── RIGHT PANEL ────────────────────────────────────────────── */}
           <div className="min-w-0">
-            <div className="flex gap-3 mb-3">
+            <div className="flex flex-col sm:flex-row gap-3 mb-3">
               {FEATURES.dueSummary && (
-                <div className="w-[35%] shrink-0">
+                <div className="sm:w-[35%] shrink-0">
                   <DueSummaryCards takhmeen={takhmeen} onOverallDue={FEATURES.overallDue ? () => openModal('overallDue') : null} />
                 </div>
               )}
@@ -897,7 +897,7 @@ function MuminDetailsInner() {
 
             {/* Tab panel */}
             <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
-              <div className="flex border-b-2 border-border bg-surface overflow-x-hidden">
+              <div className="flex border-b-2 border-border bg-surface overflow-x-auto scrollbar-thin">
                 {TAB_LIST.map(t => (
                   <button
                     key={t.key}

@@ -77,7 +77,7 @@ export default function FMBStatisticsPage() {
 
           {/* Thaali distribution */}
           {thaali && (
-            <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
               {[
                 { label: 'Full Thaali',    val: thaali.full    || 0, color: 'bg-blue-500'  },
                 { label: 'Half Thaali',    val: thaali.half    || 0, color: 'bg-blue-300'  },
@@ -99,7 +99,7 @@ export default function FMBStatisticsPage() {
             <div className="card mb-4">
               <div className="card-header">Monthly FMB Collection — {year}</div>
               <div className="card-body">
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2">
                   {monthly.map((m, i) => {
                     const maxVal = Math.max(...monthly.map(x => Number(x.collected || 0)), 1);
                     const h = Math.max(4, Math.round((Number(m.collected || 0) / maxVal) * 80));

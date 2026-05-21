@@ -113,7 +113,7 @@ export default function UtilityPage() {
           )}
         </div>
         <div className="card-body">
-          <div className="grid grid-cols-5 gap-3 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
             {NOTE_DENOMS.map(d => (
               <div key={d}>
                 <label className="form-label">₹{d} × ___</label>
@@ -138,7 +138,7 @@ export default function UtilityPage() {
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
               <div className="text-[11px] text-green-600 font-semibold mb-1">GRAND TOTAL</div>
               <div className="text-2xl font-bold text-green-700">₹{noteTotal.toLocaleString('en-IN')}</div>
-              <div className="mt-2 text-[11px] text-gray-500 grid grid-cols-5 gap-2">
+              <div className="mt-2 text-[11px] text-gray-500 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                 {NOTE_DENOMS.filter(d => Number(noteForm[d]) > 0).map(d => (
                   <span key={d}>₹{d} × {noteForm[d]} = ₹{(d * Number(noteForm[d])).toLocaleString('en-IN')}</span>
                 ))}

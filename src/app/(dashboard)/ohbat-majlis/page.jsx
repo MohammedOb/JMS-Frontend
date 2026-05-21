@@ -71,7 +71,7 @@ export default function OhbatMajlisPage() {
       </PageHeader>
 
       {/* Summary */}
-      <div className="grid grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         {[
           { label: 'Total Majlis',  val: rows.length,                                 color: 'text-navy-800' },
           { label: 'Planned',       val: rows.filter(r => r.status === 'Planned').length,   color: 'text-blue-500' },

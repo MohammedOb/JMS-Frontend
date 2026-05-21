@@ -20,7 +20,7 @@ export default function EditFmbModal({ open, onClose, member, fmbForm, setFF, di
       }
     >
       <div className="space-y-4">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="form-label">Thaali Status</label>
             <ComboBox
@@ -49,7 +49,7 @@ export default function EditFmbModal({ open, onClose, member, fmbForm, setFF, di
             />
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="form-label">Close Year</label>
             <input className="form-input" placeholder="e.g. 1446" value={fmbForm.ThaliCloseYear}

@@ -76,11 +76,12 @@ const NAV_SECTIONS = [
   },
 ];
 
-function NavItem({ item, active }) {
+function NavItem({ item, active, onNavigate }) {
   const IconComp = item.icon;
   return (
     <Link
       href={item.href}
+      onClick={onNavigate}
       className={clsx(
         'flex items-center gap-2.5 px-2.5 py-[7px] mx-2 rounded-md text-[12.5px] transition-all duration-150 group',
         active
@@ -176,6 +177,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
                   key={item.href}
                   item={item}
                   active={pathname === item.href || pathname.startsWith(item.href + '/')}
+                  onNavigate={() => setIsOpen(false)}
                 />
               ))}
             </div>

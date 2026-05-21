@@ -430,7 +430,7 @@ function SafaiChitthiInner() {
 
       <div className="card">
         {/* ── Toolbar ── */}
-        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-border">
           {/* Record count badge */}
           <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-gray-100 border border-gray-200 text-[12px] font-medium text-gray-700 whitespace-nowrap">
             {loading ? '…' : `${totalRows} records`}

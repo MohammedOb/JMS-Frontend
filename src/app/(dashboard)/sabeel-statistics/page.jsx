@@ -74,7 +74,7 @@ export default function SabeelStatisticsPage() {
             <div className="card mb-4">
               <div className="card-header">Monthly Collection — {year}</div>
               <div className="card-body">
-                <div className="grid grid-cols-6 gap-2">
+                <div className="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-12 gap-2">
                   {yearData.map((m, i) => {
                     const maxVal = Math.max(...yearData.map(x => Number(x.collected || 0)), 1);
                     const h = Math.max(4, Math.round((Number(m.collected || 0) / maxVal) * 80));

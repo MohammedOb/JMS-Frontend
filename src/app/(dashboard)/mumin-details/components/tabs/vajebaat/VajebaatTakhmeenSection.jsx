@@ -23,12 +23,12 @@ export default function VajebaatTakhmeenSection({
 
   return (
     <>
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider flex-1 min-w-0">
           <span>Vajebaat Takhmeen Details</span>
           <div className="flex-1 h-px bg-border" />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             className="text-[11px] border border-border rounded px-1.5 py-1 bg-white text-gray-600"
             value={pageSize === 'all' ? 'all' : pageSize}
@@ -47,8 +47,8 @@ export default function VajebaatTakhmeenSection({
           )}
         </div>
       </div>
-      <div className="rounded-lg overflow-hidden border border-border mb-4">
-        <table className="w-full border-collapse text-[12px]">
+      <div className="overflow-x-auto rounded-lg border border-border mb-4">
+        <table className="w-full border-collapse text-[12px] min-w-[520px]">
           <thead>
             <tr>
               {['Actions', 'For Year', 'Last Takhmeen', 'Current Takhmeen', 'Takhmeen', 'Paid In', 'Paid Place'].map(h => (

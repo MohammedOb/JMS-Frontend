@@ -265,7 +265,7 @@ export default function MuminSearchPage() {
       {/* Filter bar */}
       <div className="card mb-4">
         <div className="card-body">
-          <div className="grid grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
             <div>
               <label className="form-label">Search</label>
               <input className="form-input" placeholder="Name, Acc#, ITS, Mobile…"
@@ -318,7 +318,7 @@ export default function MuminSearchPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {hasFilters && (
               <button className="btn btn-secondary btn-sm" onClick={clearFilters}>
                 <XIcon className="w-3.5 h-3.5 mr-1.5" />Clear Filters

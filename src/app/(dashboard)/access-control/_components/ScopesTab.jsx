@@ -23,7 +23,8 @@ export default function ScopesTab({ scopes, loading, can, onRefresh, onEditScope
         </button>
       </div>
 
-      <div className="rounded-xl border border-border overflow-hidden shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-border shadow-sm">
+      <div className="min-w-[600px]">
         {/* Column header */}
         <div className="grid grid-cols-[180px_1fr_1fr_72px_96px] gap-4 px-4 py-3 bg-navy-800">
           {['Type', 'Value', 'Label', 'Sort', 'Actions'].map(h => (
@@ -79,6 +80,7 @@ export default function ScopesTab({ scopes, loading, can, onRefresh, onEditScope
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );

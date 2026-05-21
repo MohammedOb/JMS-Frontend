@@ -22,13 +22,11 @@
     @apply bg-surface text-gray-700;
   }
 
-  /* Custom scrollbar — thin by default, thicker + darker on hover */
-  ::-webkit-scrollbar { width: 4px; height: 4px; transition: width 0.2s, height 0.2s; }
+  /* Custom scrollbar — always visible at 6px, darkens on hover */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-border rounded; transition: background 0.2s; }
-
-  *:hover::-webkit-scrollbar { width: 8px; height: 8px; }
-  *:hover::-webkit-scrollbar-thumb { @apply bg-slate-400; }
+  ::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; }
 }
 
 @layer utilities {
@@ -55,12 +53,12 @@
 
   /* Form label */
   .form-label {
-    @apply block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1;
+    @apply block text-[11px] sm:text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5 sm:mb-1;
   }
 
   /* Form input */
   .form-input {
-    @apply w-full h-8 px-2.5 border border-border rounded-md text-[12.5px] font-sans text-gray-800
+    @apply w-full h-10 sm:h-8 px-3 sm:px-2.5 border border-border rounded-md text-[13px] sm:text-[12.5px] font-sans text-gray-800
            bg-white outline-none transition-all
            focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10;
   }
@@ -76,7 +74,7 @@
 
   /* Buttons */
   .btn {
-    @apply inline-flex items-center gap-1.5 h-8 px-3.5 rounded-md border font-medium text-[12px]
+    @apply inline-flex items-center gap-1.5 h-10 sm:h-8 px-4 sm:px-3.5 rounded-md border font-medium text-[13px] sm:text-[12px]
            cursor-pointer transition-all duration-150 whitespace-nowrap select-none;
   }
   .btn:active { transform: scale(0.98); }
@@ -98,7 +96,7 @@
            hover:bg-red-700 hover:-translate-y-px;
   }
   .btn-sm {
-    @apply h-7 px-2.5 text-[11px];
+    @apply h-8 sm:h-7 px-3 sm:px-2.5 text-[12px] sm:text-[11px];
   }
 
   /* Badge */

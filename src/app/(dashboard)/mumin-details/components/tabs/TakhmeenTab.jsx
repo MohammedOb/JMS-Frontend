@@ -125,8 +125,8 @@ export default function TakhmeenTab({
         )}
       </div>
 
-      <div className={`rounded-lg border border-border ${showUpdateInfo ? 'overflow-x-auto' : 'overflow-hidden'}`}>
-        <table className={`border-collapse text-[12px] ${showUpdateInfo ? 'min-w-max w-full' : 'w-full'}`}>
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full border-collapse text-[12px] min-w-[680px]">
           <thead>
             <tr>
               {['Actions','For Year','Hub Type','Sub Type','Grade','Takhmeen','Received','Remaining','Date','Remark'].map(h => (

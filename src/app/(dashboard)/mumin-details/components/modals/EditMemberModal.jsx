@@ -72,7 +72,7 @@ export default function EditMemberModal({
 
           {/* ── Basic Information ─────────────────────────────── */}
           <SectionHeader title="Basic Information" />
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="form-label">Account No.</label>
               <input className="form-input bg-surface" value={memberForm.accno || ''} readOnly />
@@ -93,7 +93,7 @@ export default function EditMemberModal({
                 onChange={e => set('hofIts', e.target.value)} />
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="form-label">HOF Name</label>
               <input
@@ -122,7 +122,7 @@ export default function EditMemberModal({
               />
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="form-label">Sector</label>
               <ComboBox
@@ -158,7 +158,7 @@ export default function EditMemberModal({
               </select>
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="form-label">Work Status</label>
               <ComboBox
@@ -181,7 +181,7 @@ export default function EditMemberModal({
 
           {/* ── Sabeel Information ─────────────────────────────── */}
           <SectionHeader title="Sabeel Information" />
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="form-label">Sabeel Type</label>
               <input className="form-input" value={memberForm.sabeelType || ''}

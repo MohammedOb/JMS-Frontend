@@ -214,7 +214,7 @@ export default function EditReceiptModal({
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {/* AccNo: permanently locked regardless of profileEdit */}
             <div>
               <label className="form-label flex items-center gap-1.5">
@@ -288,7 +288,7 @@ export default function EditReceiptModal({
           <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">
             Transaction Info
           </div>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div>
               <label className="form-label flex items-center gap-1.5">
                 Received Date

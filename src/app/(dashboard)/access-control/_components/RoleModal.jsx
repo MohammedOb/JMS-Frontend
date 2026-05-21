@@ -118,7 +118,7 @@ export default function RoleModal({ open, onClose, editRole, scopes, onSuccess }
       }
     >
       {/* Role info */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
         <div>
           <label className="form-label">Role Code <span className="text-red-500">*</span></label>
           <input

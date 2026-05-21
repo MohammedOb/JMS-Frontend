@@ -33,7 +33,7 @@ export default function Modal({ open, onClose, title, size = 'md', children, foo
         </div>
 
         {/* Body */}
-        <div className="p-5 max-h-[75vh] overflow-y-auto">
+        <div className="p-3 sm:p-5 max-h-[70vh] overflow-y-auto">
           {children}
         </div>
 

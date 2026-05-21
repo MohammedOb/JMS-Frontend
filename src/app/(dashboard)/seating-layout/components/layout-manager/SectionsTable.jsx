@@ -15,7 +15,8 @@ export default function SectionsTable({ sections, hallId, onAddSection, onEditSe
       {!sections?.length ? (
         <p className="text-xs text-gray-400">No sections. Add one above.</p>
       ) : (
-        <table className="w-full text-xs">
+        <div className="overflow-x-auto">
+        <table className="w-full text-xs min-w-[500px]">
           <thead>
             <tr className="text-gray-400 uppercase tracking-wide">
               <th className="text-left py-1 font-medium">Name</th>
@@ -52,6 +53,7 @@ export default function SectionsTable({ sections, hallId, onAddSection, onEditSe
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

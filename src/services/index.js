@@ -179,9 +179,12 @@ export const bookingService = {
 
 // ── Majlis ───────────────────────────────────────────────────────────────────
 export const majlisService = {
-  getAll:  (params)        => api.get('/majlis', { params }),
-  create:  (data)          => api.post('/majlis', data),
-  update:  (id, data)      => api.put(`/majlis/${id}`, data),
+  load:         cache.cached((data) => api.post('/LoadMajlisRegistrations',  data), (d) => cache.makeKey('majlis', d), TTL.search),
+  add:          cache.mutates((data) => api.post('/AddMajlisRegistration',   data), 'majlis'),
+  update:       cache.mutates((data) => api.post('/UpdateMajlisRegistration', data), 'majlis'),
+  delete:       cache.mutates((data) => api.delete('/DeleteMajlisRegistration', { data }), 'majlis'),
+  getNextRegNo:     (data) => api.post('/GetNextMajlisRegNo', data),
+  loadSuggestions:  cache.cached(() => api.post('/LoadMajlisSuggestions', {}), () => 'majlis:suggestions', TTL.ref),
 };
 
 // ── Musaida ──────────────────────────────────────────────────────────────────

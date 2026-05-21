@@ -58,7 +58,7 @@ export default function AddNewMemberModal({
         <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
           <span>Identity</span><div className="flex-1 h-px bg-border" />
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="form-label">Account No. <span className="text-red-500">*</span></label>
             <input className="form-input" placeholder="e.g. 1001" value={newMemberForm.AccNo}
@@ -75,7 +75,7 @@ export default function AddNewMemberModal({
               onChange={e => setNF('ITSNo', e.target.value)} />
           </div>
         </div>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
             <label className="form-label">HOF ITS No.</label>
             <input className="form-input" placeholder="Head of Family ITS" value={newMemberForm.LocalHOFITSNo}
@@ -102,7 +102,7 @@ export default function AddNewMemberModal({
         <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
           <span>Location</span><div className="flex-1 h-px bg-border" />
         </div>
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div>
             <label className="form-label">Sector</label>
             <ComboBox

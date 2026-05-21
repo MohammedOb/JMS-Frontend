@@ -49,7 +49,7 @@ export default function ExpensesPage() {
       <div className="card mb-4">
         <div className="card-header">New Expense Entry</div>
         <div className="card-body">
-          <div className="grid grid-cols-4 gap-3 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
             <div><label className="form-label">Date</label><input type="date" className="form-input" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} /></div>
             <div><label className="form-label">Main Category</label>
               <select className="form-select" value={form.mainCat} onChange={e => setForm(p => ({ ...p, mainCat: e.target.value, subCat: '' }))}>

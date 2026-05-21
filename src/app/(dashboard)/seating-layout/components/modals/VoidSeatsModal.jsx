@@ -72,7 +72,7 @@ export default function VoidSeatsModal({ open, section, onClose, onSaved }) {
         {/* Add group form */}
         <div className="border border-border rounded-lg p-3 bg-surface space-y-3">
           <p className="text-xs font-semibold text-navy-700">Add Void Area</p>
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
               ['Row From', 'RowFrom', rowOptions],
               ['Row To',   'RowTo',   rowOptions],

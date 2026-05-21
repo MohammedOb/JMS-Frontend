@@ -324,7 +324,7 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
         .safai-scroll:hover::-webkit-scrollbar-thumb{background:#334155}
       `}</style>
 
-      <div className="flex justify-between items-center mb-3">
+      <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
         <div className="flex items-center gap-2">
           <span className="text-[11px] text-gray-400">Raza requests for this member</span>
           {!loading && (

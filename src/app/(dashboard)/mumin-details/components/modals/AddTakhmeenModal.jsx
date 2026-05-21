@@ -165,7 +165,7 @@ export default function TakhmeenModal({
         </div>
 
         {/* Takhmeen + Received + Remaining */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="form-label">Takhmeen (₹) *</label>
             <input ref={takhmeenRef} type="number" className="form-input" placeholder="0" value={row.takhmeen || 0}
