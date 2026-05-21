@@ -1,118 +1,76 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { userService }    from '@/services';
-import toast              from 'react-hot-toast';
-import PageHeader         from '@/components/shared/PageHeader';
-import Modal              from '@/components/shared/Modal';
-import { StatusBadge }    from '@/components/shared/Badge';
-import { SaveIcon } from '@/components/shared/Icons';
-
-const ALL_PERMISSIONS = {
-  'Menu Access': [
-    ['MPBasicMenu',        'Basic Menu (Add Receipt, Daily Report, Search)'],
-    ['MPMuminDetails',     'Mumin Details'],
-    ['MPDueDetails',       'Due Details'],
-    ['MPMuminTakhmeen',    'Mumin Takhmeen'],
-    ['MPSabeelStatistics', 'Sabeel Statistics'],
-    ['MPFMBStatistics',    'FMB Statistics'],
-    ['MPExpense',          'Expenses & Expense Report'],
-    ['MPDistributor',      'Distribution List'],
-    ['MPMohallah',         'Mohallah Details'],
-    ['MPBooking',          'Bookings / Calendar'],
-    ['MPOhbatMajlis',      'Majlis List'],
-    ['MPSafaiChitthi',     'Safai Chitthi'],
-    ['MPFollowupList',     'Follow Up List'],
-    ['MPFMBDailyMenu',     'FMB Daily Menu'],
-    ['MPManagUser',        'Manage Users'],
-    ['MPUtility',          'Utility'],
-  ],
-  'Receipt Actions': [
-    ['UREdit',   'Edit Receipt (UREdit)'],
-    ['URDelete', 'Delete Receipt (URDelete)'],
-    ['URCancel', 'Cancel Receipt (URCancel)'],
-  ],
-  'Mumin Details Actions': [
-    ['MDEditTakhmeen',        'Edit Takhmeen'],
-    ['MDDeleteTakhmeen',      'Delete Takhmeen'],
-    ['MDEditReceipt',         'Edit Receipt (MDEditReceipt)'],
-    ['MDNewInsert',           'New Insert (MDNewInsert)'],
-    ['MDVajUnlock',           'Vajebaat Unlock'],
-    ['MDHIMView',             'View HIM'],
-    ['MDSpeedVajebaatView',   'Speed Vajebaat View'],
-    ['MDVajebaatDetailsView', 'Vajebaat Details View'],
-    ['MDVajebaatTabView',     'Vajebaat Tab View'],
-    ['MDHideAllButtons',      'Hide All Buttons'],
-  ],
-  'Daily Report': [
-    ['DREdit',       'Edit in Daily Report'],
-    ['DRViewSabeel', 'View Sabeel'],
-    ['DRViewFMB',    'View FMB'],
-    ['DRViewOther',  'View Other'],
-  ],
-  'Due Report': [
-    ['GDViewSabeel',   'View Sabeel'],
-    ['GDViewFMB',      'View FMB'],
-    ['GDViewVajebaat', 'View Vajebaat'],
-    ['GDViewOther',    'View Other'],
-  ],
-  'Bookings': [
-    ['BookingAdd',    'Add Booking'],
-    ['BookingEdit',   'Edit Booking'],
-    ['BookingDelete', 'Delete Booking'],
-  ],
-};
+import { rbacService } from '@/services';
+import toast           from 'react-hot-toast';
+import PageHeader      from '@/components/shared/PageHeader';
+import Modal           from '@/components/shared/Modal';
+import { StatusBadge } from '@/components/shared/Badge';
+import { SaveIcon }    from '@/components/shared/Icons';
 
 export default function ManageUsersPage() {
-  const [users,   setUsers]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [permUser,setPermUser]= useState(null);  // user being edited for permissions
-  const [perms,   setPerms]   = useState({});
-  const [newModal,setNewModal]= useState(false);
-  const [newForm, setNewForm] = useState({ username: '', password: '', role: 'Accounts' });
+  const [users,       setUsers]       = useState([]);
+  const [roles,       setRoles]       = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [editUser,    setEditUser]    = useState(null);
+  const [selectedRoleId, setSelectedRoleId] = useState('');
+  const [newModal,    setNewModal]    = useState(false);
+  const [newForm,     setNewForm]     = useState({ username: '', password: '', full_name: '', role_id: '' });
+  const [resetUser,   setResetUser]   = useState(null);
+  const [newPassword, setNewPassword] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const res = await userService.getAll(); setUsers(res.data); }
-    catch { toast.error('Failed to load'); }
+    try {
+      const [usersRes, rolesRes] = await Promise.all([
+        rbacService.getUsers(),
+        rbacService.getRoles(),
+      ]);
+      setUsers(usersRes.data.data  || []);
+      setRoles(rolesRes.data.data  || []);
+    } catch { toast.error('Failed to load'); }
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
-  const openPermissions = (u) => {
-    setPermUser(u);
-    const p = {};
-    Object.values(ALL_PERMISSIONS).flat().forEach(([key]) => { p[key] = !!u.permissions?.[key]; });
-    setPerms(p);
+  const openRoleAssign = (u) => {
+    setEditUser(u);
+    setSelectedRoleId(u.role?.id ?? '');
   };
 
-  const savePermissions = async () => {
+  const saveRole = async () => {
     try {
-      await userService.updatePermissions(permUser.id, perms);
-      toast.success('Permissions updated');
-      setPermUser(null);
+      await rbacService.assignRole(editUser.id, { role_id: selectedRoleId || null });
+      toast.success('Role updated');
+      setEditUser(null);
       load();
-    } catch { toast.error('Failed to update'); }
+    } catch { toast.error('Failed to update role'); }
   };
 
-  const resetPassword = async (id) => {
-    if (!confirm('Reset password for this user?')) return;
-    try { await userService.resetPassword(id); toast.success('Password reset'); }
-    catch { toast.error('Failed'); }
+  const doResetPassword = async () => {
+    if (!newPassword || newPassword.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+    try {
+      await rbacService.resetPassword(resetUser.id, { new_password: newPassword });
+      toast.success('Password reset');
+      setResetUser(null);
+      setNewPassword('');
+    } catch { toast.error('Failed to reset password'); }
   };
 
   const createUser = async () => {
-    if (!newForm.username || !newForm.password) { toast.error('Fill all fields'); return; }
+    if (!newForm.username || !newForm.password) { toast.error('Username and password are required'); return; }
     try {
-      await userService.create(newForm);
+      await rbacService.createUser({ ...newForm, role_id: newForm.role_id || null });
       toast.success('User created');
       setNewModal(false);
+      setNewForm({ username: '', password: '', full_name: '', role_id: '' });
       load();
-    } catch { toast.error('Failed to create user'); }
+    } catch (e) { toast.error(e?.response?.data?.message || 'Failed to create user'); }
   };
 
-  const ROLE_BADGE = { 'Super Admin': 'blue', 'Accounts': 'blue', 'Reports Only': 'amber', 'Read Only': 'red' };
+  const ROLE_BADGE = { super_admin: 'blue', accounts: 'blue', reports_only: 'amber', read_only: 'red' };
+  const activeRoles = roles.filter(r => r.is_active);
 
   return (
     <div>
@@ -120,28 +78,36 @@ export default function ManageUsersPage() {
         <button className="btn btn-primary btn-sm" onClick={() => setNewModal(true)}>+ Add New User</button>
       </PageHeader>
 
-      {/* Users table */}
       <div className="card mb-4">
         <div className="card-header">System Users</div>
         <div className="overflow-auto">
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
-              <tr>{['Username','Role','Last Login','Status','Action'].map(h => <th key={h} className="th-navy">{h}</th>)}</tr>
+              <tr>{['Username', 'Full Name', 'Role', 'Last Login', 'Status', 'Actions'].map(h => (
+                <th key={h} className="th-navy">{h}</th>
+              ))}</tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="text-center py-10 text-gray-400">Loading…</td></tr>
+                <tr><td colSpan={6} className="text-center py-10 text-gray-400">Loading…</td></tr>
               ) : users.map((u, i) => (
                 <tr key={i} className="hover:bg-blue-500/[0.025]">
                   <td className="px-3 py-2.5 border-t border-border font-semibold">{u.username}</td>
+                  <td className="px-3 py-2.5 border-t border-border">{u.full_name || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border">
-                    <span className={`badge badge-${ROLE_BADGE[u.role] || 'gray'}`}>{u.role}</span>
+                    {u.role
+                      ? <span className={`badge badge-${ROLE_BADGE[u.role.code] || 'gray'}`}>{u.role.name}</span>
+                      : <span className="text-gray-400 text-[11px]">No role</span>}
                   </td>
-                  <td className="px-3 py-2.5 border-t border-border">{u.lastLogin || '—'}</td>
-                  <td className="px-3 py-2.5 border-t border-border"><StatusBadge status={u.status || 'Active'} /></td>
+                  <td className="px-3 py-2.5 border-t border-border">
+                    {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : '—'}
+                  </td>
+                  <td className="px-3 py-2.5 border-t border-border">
+                    <StatusBadge status={u.is_active ? 'Active' : 'Inactive'} />
+                  </td>
                   <td className="px-3 py-2.5 border-t border-border whitespace-nowrap">
-                    <button className="btn btn-primary btn-sm mr-1" onClick={() => openPermissions(u)}>Permissions</button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => resetPassword(u.id)}>Reset Pass</button>
+                    <button className="btn btn-primary btn-sm mr-1" onClick={() => openRoleAssign(u)}>Assign Role</button>
+                    <button className="btn btn-secondary btn-sm" onClick={() => { setResetUser(u); setNewPassword(''); }}>Reset Pass</button>
                   </td>
                 </tr>
               ))}
@@ -150,49 +116,107 @@ export default function ManageUsersPage() {
         </div>
       </div>
 
-      {/* Permission editor */}
-      {permUser && (
+      {/* Role assignment panel */}
+      {editUser && (
         <div className="card">
           <div className="card-header">
-            Edit Permissions — <strong>{permUser.username}</strong>
+            Assign Role — <strong>{editUser.username}</strong>
             <div className="flex gap-2">
-              <button className="btn btn-secondary btn-sm" onClick={() => setPermUser(null)}>Cancel</button>
-              <button className="btn btn-primary btn-sm" onClick={savePermissions}>Save Permissions</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setEditUser(null)}>Cancel</button>
+              <button className="btn btn-primary btn-sm" onClick={saveRole}>
+                <SaveIcon className="w-3.5 h-3.5 mr-1.5" />Save Role
+              </button>
             </div>
           </div>
           <div className="card-body">
-            {Object.entries(ALL_PERMISSIONS).map(([section, items]) => (
-              <div key={section} className="mb-5">
-                <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">{section}</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {items.map(([key, label]) => (
-                    <label key={key} className="flex items-center gap-2 text-[12px] text-gray-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="accent-blue-500 w-3.5 h-3.5"
-                        checked={!!perms[key]}
-                        onChange={e => setPerms(p => ({ ...p, [key]: e.target.checked }))}
-                      />
-                      {label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            ))}
+            <div className="mb-4">
+              <label className="form-label">Role</label>
+              <select
+                className="form-select w-64"
+                value={selectedRoleId}
+                onChange={e => setSelectedRoleId(e.target.value)}
+              >
+                <option value="">— No Role —</option>
+                {activeRoles.map(r => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+            {selectedRoleId && (() => {
+              const role = roles.find(r => String(r.id) === String(selectedRoleId));
+              return role ? (
+                <p className="text-[11px] text-gray-400">
+                  This role grants <strong>{role.permission_count}</strong> permission(s).
+                  Manage permissions per role via the Roles settings.
+                </p>
+              ) : null;
+            })()}
           </div>
         </div>
       )}
 
+      {/* Reset password modal */}
+      <Modal
+        open={!!resetUser}
+        onClose={() => setResetUser(null)}
+        title={`Reset Password — ${resetUser?.username}`}
+        size="sm"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setResetUser(null)}>Cancel</button>
+            <button className="btn btn-primary" onClick={doResetPassword}>
+              <SaveIcon className="w-3.5 h-3.5 mr-1.5" />Reset
+            </button>
+          </>
+        }
+      >
+        <div>
+          <label className="form-label">New Password</label>
+          <input
+            type="password"
+            className="form-input"
+            placeholder="Min. 6 characters"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+          />
+        </div>
+      </Modal>
+
       {/* New user modal */}
-      <Modal open={newModal} onClose={() => setNewModal(false)} title="Add New User" size="sm"
-        footer={<><button className="btn btn-secondary" onClick={() => setNewModal(false)}>Cancel</button><button className="btn btn-primary" onClick={createUser}><SaveIcon className="w-3.5 h-3.5 mr-1.5" />Create User</button></>}
+      <Modal
+        open={newModal}
+        onClose={() => setNewModal(false)}
+        title="Add New User"
+        size="sm"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setNewModal(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={createUser}>
+              <SaveIcon className="w-3.5 h-3.5 mr-1.5" />Create User
+            </button>
+          </>
+        }
       >
         <div className="space-y-3">
-          <div><label className="form-label">Username</label><input className="form-input" value={newForm.username} onChange={e => setNewForm(p => ({ ...p, username: e.target.value }))} /></div>
-          <div><label className="form-label">Password</label><input type="password" className="form-input" value={newForm.password} onChange={e => setNewForm(p => ({ ...p, password: e.target.value }))} /></div>
-          <div><label className="form-label">Role</label>
-            <select className="form-select" value={newForm.role} onChange={e => setNewForm(p => ({ ...p, role: e.target.value }))}>
-              {['Super Admin','Accounts','Reports Only','Read Only'].map(r => <option key={r}>{r}</option>)}
+          <div>
+            <label className="form-label">Username *</label>
+            <input className="form-input" value={newForm.username} onChange={e => setNewForm(p => ({ ...p, username: e.target.value }))} />
+          </div>
+          <div>
+            <label className="form-label">Full Name</label>
+            <input className="form-input" value={newForm.full_name} onChange={e => setNewForm(p => ({ ...p, full_name: e.target.value }))} />
+          </div>
+          <div>
+            <label className="form-label">Password *</label>
+            <input type="password" className="form-input" value={newForm.password} onChange={e => setNewForm(p => ({ ...p, password: e.target.value }))} />
+          </div>
+          <div>
+            <label className="form-label">Role</label>
+            <select className="form-select" value={newForm.role_id} onChange={e => setNewForm(p => ({ ...p, role_id: e.target.value }))}>
+              <option value="">— No Role —</option>
+              {activeRoles.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
             </select>
           </div>
         </div>
