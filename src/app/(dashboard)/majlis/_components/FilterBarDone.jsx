@@ -2,25 +2,28 @@
 import { Label, inp, AutocompleteInput } from './ui';
 import { SearchIcon, RefreshIcon } from '@/components/shared/Icons';
 
-export default function FilterBar({
+export default function FilterBarDone({
   apiFilters, onApiChange,
   localFilters, onLocalChange,
   sectorOpts, mohallaOpts, razaOpts, statusOpts,
+  slotTypeOpts, majlisTimeOpts, majlisTypeOpts, sadarOpts,
   onSearch, loading,
 }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4 p-3">
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4 p-3 space-y-2">
+
+      {/* Row 1 */}
       <div className="flex flex-wrap items-end gap-2">
 
-        {/* Registration date range */}
+        {/* Majlis date range */}
         <div className="flex items-end gap-1.5">
           <div>
-            <Label>Reg From</Label>
+            <Label>Majlis From</Label>
             <input
               type="date"
               className={`${inp} w-[140px]`}
-              value={apiFilters.RegistrationDateFrom || ''}
-              onChange={e => onApiChange('RegistrationDateFrom', e.target.value)}
+              value={apiFilters.MajlisDateFrom || ''}
+              onChange={e => onApiChange('MajlisDateFrom', e.target.value)}
             />
           </div>
           <span className="pb-2 text-gray-400 text-[13px]">—</span>
@@ -29,14 +32,14 @@ export default function FilterBar({
             <input
               type="date"
               className={`${inp} w-[140px]`}
-              value={apiFilters.RegistrationDateTo || ''}
-              onChange={e => onApiChange('RegistrationDateTo', e.target.value)}
+              value={apiFilters.MajlisDateTo || ''}
+              onChange={e => onApiChange('MajlisDateTo', e.target.value)}
             />
           </div>
         </div>
 
-        {/* Text search — client-side, instant */}
-        <div className="flex-1 min-w-[160px]">
+        {/* Text search — wider */}
+        <div className="flex-[2] min-w-[220px]">
           <Label>Search</Label>
           <input
             type="text"
@@ -60,8 +63,8 @@ export default function FilterBar({
           </select>
         </div>
 
-        {/* Subsector / Mohalla — cascaded by Sector, shows "B1 – Burhani Masjid Mohallah" */}
-        <div className="flex-1 min-w-[200px]">
+        {/* Subsector / Mohalla */}
+        <div className="flex-1 min-w-[190px]">
           <Label>Subsector / Mohalla</Label>
           <select
             className={inp}
@@ -76,7 +79,7 @@ export default function FilterBar({
         </div>
 
         {/* Majlis Raza */}
-        <div className="flex-1 min-w-[130px]">
+        <div className="flex-1 min-w-[120px]">
           <Label>Majlis Raza</Label>
           <AutocompleteInput
             name="MajlisRaza"
@@ -88,8 +91,8 @@ export default function FilterBar({
           />
         </div>
 
-        {/* Status — server-side, applied on Search click */}
-        <div className="min-w-[120px]">
+        {/* Status */}
+        <div className="min-w-[110px]">
           <Label>Status</Label>
           <select
             className={inp}
@@ -101,18 +104,74 @@ export default function FilterBar({
           </select>
         </div>
 
-        {/* Search / loading button */}
+        {/* Search button — same style as Mumin Details search bar */}
         <div className="flex items-end pb-0.5">
           <button
-            className="btn btn-primary h-10 w-10 flex items-center justify-center rounded-lg"
+            className="btn btn-primary p-2"
             onClick={onSearch}
             disabled={loading}
             title={loading ? 'Loading…' : 'Search'}
           >
             {loading
-              ? <RefreshIcon className="w-5 h-5 animate-spin" />
-              : <SearchIcon className="w-5 h-5" />}
+              ? <RefreshIcon className="w-4 h-4 animate-spin" />
+              : <SearchIcon className="w-4 h-4" />}
           </button>
+        </div>
+      </div>
+
+      {/* Row 2 — extra filters */}
+      <div className="flex flex-wrap items-end gap-2 pt-1 border-t border-gray-100">
+
+        {/* Slot Type — narrow */}
+        <div className="w-[120px]">
+          <Label>Slot Type</Label>
+          <AutocompleteInput
+            name="SlotType"
+            value={localFilters.SlotType || ''}
+            onChange={e => onLocalChange('SlotType', e.target.value)}
+            options={slotTypeOpts}
+            placeholder="All"
+            className={inp}
+          />
+        </div>
+
+        {/* Majlis Time — narrow */}
+        <div className="w-[120px]">
+          <Label>Majlis Time</Label>
+          <AutocompleteInput
+            name="MajlisTime"
+            value={localFilters.MajlisTime || ''}
+            onChange={e => onLocalChange('MajlisTime', e.target.value)}
+            options={majlisTimeOpts}
+            placeholder="All"
+            className={inp}
+          />
+        </div>
+
+        {/* Majlis Type — narrow */}
+        <div className="w-[130px]">
+          <Label>Majlis Type</Label>
+          <AutocompleteInput
+            name="MajlisType"
+            value={localFilters.MajlisType || ''}
+            onChange={e => onLocalChange('MajlisType', e.target.value)}
+            options={majlisTypeOpts}
+            placeholder="All"
+            className={inp}
+          />
+        </div>
+
+        {/* Sadar — wider */}
+        <div className="flex-[2] min-w-[220px]">
+          <Label>Sadar</Label>
+          <AutocompleteInput
+            name="Sadar"
+            value={localFilters.Sadar || ''}
+            onChange={e => onLocalChange('Sadar', e.target.value)}
+            options={sadarOpts}
+            placeholder="All sadars"
+            className={inp}
+          />
         </div>
 
       </div>

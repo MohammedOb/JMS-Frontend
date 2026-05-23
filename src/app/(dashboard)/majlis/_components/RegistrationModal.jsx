@@ -1,27 +1,31 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { majlisService, memberService } from '@/services';
+import { majlisService, memberService, lookupService } from '@/services';
 import toast from 'react-hot-toast';
 import { SearchIcon, SaveIcon, RefreshIcon, XIcon } from '@/components/shared/Icons';
 import { Label, RO, AutocompleteInput, inp, sel } from './ui';
-import { YEARS, SLOTS, TYPES, STATUSES, RAZA, EVENTS, TIMES, CLEARANCE_STATUSES, blank } from './constants';
+import { blank } from './constants';
 
-export const cleanDate = (d) => (d ? String(d).split('T')[0] : '');
-
-export const fmtDate = (d) => {
-  const s = cleanDate(d);
-  if (!s) return '—';
-  const parts = s.split('-');
-  if (parts.length !== 3) return d || '—';
-  const [y, m, day] = parts;
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const mi = parseInt(m) - 1;
-  if (mi < 0 || mi > 11) return d || '—';
-  return `${parseInt(day)}-${months[mi]}-${y}`;
+export const cleanDate = (d) => {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '';
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 };
 
-const YEAR_OPTS = YEARS.map(String);
+export const fmtDate = (d) => {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return String(d);
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${dt.getDate()}-${months[dt.getMonth()]}-${dt.getFullYear()}`;
+};
+
+const nn = o => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, v ?? '']));
 
 export default function RegistrationModal({ initialData, onClose, onSaved }) {
   const { user } = useAuth();
@@ -29,7 +33,7 @@ export default function RegistrationModal({ initialData, onClose, onSaved }) {
 
   const [form, setForm]       = useState(
     initialData
-      ? { ...blank(), ...initialData, MajlisDate: cleanDate(initialData.MajlisDate), RegistrationDate: cleanDate(initialData.RegistrationDate) }
+      ? { ...blank(), ...nn(initialData), MajlisDate: cleanDate(initialData.MajlisDate), RegistrationDate: cleanDate(initialData.RegistrationDate) }
       : blank()
   );
   const [accSearch, setAccSearch]     = useState(initialData?.AccNo ? String(initialData.AccNo) : '');
@@ -44,7 +48,7 @@ export default function RegistrationModal({ initialData, onClose, onSaved }) {
 
   // Load field suggestions from DB once on modal open
   useEffect(() => {
-    majlisService.loadSuggestions()
+    lookupService.getMajlisData()
       .then(res => setSuggestions(res?.data?.data || {}))
       .catch(() => {});
   }, []);
@@ -95,16 +99,12 @@ export default function RegistrationModal({ initialData, onClose, onSaved }) {
         });
         toast.success('Registration updated');
       } else {
-        const regRes = await majlisService.getNextRegNo({ ForYear: form.ForYear });
-        const regNo  = regRes?.data?.data || '';
-        const today  = new Date().toISOString().split('T')[0];
-        await majlisService.add({
+        const res   = await majlisService.add({
           ...form,
-          MajlisDate:       cleanDate(form.MajlisDate),
-          RegistrationNo:   regNo,
-          RegistrationDate: today,
-          CreatedBy:        user?.username,
+          MajlisDate: cleanDate(form.MajlisDate),
+          CreatedBy:  user?.username,
         });
+        const regNo = res?.data?.RegistrationNo || '';
         toast.success(`Saved · Reg No: ${regNo}`);
       }
       onSaved?.();
@@ -319,7 +319,7 @@ export default function RegistrationModal({ initialData, onClose, onSaved }) {
                         name="ForYear"
                         value={String(form.ForYear)}
                         onChange={acn}
-                        options={YEAR_OPTS}
+                        options={S.ForYear || []}
                         placeholder="e.g. 1447"
                         className={inp}
                       />
@@ -327,7 +327,7 @@ export default function RegistrationModal({ initialData, onClose, onSaved }) {
                     <div>
                       <Label>Majlis Type</Label>
                       <select name="MajlisType" className={sel} value={form.MajlisType} onChange={sfn}>
-                        {TYPES.map(t => <option key={t}>{t}</option>)}
+                        {(S.MajlisType || []).map(t => <option key={t}>{t}</option>)}
                       </select>
                     </div>
                     {/* Event Type — autocomplete with DB suggestions */}
@@ -337,7 +337,7 @@ export default function RegistrationModal({ initialData, onClose, onSaved }) {
                         name="EventType"
                         value={form.EventType}
                         onChange={acn}
-                        options={[...new Set([...EVENTS, ...(S.EventType || [])])]}
+                        options={S.EventType || []}
                         placeholder="e.g. Ohbat Majlis"
                         className={inp}
                       />
@@ -352,7 +352,7 @@ export default function RegistrationModal({ initialData, onClose, onSaved }) {
                         name="SlotType"
                         value={form.SlotType}
                         onChange={acn}
-                        options={SLOTS}
+                        options={S.SlotType || []}
                         placeholder="Night / Day"
                         className={inp}
                       />
@@ -363,7 +363,7 @@ export default function RegistrationModal({ initialData, onClose, onSaved }) {
                         name="MajlisTime"
                         value={form.MajlisTime}
                         onChange={acn}
-                        options={TIMES}
+                        options={S.MajlisTime || []}
                         placeholder="e.g. 8:00 PM"
                         className={inp}
                       />
@@ -374,7 +374,7 @@ export default function RegistrationModal({ initialData, onClose, onSaved }) {
                         name="MajlisRaza"
                         value={form.MajlisRaza}
                         onChange={acn}
-                        options={RAZA}
+                        options={S.MajlisRaza || []}
                         placeholder="Raza status"
                         className={inp}
                       />
@@ -447,13 +447,14 @@ export default function RegistrationModal({ initialData, onClose, onSaved }) {
                   <div>
                     <Label>Clearance Status</Label>
                     <select name="ClearanceStatus" className={sel} value={form.ClearanceStatus} onChange={sfn}>
-                      {CLEARANCE_STATUSES.map(s => <option key={s} value={s}>{s || '— Select —'}</option>)}
+                      <option value="">— Select —</option>
+                      {(S.ClearanceStatus || []).map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
                   <div>
                     <Label>Majlis Status</Label>
                     <select name="MajlisStatus" className={sel} value={form.MajlisStatus} onChange={sfn}>
-                      {STATUSES.map(s => <option key={s}>{s}</option>)}
+                      {(S.MajlisStatus || []).map(s => <option key={s}>{s}</option>)}
                     </select>
                   </div>
                   <div>

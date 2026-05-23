@@ -3,10 +3,16 @@
   "version": "1.0.0",
   "description": "Jamaat Management System — Next.js Optimus is a comprehensive web application designed to streamline the management of Jamaat activities. Built with Next.js, it offers a user-friendly interface for administrators to efficiently handle various aspects of Jamaat operations, including member management, event scheduling, and communication. With its robust features and intuitive design, Next.js Optimus aims to enhance the overall experience for both administrators and members of the Jamaat community.",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0 <25"
+  },
   "scripts": {
+    "predev": "node scripts/check-node-version.js && npm run clean:next",
     "dev": "next dev --webpack",
     "dev:turbo": "next dev --turbo",
-    "clean:next": "node -e \"require('fs').rmSync('.next', { recursive: true, force: true })\"",
+    "prebuild": "node scripts/check-node-version.js && npm run clean:next",
+    "prestart": "node scripts/check-node-version.js",
+    "clean:next": "node -e \"const fs=require('fs'); ['.next','build'].forEach((dir)=>fs.rmSync(dir,{recursive:true,force:true}))\"",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src/"

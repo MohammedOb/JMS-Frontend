@@ -18,6 +18,9 @@ const allowedDevOrigins = Array.from(
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   allowedDevOrigins,
+  // Keep Next.js build artifacts out of the default `.next` directory to
+  // reduce Windows file-lock collisions during manifest rewrites in dev mode.
+  distDir: 'build',
 };
 
 module.exports = nextConfig;

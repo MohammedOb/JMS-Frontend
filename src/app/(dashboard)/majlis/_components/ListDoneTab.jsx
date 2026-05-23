@@ -5,7 +5,7 @@ import { majlisService, lookupService } from '@/services';
 import toast from 'react-hot-toast';
 import { RefreshIcon, EditIcon, TrashIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon } from '@/components/shared/Icons';
 import { StatusPill, td, th } from './ui';
-import FilterBar from './FilterBar';
+import FilterBarDone from './FilterBarDone';
 import RegistrationModal, { cleanDate, fmtDate } from './RegistrationModal';
 
 // Per-member columns used in grouped export (Sadar/Zakereen/Tazeen/BGI go in group header)
@@ -19,6 +19,7 @@ const EXPORT_COLS = [
   { label: 'Majlis Date', key: 'MajlisDate'         },
   { label: 'Majlis Time', key: 'MajlisTime'         },
   { label: 'Slot Type',   key: 'SlotType'           },
+  { label: 'Majlis Type', key: 'MajlisType'         },
   { label: 'Care Taker',  key: 'CareTaker'          },
   { label: 'Clearance',   key: 'ClearanceStatus'    },
   { label: 'Status',      key: 'MajlisStatus'       },
@@ -29,7 +30,7 @@ const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-export default function ListTab() {
+export default function ListDoneTab() {
   const [allRows, setAllRows]             = useState([]);
   const [loading, setLoading]             = useState(false);
   const [editRow, setEditRow]             = useState(null);
@@ -41,19 +42,23 @@ export default function ListTab() {
     lookupService.getMohallaData().then(res => setMohallaLookup(res?.data?.data || { sectors: [], mohallas: [] })).catch(() => {});
   }, []);
 
-  // Server-side filters — sent to API on Search click
+  // Server-side filters — Majlis Date range + Status
   const [apiFilters, setApiFilters] = useState({
-    RegistrationDateFrom: today(),
-    RegistrationDateTo:   today(),
-    MajlisStatus:         '',
+    MajlisDateFrom: today(),
+    MajlisDateTo:   today(),
+    MajlisStatus:   'Done',
   });
 
-  // Client-side filters — applied to allRows instantly, no API call
+  // Client-side filters
   const [localFilters, setLocalFilters] = useState({
-    text:      '',
-    Sector:    '',
-    Subsector: '',
-    MajlisRaza: '',
+    text:        '',
+    Sector:      '',
+    Subsector:   '',
+    MajlisRaza:  '',
+    SlotType:    '',
+    MajlisTime:  '',
+    MajlisType:  '',
+    Sadar:       '',
   });
 
   // Export dropdown
@@ -80,12 +85,10 @@ export default function ListTab() {
       const res = await majlisService.load(active);
       const list = res?.data?.data ?? res?.data;
       setAllRows(Array.isArray(list) ? list : []);
-      // do NOT reset localFilters — user keeps their filter selections
     } catch { toast.error('Failed to load records'); }
     finally { setLoading(false); }
   }, []);
 
-  // Cascading reset when a parent filter changes
   const handleLocalChange = (k, v) => {
     setLocalFilters(p => {
       const next = { ...p, [k]: v };
@@ -95,12 +98,15 @@ export default function ListTab() {
     });
   };
 
-  // Client-side filtered rows
   const filteredRows = useMemo(() => {
     let r = allRows;
-    if (localFilters.Sector)    r = r.filter(x => x.Sector === localFilters.Sector);
-    if (localFilters.Subsector) r = r.filter(x => x.Subsector === localFilters.Subsector);
+    if (localFilters.Sector)     r = r.filter(x => x.Sector === localFilters.Sector);
+    if (localFilters.Subsector)  r = r.filter(x => x.Subsector === localFilters.Subsector);
     if (localFilters.MajlisRaza) r = r.filter(x => x.MajlisRaza === localFilters.MajlisRaza);
+    if (localFilters.SlotType)   r = r.filter(x => x.SlotType === localFilters.SlotType);
+    if (localFilters.MajlisTime) r = r.filter(x => x.MajlisTime === localFilters.MajlisTime);
+    if (localFilters.MajlisType) r = r.filter(x => x.MajlisType === localFilters.MajlisType);
+    if (localFilters.Sadar)      r = r.filter(x => x.Sadar === localFilters.Sadar);
     if (localFilters.text) {
       const q = localFilters.text.toLowerCase();
       r = r.filter(x =>
@@ -113,31 +119,24 @@ export default function ListTab() {
     return r;
   }, [allRows, localFilters]);
 
-  // Sector options — from mohalladetails; fallback to majlis DISTINCT
+  // Sector/Mohalla options from mohalladetails
   const sectorOpts = useMemo(() =>
-    mohallaLookup.sectors.length > 0
-      ? mohallaLookup.sectors
-      : (opts.Sector || [])
+    mohallaLookup.sectors.length > 0 ? mohallaLookup.sectors : (opts.Sector || [])
   , [mohallaLookup.sectors, opts.Sector]);
 
-  // Mohalla options — each entry is {value: Subsector, label: "Subsector – MohallaDescription"}
-  // Cascaded by selected Sector; Subsector is unique so no dedup needed
   const mohallaOpts = useMemo(() => {
     if (mohallaLookup.mohallas.length > 0) {
       const base = localFilters.Sector
         ? mohallaLookup.mohallas.filter(m => m.Sector === localFilters.Sector)
         : mohallaLookup.mohallas;
-      return base
-        .filter(m => m.Subsector)
-        .map(m => ({
-          value: m.Subsector,
-          label: `${m.Subsector} – ${m.MohallaDescription}`,
-        }));
+      return base.filter(m => m.Subsector).map(m => ({
+        value: m.Subsector,
+        label: `${m.Subsector} – ${m.MohallaDescription}`,
+      }));
     }
     return (opts.MohallaDescription || []).map(v => ({ value: v, label: v }));
   }, [mohallaLookup.mohallas, localFilters.Sector, opts.MohallaDescription]);
 
-  // Raza options — from loaded rows, cascaded by Sector + Subsector
   const razaOpts = useMemo(() => {
     if (allRows.length > 0) {
       let base = allRows;
@@ -148,9 +147,13 @@ export default function ListTab() {
     return opts.MajlisRaza || [];
   }, [allRows, localFilters.Sector, localFilters.Subsector, opts.MajlisRaza]);
 
-  const statusOpts = useMemo(() => opts.MajlisStatus || ['Pending', 'Done', 'Not Done'], [opts.MajlisStatus]);
+  // Extra opts from majlisdetails DISTINCT (via getMajlisData)
+  const statusOpts   = useMemo(() => opts.MajlisStatus || ['Pending', 'Done', 'Not Done'], [opts.MajlisStatus]);
+  const slotTypeOpts = useMemo(() => opts.SlotType   || [], [opts.SlotType]);
+  const majlisTimeOpts = useMemo(() => opts.MajlisTime || [], [opts.MajlisTime]);
+  const majlisTypeOpts = useMemo(() => opts.MajlisType || [], [opts.MajlisType]);
+  const sadarOpts    = useMemo(() => opts.Sadar      || [], [opts.Sadar]);
 
-  // Groups from client-filtered rows
   const groups = useMemo(() => {
     const map = new Map();
     for (const r of filteredRows) {
@@ -223,7 +226,7 @@ export default function ListTab() {
       lines.push('');
     }
     const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'majlis-list.csv' });
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: 'majlis-done.csv' });
     a.click(); URL.revokeObjectURL(a.href);
     setShowExport(false);
   };
@@ -239,8 +242,8 @@ export default function ListTab() {
     }
     const ws = utils.aoa_to_sheet(aoa);
     const wb = utils.book_new();
-    utils.book_append_sheet(wb, ws, 'Majlis List');
-    writeFile(wb, 'majlis-list.xlsx');
+    utils.book_append_sheet(wb, ws, 'Majlis Done');
+    writeFile(wb, 'majlis-done.xlsx');
     setShowExport(false);
   };
 
@@ -249,7 +252,7 @@ export default function ListTab() {
     const { default: autoTable } = await import('jspdf-autotable');
     const doc = new jsPDF({ orientation: 'landscape' });
     doc.setFontSize(13);
-    doc.text('Majlis List — Pending', 14, 15);
+    doc.text('Majlis List — Done', 14, 15);
     doc.setFontSize(9);
     doc.text(`${filteredRows.length} records · ${groups.length} groups · ${new Date().toLocaleDateString('en-GB')}`, 14, 21);
     let y = 26;
@@ -270,7 +273,7 @@ export default function ListTab() {
       });
       y = doc.lastAutoTable.finalY + 10;
     }
-    doc.save('majlis-list.pdf');
+    doc.save('majlis-done.pdf');
     setShowExport(false);
   };
 
@@ -286,7 +289,7 @@ export default function ListTab() {
         <table><thead><tr><th>#</th>${EXPORT_COLS.map(c => `<th>${c.label}</th>`).join('')}</tr></thead>
         <tbody>${rows}</tbody></table></div>`;
     }).join('');
-    const html = `<html><head><title>Majlis List</title><style>
+    const html = `<html><head><title>Majlis Done</title><style>
       body{font-family:sans-serif;font-size:10px;margin:16px}h2{margin:0 0 3px;font-size:14px}p{margin:0 0 12px;color:#666;font-size:9px}
       .group{margin-bottom:14px;border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;page-break-inside:avoid}
       .gh{background:#334155;color:#fff;padding:7px 12px;display:flex;justify-content:space-between;align-items:center}
@@ -295,7 +298,7 @@ export default function ListTab() {
       table{width:100%;border-collapse:collapse}th{background:#f1f5f9;padding:4px 6px;text-align:left;font-size:8.5px;border-bottom:1px solid #e2e8f0}
       td{padding:3px 6px;border-bottom:1px solid #f1f5f9;font-size:8.5px}tr:last-child td{border-bottom:none}tr:nth-child(even) td{background:#f8fafc}
     </style></head><body>
-      <h2>Majlis List — Pending</h2>
+      <h2>Majlis List — Done</h2>
       <p>${filteredRows.length} records · ${groups.length} sadar groups · ${new Date().toLocaleDateString('en-GB')}</p>
       ${groupsHtml}
     </body></html>`;
@@ -307,7 +310,7 @@ export default function ListTab() {
 
   return (
     <div>
-      <FilterBar
+      <FilterBarDone
         apiFilters={apiFilters}
         onApiChange={(k, v) => setApiFilters(p => ({ ...p, [k]: v }))}
         localFilters={localFilters}
@@ -316,6 +319,10 @@ export default function ListTab() {
         mohallaOpts={mohallaOpts}
         razaOpts={razaOpts}
         statusOpts={statusOpts}
+        slotTypeOpts={slotTypeOpts}
+        majlisTimeOpts={majlisTimeOpts}
+        majlisTypeOpts={majlisTypeOpts}
+        sadarOpts={sadarOpts}
         onSearch={() => load(apiFilters)}
         loading={loading}
       />

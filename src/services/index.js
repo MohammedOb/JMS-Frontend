@@ -179,12 +179,10 @@ export const bookingService = {
 
 // ── Majlis ───────────────────────────────────────────────────────────────────
 export const majlisService = {
-  load:         cache.cached((data) => api.post('/LoadMajlisRegistrations',  data), (d) => cache.makeKey('majlis', d), TTL.search),
-  add:          cache.mutates((data) => api.post('/AddMajlisRegistration',   data), 'majlis'),
-  update:       cache.mutates((data) => api.post('/UpdateMajlisRegistration', data), 'majlis'),
-  delete:       cache.mutates((data) => api.delete('/DeleteMajlisRegistration', { data }), 'majlis'),
-  getNextRegNo:     (data) => api.post('/GetNextMajlisRegNo', data),
-  loadSuggestions:  cache.cached(() => api.post('/LoadMajlisSuggestions', {}), () => 'majlis:suggestions', TTL.ref),
+  load:   cache.cached((data) => api.post('/LoadMajlisRegistrations',  data), (d) => cache.makeKey('majlis', d), TTL.search),
+  add:    cache.mutates((data) => api.post('/AddMajlisRegistration',   data), 'majlis'),
+  update: cache.mutates((data) => api.post('/UpdateMajlisRegistration', data), 'majlis'),
+  delete: cache.mutates((data) => api.delete('/DeleteMajlisRegistration', { data }), 'majlis'),
 };
 
 // ── Musaida ──────────────────────────────────────────────────────────────────
@@ -341,5 +339,7 @@ export const lookupService = {
   getSabeelTypes:  cache.cached(() => api.get('/lookup/sabeel-types'),    () => 'lookup:sabeel-types',  TTL.lookup),
   getThaliStatuses:cache.cached(() => api.get('/lookup/thali-statuses'),  () => 'lookup:thali-statuses',TTL.lookup),
   getThaliSizes:   cache.cached(() => api.get('/lookup/thali-sizes'),     () => 'lookup:thali-sizes',   TTL.lookup),
-  getStayingIn:    cache.cached(() => api.get('/lookup/staying-in'),      () => 'lookup:staying-in',    TTL.lookup),
+  getStayingIn:       cache.cached(() => api.get('/lookup/staying-in'),         () => 'lookup:staying-in',         TTL.lookup),
+  getMajlisData:        cache.cached(() => api.get('/lookup/majlis-data'),        () => 'lookup:majlis-data',        TTL.ref),
+  getMohallaData:       cache.cached(() => api.get('/lookup/mohalla-data'),       () => 'lookup:mohalla-data',       TTL.ref),
 };

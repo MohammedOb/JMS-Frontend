@@ -40,9 +40,10 @@ export default function RegistrationTab() {
     finally { setHistLoading(false); }
   };
 
-  const openNew  = () => setModal({ data: null });
+  const openNew  = () => setModal({ data: null, key: Date.now() });
   const openEdit = (r) => setModal({
     data: { ...blank(), ...r, MajlisDate: cleanDate(r.MajlisDate) },
+    key: Date.now(),
   });
   const closeModal = () => setModal(null);
   const onSaved    = () => { if (member) loadHistory(String(member.AccNo)); };
@@ -168,9 +169,10 @@ export default function RegistrationTab() {
         </>
       )}
 
-      {/* Registration Modal (New or Edit) */}
+      {/* Registration Modal (New or Edit) — key ensures fresh mount every open */}
       {modal !== null && (
         <RegistrationModal
+          key={modal.key}
           initialData={modal.data}
           onClose={closeModal}
           onSaved={onSaved}
