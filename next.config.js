@@ -18,9 +18,10 @@ const allowedDevOrigins = Array.from(
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   allowedDevOrigins,
-  // Keep Next.js build artifacts out of the default `.next` directory to
-  // reduce Windows file-lock collisions during manifest rewrites in dev mode.
-  distDir: 'build',
+  // Keep local Next.js artifacts out of `.next` to reduce Windows file-lock
+  // collisions during dev/build cleanup, but let Vercel use the default output
+  // directory because its deployment pipeline expects `.next`.
+  ...(process.env.VERCEL ? {} : { distDir: 'build' }),
 };
 
 module.exports = nextConfig;
