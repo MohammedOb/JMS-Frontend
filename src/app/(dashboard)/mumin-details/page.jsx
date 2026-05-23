@@ -68,6 +68,7 @@ import EditTakhmeenModal   from './components/modals/EditTakhmeenModal';
 import AddReceiptModal     from './components/modals/AddReceiptModal';
 import EditReceiptModal    from './components/modals/EditReceiptModal';
 import PrintReceiptModal   from './components/modals/PrintReceiptModal';
+import ReceiptPrintModal   from '@/components/shared/ReceiptPrintModal';
 import ResetPasswordModal  from './components/modals/ResetPasswordModal';
 import AddFollowupModal    from './components/modals/AddFollowupModal';
 
@@ -174,6 +175,30 @@ function MuminDetailsInner() {
   });
   const openModal  = (k) => setModals(p => ({ ...p, [k]: true }));
   const closeModal = (k) => setModals(p => ({ ...p, [k]: false }));
+
+  const [printData, setPrintData] = useState(null);
+  const [showPrint, setShowPrint] = useState(false);
+
+  function openReceiptPrint(row) {
+    if (!row) return;
+    // Find all raw detail rows for this receipt (summary row collapses multi-items into one)
+    const receiptKey = String(row.ID || row.id || row.receiptNo);
+    const rawRows = receipts.filter(r => String(r.ID || r.id || r.receiptNo) === receiptKey);
+    const items = rawRows.length > 0
+      ? rawRows.map(r => ({ hubSubHead: r.subHead || r.hubSubHead || '', hubType: r.mainHead || '', forYear: r.forYear || '', amount: Number(r.amount) || 0 }))
+      : [{ hubSubHead: row.subHead || '', forYear: row.forYear || '', amount: Number(row.amount) || 0 }];
+    const totalAmount = items.reduce((s, it) => s + it.amount, 0);
+    setPrintData({
+      receipts:         [{ receiptNo: row.receiptNo, familyMemberName: row.fullName || row.ReceivedFrom || member?.name || '', amount: totalAmount, items, status: row.status || row.Status || '' }],
+      profile:          { accno: member?.accno, fullName: member?.name, mobile: member?.mobile, itsNo: member?.itsNo, sector: member?.sector, address: member?.mohalla || member?.address || member?.MohallaDescription || '' },
+      date:             row.receivedDate || row.date || '',
+      mode:             row.mode || row.Mode || '',
+      refNo:            row.remark || row.Remark || '',
+      createdBy:        row.createdBy || row.Createdby || '',
+      contributionType: row.ContributionType || row.contributionType || '',
+    });
+    setShowPrint(true);
+  }
 
   // ── Takhmeen filters ──────────────────────────────────────────────────────
   const [takYear,     setTakYear]     = useState('');
@@ -598,6 +623,24 @@ function MuminDetailsInner() {
       closeModal('addReceipt');
       setRcItems([]);
 
+      // Show print modal for the saved receipts
+      const savedEnvelopes = envelopes.map((env, i) => ({
+        receiptNo:         savedNos[i] || '',
+        familyMemberName:  env.familyMemberName || profile.fullName || '',
+        amount:            env.amount,
+        items:             env.items.map(it => ({ hubSubHead: it.hubSubHead || it.hubType || '', forYear: it.forYear || '', amount: Number(it.amount) || 0 })),
+      }));
+      setPrintData({
+        receipts:         savedEnvelopes,
+        profile:          { accno: profile.accno, fullName: profile.fullName, mobile: profile.mobile, itsNo: profile.itsNo, sector: profile.sector, address: member?.mohalla || member?.address || member?.MohallaDescription || '' },
+        date:             rcForm.date,
+        mode:             rcForm.mode,
+        refNo:            rcForm.remark || '',
+        createdBy:        createdBy,
+        contributionType: rcForm.transType || '',
+      });
+      setShowPrint(true);
+
       // Update takhmeen received totals for this member
       await takhmeenService.updateTakhmeenReceived({ AccNo: profile.accno }).catch(() => {});
 
@@ -979,7 +1022,7 @@ function MuminDetailsInner() {
                     }
                     openModal('editReceipt');
                   }}
-                  onPrintReceipt={(row) => { setEditReceiptRow(row); openModal('printReceipt'); }}
+                  onPrintReceipt={(row) => { setEditReceiptRow(row); openReceiptPrint(row); }}
                 />
               )}
               {tab === 'family' && <FamilyTab family={family} loading={familyLoading} />}
@@ -1067,7 +1110,7 @@ function MuminDetailsInner() {
         open={modals.editReceipt} onClose={() => closeModal('editReceipt')}
         member={member}
         rcForm={editReceiptRow || {}} setRcForm={setEditReceiptRow}
-        onPrint={() => { closeModal('editReceipt'); openModal('printReceipt'); }}
+        onPrint={() => { closeModal('editReceipt'); openReceiptPrint(editReceiptRow); }}
         onSave={async () => {
           if (!editReceiptRow) return;
           if (!editReceiptRow.updateReason?.trim()) {
@@ -1132,9 +1175,9 @@ function MuminDetailsInner() {
           }
         }}
       />
-      <PrintReceiptModal
-        open={modals.printReceipt} onClose={() => closeModal('printReceipt')}
-        member={member} receipt={editReceiptRow}
+      <ReceiptPrintModal
+        open={showPrint} onClose={() => setShowPrint(false)}
+        printData={printData}
       />
       <ResetPasswordModal
         open={modals.resetPass} onClose={() => closeModal('resetPass')}

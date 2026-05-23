@@ -291,6 +291,14 @@ export const systemVarsService = {
   delete:  (data) => api.delete('/DeleteSystemVariable', { data }),
 };
 
+// ── Form Templates (custom print layouts) ────────────────────────────────────
+export const formTemplateService = {
+  // formData is a FormData object (multipart) containing formType, layoutJson, optional image file
+  save:      (formData)  => api.post('/SaveFormTemplate',       formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getByType: (type)      => api.get(`/GetFormTemplate/${type}`),
+  list:      ()          => api.get('/ListFormTemplates'),
+};
+
 // ── Hall Seating Layout ───────────────────────────────────────────────────────
 export const hallService = {
   // Halls

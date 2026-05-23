@@ -6,6 +6,7 @@ import { memberService, receiptService, takhmeenService } from '@/services';
 import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import { TrashIcon, PrintIcon, SaveIcon, EditIcon } from '@/components/shared/Icons';
+import ReceiptPrintModal from '@/components/shared/ReceiptPrintModal';
 
 const today = () => new Date().toISOString().split('T')[0];
 const fmt   = (n) => n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
@@ -57,6 +58,7 @@ function extractMuminRow(data, searchAccno) {
     localHofIts: raw.LocalHOFITSNo                   || '',
     sector:      raw.Sector       || raw.sector       || '',
     grade:       raw.CurrentGrade || raw.grade        || '',
+    address:     raw.Address      || raw.address      || raw.MohallaDescription || raw.Mohalla || raw.mohalla || '',
   };
 }
 
@@ -118,6 +120,8 @@ export default function AddReceiptPage() {
   const [openSuggestIdx, setOpenSuggestIdx] = useState(null);
 
   const [saving,         setSaving]         = useState(false);
+  const [printData,      setPrintData]      = useState(null);
+  const [showPrint,      setShowPrint]      = useState(false);
 
   const accTimer     = useRef(null);
   const itsTimer     = useRef(null);
@@ -331,13 +335,13 @@ export default function AddReceiptPage() {
   };
 
   // ── Save ──────────────────────────────────────────────────────────────────────
-  const handleSave = async (printOnly = false) => {
+  const handleSave = async () => {
     if (saving) return;
-    if (!String(profile.accno   ?? '').trim()) { toast.error('Acc No. is required');     return; }
-    if (!String(profile.fullName?? '').trim()) { toast.error('Full Name is required');   return; }
+    if (!String(profile.accno   ?? '').trim()) { toast.error('Acc No. is required');      return; }
+    if (!String(profile.fullName?? '').trim()) { toast.error('Full Name is required');    return; }
     if (!rcForm.date)                          { toast.error('Received Date is required'); return; }
-    if (!rcForm.mode)                          { toast.error('Mode is required');         return; }
-    if (rcItems.length === 0)                  { toast.error('Add at least one item');    return; }
+    if (!rcForm.mode)                          { toast.error('Mode is required');          return; }
+    if (rcItems.length === 0)                  { toast.error('Add at least one item');     return; }
     if (!splitOk) {
       const dir = splitDiff > 0 ? `${fmt(splitDiff)} unallocated` : `${fmt(-splitDiff)} over-allocated`;
       alert(`Split amounts must equal Grand Total (${fmt(grandTotal)}). Currently ${dir}.`);
@@ -362,7 +366,8 @@ export default function AddReceiptPage() {
         ? distributeItems(rcItems, splitRows)
         : [{ familyMemberName: profile.fullName, amount: grandTotal, items: rcItems }];
 
-      const savedNos = [];
+      const savedEnvelopes = [];
+
       for (const env of envelopes) {
         const firstItem = env.items[0] || {};
         const subHead   = firstItem.hubSubHead || firstItem.hubType || '';
@@ -397,12 +402,30 @@ export default function AddReceiptPage() {
           });
         }
 
-        savedNos.push(receiptNo);
-        if (printOnly) window.open(`/print/receipt/${receiptNo}`, '_blank');
+        savedEnvelopes.push({
+          receiptNo,
+          familyMemberName: env.familyMemberName || profile.fullName,
+          itsId:   env.itsId  || profile.itsNo,
+          mobile:  env.mobile || profile.mobile,
+          amount:  env.amount,
+          items:   env.items,
+        });
       }
 
-      toast.success(`${savedNos.length} receipt(s) saved: ${savedNos.join(', ')}`);
+      toast.success(`${savedEnvelopes.length} receipt(s) saved: ${savedEnvelopes.map(e => e.receiptNo).join(', ')}`);
       await takhmeenService.updateTakhmeenReceived({ AccNo: profile.accno }).catch(() => {});
+
+      // Show print preview modal
+      setPrintData({
+        receipts:         savedEnvelopes,
+        profile:          { ...profile },
+        date:             rcForm.date,
+        mode:             rcForm.mode,
+        refNo:            rcForm.remark || '',
+        createdBy:        createdBy,
+        contributionType: rcForm.transType || '',
+      });
+      setShowPrint(true);
       clearForm();
     } catch (err) {
       toast.error('Failed to save: ' + (err?.response?.data?.message || err?.message || 'Unknown error'));
@@ -843,17 +866,24 @@ export default function AddReceiptPage() {
         {/* ── 7. Action buttons ─────────────────────────────────────────────── */}
         <div className="flex justify-end gap-2 pt-1 flex-wrap">
           <button className="btn btn-secondary" onClick={clearForm}>
-            <TrashIcon className="w-3.5 h-3.5 mr-1.5" />Clear Form
+            Cancel
           </button>
-          <button className="btn btn-secondary" onClick={() => handleSave(true)} disabled={saving}>
+          <button className="btn btn-secondary" onClick={handleSave} disabled={saving}>
             <PrintIcon className="w-3.5 h-3.5 mr-1.5" />Print Only
           </button>
-          <button className="btn btn-primary" onClick={() => handleSave(false)} disabled={saving}>
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : <><SaveIcon className="w-3.5 h-3.5 mr-1.5" />Save Receipt</>}
           </button>
         </div>
 
       </div>
+
+      {/* Receipt print preview modal */}
+      <ReceiptPrintModal
+        open={showPrint}
+        onClose={() => setShowPrint(false)}
+        printData={printData}
+      />
     </div>
   );
 }
