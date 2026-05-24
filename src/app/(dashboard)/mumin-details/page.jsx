@@ -77,7 +77,8 @@ import TakhmeenPreviewModal from './components/modals/TakhmeenPreviewModal';
 import EditMemberModal     from './components/modals/EditMemberModal';
 import AddNewMemberModal   from './components/modals/AddNewMemberModal';
 import EditFmbModal        from './components/modals/EditFmbModal';
-import EditVajInfoModal    from './components/modals/EditVajInfoModal';
+import EditVajInfoModal        from './components/modals/EditVajInfoModal';
+import FmbTakhmeenPrintModal  from './components/modals/FmbTakhmeenPrintModal';
 
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -171,7 +172,7 @@ function MuminDetailsInner() {
     himTakhmeen: false, fmbTakhmeen: false, sniyazTakhmeen: false,
     resetPass:   false, addFollowup:  false,
     sabeelDue:   false, overallDue:   false,
-    takPreview:  false,
+    takPreview:  false, fmbPrint:     false,
   });
   const openModal  = (k) => setModals(p => ({ ...p, [k]: true }));
   const closeModal = (k) => setModals(p => ({ ...p, [k]: false }));
@@ -869,6 +870,7 @@ function MuminDetailsInner() {
                 member={member}
                 showEdit={FEATURES.editFMB}
                 showPrint={FEATURES.printFMB}
+                onPrint={() => openModal('fmbPrint')}
                 onEdit={() => {
                   setFmbForm({
                     ThaaliStatus:    member.thaaliStatus  || '',
@@ -1218,6 +1220,10 @@ function MuminDetailsInner() {
         member={member} fmbForm={fmbForm} setFF={setFF}
         distributorOptions={lookupDistributors}
         onSave={saveFMB}
+      />
+      <FmbTakhmeenPrintModal
+        open={modals.fmbPrint} onClose={() => closeModal('fmbPrint')}
+        member={member} takhmeen={takhmeen}
       />
       <EditVajInfoModal
         open={modals.editVaj} onClose={() => closeModal('editVaj')}
