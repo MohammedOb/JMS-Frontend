@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Modal from '@/components/shared/Modal';
-import { SaveIcon, PrintIcon, EditIcon, TrashIcon } from '@/components/shared/Icons';
+import { SaveIcon, EditIcon, TrashIcon } from '@/components/shared/Icons';
 import { fmt, today } from '../../utils';
 import { memberService, takhmeenService } from '@/services';
 import { useAuth } from '@/context/AuthContext';
@@ -104,7 +104,7 @@ export default function AddReceiptModal({
   const selectedHead    = hubHeads.find(h => h.HubSubHead === currentSubHead);
   const currentFundType = rcItem.fundType || selectedHead?.FundType || '';
   const cashLimit       = Number(selectedHead?.CashLimit ?? selectedHead?.Cash_Limit ?? DEFAULT_CASH_LIMIT);
-  const currentContributionType = selectedHead?.ContributionType || rcForm.transType || '';
+  const currentContributionType = selectedHead?.ContributionType || rcForm.transType || 'VOLUNTARY CONTRIBUTION';
 
   const grandTotal  = rcItems.reduce((s, i) => s + Number(i.amount || 0), 0);
   const isCashMemo  = !!rcForm.isCashMemo;
@@ -400,9 +400,6 @@ export default function AddReceiptModal({
       footer={
         <>
           <button className="btn btn-secondary" disabled={saving} onClick={onClose}>Cancel</button>
-          <button className="btn btn-secondary" disabled={saving} onClick={() => handleSave(true)}>
-            <PrintIcon className="w-3.5 h-3.5 mr-1.5" />Print Only
-          </button>
           <button className="btn btn-primary" disabled={saving} onClick={() => handleSave(false)}>
             <SaveIcon className="w-3.5 h-3.5 mr-1.5" />
             {saving ? 'Saving…' : 'Save Receipt'}
@@ -516,8 +513,8 @@ export default function AddReceiptModal({
           <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">
             Transaction Info
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
+          <div className="flex flex-wrap gap-3 items-end">
+            <div className="w-36 shrink-0">
               <label className="form-label">Received Date</label>
               <input
                 ref={dateRef}
@@ -527,12 +524,12 @@ export default function AddReceiptModal({
                 onChange={e => setRcForm(p => ({ ...p, date: e.target.value }))}
               />
             </div>
-            <div>
+            <div className="shrink-0">
               <label className="form-label">Mode</label>
               <div className="flex items-center gap-2">
                 <select
                   ref={modeRef}
-                  className="form-select flex-1"
+                  className="form-select w-32"
                   value={rcForm.mode || 'Cash'}
                   onChange={e => setRcForm(p => ({ ...p, mode: e.target.value, isCashMemo: false }))}
                 >
@@ -553,16 +550,7 @@ export default function AddReceiptModal({
                 )}
               </div>
             </div>
-            <div>
-              <label className="form-label">Contribution Type</label>
-              <input
-                className={`form-input font-medium ${rcForm.transType && rcForm.transType !== 'VOLUNTARY CONTRIBUTION' ? 'text-blue-800 bg-blue-50' : 'text-gray-600 bg-slate-50'}`}
-                value={rcForm.transType || ''}
-                readOnly
-                title="Auto-set from selected Hub Sub Head"
-              />
-            </div>
-            <div>
+            <div className="flex-1 min-w-[160px]">
               <label className="form-label">Remark</label>
               <input
                 className="form-input"

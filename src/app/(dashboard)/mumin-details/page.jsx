@@ -189,7 +189,7 @@ function MuminDetailsInner() {
       : [{ hubSubHead: row.subHead || '', forYear: row.forYear || '', amount: Number(row.amount) || 0 }];
     const totalAmount = items.reduce((s, it) => s + it.amount, 0);
     setPrintData({
-      receipts:         [{ receiptNo: row.receiptNo, familyMemberName: row.fullName || row.ReceivedFrom || member?.name || '', amount: totalAmount, items, status: row.status || row.Status || '' }],
+      receipts:         [{ receiptNo: row.receiptNo, familyMemberName: row.fullName || row.ReceivedFrom || member?.name || '', amount: totalAmount, items, status: row.status || row.Status || '', isCashMemo: !!(row.IsCashMemo || row.isCashMemo) }],
       profile:          { accno: member?.accno, fullName: member?.name, mobile: member?.mobile, itsNo: member?.itsNo, sector: member?.sector, address: member?.mohalla || member?.address || member?.MohallaDescription || '' },
       date:             row.receivedDate || row.date || '',
       mode:             row.mode || row.Mode || '',
@@ -629,6 +629,7 @@ function MuminDetailsInner() {
         familyMemberName:  env.familyMemberName || profile.fullName || '',
         amount:            env.amount,
         items:             env.items.map(it => ({ hubSubHead: it.hubSubHead || it.hubType || '', forYear: it.forYear || '', amount: Number(it.amount) || 0 })),
+        isCashMemo:        !!rcForm.isCashMemo,
       }));
       setPrintData({
         receipts:         savedEnvelopes,

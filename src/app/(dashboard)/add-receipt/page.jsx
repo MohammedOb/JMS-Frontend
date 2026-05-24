@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { memberService, receiptService, takhmeenService } from '@/services';
 import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
-import { TrashIcon, PrintIcon, SaveIcon, EditIcon } from '@/components/shared/Icons';
+import { TrashIcon, SaveIcon, EditIcon } from '@/components/shared/Icons';
 import ReceiptPrintModal from '@/components/shared/ReceiptPrintModal';
 
 const today = () => new Date().toISOString().split('T')[0];
@@ -131,7 +131,7 @@ export default function AddReceiptPage() {
   const selectedHead            = hubHeads.find(h => h.HubSubHead === currentSubHead);
   const currentFundType         = rcItem.fundType || selectedHead?.FundType || '';
   const cashLimit               = Number(selectedHead?.CashLimit ?? selectedHead?.Cash_Limit ?? DEFAULT_CASH_LIMIT);
-  const currentContributionType = selectedHead?.ContributionType || rcForm.transType || '';
+  const currentContributionType = selectedHead?.ContributionType || rcForm.transType || 'VOLUNTARY CONTRIBUTION';
 
   const grandTotal = rcItems.reduce((s, i) => s + Number(i.amount || 0), 0);
   const isCashMemo = !!rcForm.isCashMemo;
@@ -409,10 +409,11 @@ export default function AddReceiptPage() {
         savedEnvelopes.push({
           receiptNo,
           familyMemberName: env.familyMemberName || profile.fullName,
-          itsId:   env.itsId  || profile.itsNo,
-          mobile:  env.mobile || profile.mobile,
-          amount:  env.amount,
-          items:   env.items,
+          itsId:      env.itsId  || profile.itsNo,
+          mobile:     env.mobile || profile.mobile,
+          amount:     env.amount,
+          items:      env.items,
+          isCashMemo: !!rcForm.isCashMemo,
         });
       }
 
@@ -554,16 +555,7 @@ export default function AddReceiptPage() {
                   )}
                 </div>
               </div>
-              <div>
-                <label className="form-label">Contribution Type</label>
-                <input
-                  className={`form-input font-medium ${rcForm.transType && rcForm.transType !== 'VOLUNTARY CONTRIBUTION' ? 'text-blue-800 bg-blue-50' : 'text-gray-600 bg-slate-50'}`}
-                  value={rcForm.transType || ''}
-                  readOnly
-                  title="Auto-set from selected Hub Sub Head"
-                />
-              </div>
-              <div>
+              <div className="lg:col-span-2">
                 <label className="form-label">Remark</label>
                 <input
                   className="form-input"
@@ -885,9 +877,6 @@ export default function AddReceiptPage() {
         <div className="flex justify-end gap-2 pt-1 flex-wrap">
           <button className="btn btn-secondary" onClick={clearForm}>
             Cancel
-          </button>
-          <button className="btn btn-secondary" onClick={handleSave} disabled={saving}>
-            <PrintIcon className="w-3.5 h-3.5 mr-1.5" />Print Only
           </button>
           <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
             {saving ? 'Saving…' : <><SaveIcon className="w-3.5 h-3.5 mr-1.5" />Save Receipt</>}

@@ -41,6 +41,7 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
         amount: r.Amount || r.amount || r.Received,
         mode: r.Mode || r.mode || r.PaymentMode,
         status: r.Status || r.status || r.ReceiptStatus,
+        isCashMemo: !!(r.IsCashMemo || r.isCashMemo),
         ...r
       }));
       if (setReceipts) {
@@ -189,9 +190,15 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
               <tr><td colSpan={colCount} className="text-center py-8 text-gray-400">No receipts found</td></tr>
             ) : paginatedReceipts.map((r, i) => {
               const isCancelled = r.status === 'Cancelled' || r.status === 'Cancel Receipt' || r.status === 'Cancel';
+              const isCashMemo  = !!(r.IsCashMemo || r.isCashMemo);
               const td = `px-3 py-2 border-t ${isCancelled ? 'border-red-400' : 'border-border'}`;
+              const rowClass = isCancelled
+                ? 'bg-red-600 text-white'
+                : isCashMemo
+                  ? 'bg-amber-50 hover:bg-amber-100'
+                  : 'hover:bg-blue-500/[0.025]';
               return (
-                <tr key={i} className={isCancelled ? 'bg-red-600 text-white' : 'hover:bg-blue-500/[0.025]'}>
+                <tr key={i} className={rowClass}>
                   <td className={`${td} whitespace-nowrap`}>
                     {!isCancelled && can('receipts.edit') && (
                       <button className="btn btn-secondary btn-sm mr-1" onClick={() => onEditReceipt(r)}>
