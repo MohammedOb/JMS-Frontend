@@ -83,6 +83,8 @@ function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdBy, contribution
   const ct          = (contributionType || '').toUpperCase();
   const isVoluntary = !knownFund && (ct.includes('VOLUNTARY') || !ct);
   const contribLabel = contributionType || (isVoluntary ? 'VOLUNTARY CONTRIBUTION' : '');
+  const isCorpus = !knownFund && (ct.includes('CORPUS') || !ct);
+  const corpuscontribLabel = contributionType || (isCorpus ? 'CORPUS FUND' : '');
 
   const showRefNo = NON_CASH.includes((mode || '').toLowerCase());
   const refLabel  = (mode || '').toLowerCase() === 'cheque' ? 'Chq No' : 'Ref No';
@@ -212,13 +214,31 @@ function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdBy, contribution
 
               <span style={{ fontWeight: 'bold', direction: 'ltr' }}>&quot;{contribLabel}&quot;</span>
             </div>
+          ) : isCorpus ? (
+            <div style={{
+
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'baseline',
+              margin: '8px 0 4px',
+            }}>
+              <span style={{ direction: 'rtl', fontFamily: arabicFont }}>طريقسس وصول تهيا ؛</span>
+
+              <span style={{ fontWeight: 'bold', direction: 'ltr' }}>&quot;{corpuscontribLabel}&quot;</span>
+            </div>
           ) : (
-            <>
-              <div style={{ direction: 'rtl', margin: '6px 0 2px', lineHeight: 2, fontFamily: arabicFont, fontSize: '14px' }}>
-                <span style={{ fontWeight: 'bold', direction: 'ltr' }}>"سبل الجيروالبركات"  فند ما </span>(من شهر ..........سنــــة هـ الى شهر  ........... سنــــة هـ)   وصول تهيا ؛
+            <div style={{
+
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'baseline',
+              margin: '8px 0 4px',
+            }}>
+              {/* <div style={{ direction: 'rtl', margin: '6px 0 2px', lineHeight: 2, fontFamily: arabicFont, fontSize: '14px' }}> */}
+                <span style={{ fontWeight: 'bold', direction: 'rtl', fontFamily: arabicFont }}>سبل الجيروالبركات  فند ما وصول تهيا ؛ </span>   
               </div>
               
-            </>
+            
           )}
 
         </div>

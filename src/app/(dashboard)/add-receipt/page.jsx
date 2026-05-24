@@ -127,10 +127,11 @@ export default function AddReceiptPage() {
   const itsTimer     = useRef(null);
   const forYearTimer = useRef(null);
 
-  const currentSubHead  = rcItem.hubSubHead || rcItem.hubType || '';
-  const currentFundType = rcItem.fundType || hubHeads.find(h => h.HubSubHead === currentSubHead)?.FundType || '';
-  const selectedHead    = hubHeads.find(h => h.HubSubHead === currentSubHead);
-  const cashLimit       = Number(selectedHead?.CashLimit ?? selectedHead?.Cash_Limit ?? DEFAULT_CASH_LIMIT);
+  const currentSubHead          = rcItem.hubSubHead || rcItem.hubType || '';
+  const selectedHead            = hubHeads.find(h => h.HubSubHead === currentSubHead);
+  const currentFundType         = rcItem.fundType || selectedHead?.FundType || '';
+  const cashLimit               = Number(selectedHead?.CashLimit ?? selectedHead?.Cash_Limit ?? DEFAULT_CASH_LIMIT);
+  const currentContributionType = selectedHead?.ContributionType || rcForm.transType || '';
 
   const grandTotal = rcItems.reduce((s, i) => s + Number(i.amount || 0), 0);
   const isCashMemo = !!rcForm.isCashMemo;
@@ -241,6 +242,9 @@ export default function AddReceiptPage() {
       grade:       '',
       amount:      '',
     }));
+    if (found?.ContributionType) {
+      setRcForm(p => ({ ...p, transType: found.ContributionType }));
+    }
     setRemainingAmt(null);
   };
 
@@ -520,7 +524,7 @@ export default function AddReceiptPage() {
         <div className="card">
           <div className="card-header">Transaction Info</div>
           <div className="card-body">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
                 <label className="form-label">Received Date</label>
                 <input type="date" className="form-input" value={rcForm.date || ''} onChange={e => setRcForm(p => ({ ...p, date: e.target.value }))} />
@@ -551,6 +555,15 @@ export default function AddReceiptPage() {
                 </div>
               </div>
               <div>
+                <label className="form-label">Contribution Type</label>
+                <input
+                  className={`form-input font-medium ${rcForm.transType && rcForm.transType !== 'VOLUNTARY CONTRIBUTION' ? 'text-blue-800 bg-blue-50' : 'text-gray-600 bg-slate-50'}`}
+                  value={rcForm.transType || ''}
+                  readOnly
+                  title="Auto-set from selected Hub Sub Head"
+                />
+              </div>
+              <div>
                 <label className="form-label">Remark</label>
                 <input
                   className="form-input"
@@ -570,6 +583,11 @@ export default function AddReceiptPage() {
             {currentFundType && (
               <span className="absolute left-1/2 -translate-x-1/2 text-[15px] font-bold text-navy-800 uppercase tracking-wide">
                 {currentFundType}
+              </span>
+            )}
+            {currentContributionType && (
+              <span className="ml-auto text-[11px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 uppercase">
+                {currentContributionType}
               </span>
             )}
           </div>
