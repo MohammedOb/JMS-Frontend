@@ -32,6 +32,7 @@ const ROUTE_PERMISSIONS = {
   '/calendar':             ['bookings.view', 'seating.view'],
   '/ohbat-majlis':         ['ohbat_majlis.view', 'majlis.view'],
   '/majlis':               ['ohbat_majlis.view', 'majlis.view'],
+  '/event-forms':          'forms.view',
   '/safai-chitthi':        'safai.view',
   '/musaida':              'musaida.view',
   '/fmb-daily-menu':       'fmb_menu.view',

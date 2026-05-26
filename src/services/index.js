@@ -351,3 +351,39 @@ export const lookupService = {
   getMajlisData:        cache.cached(() => api.get('/lookup/majlis-data'),        () => 'lookup:majlis-data',        TTL.ref),
   getMohallaData:       cache.cached(() => api.get('/lookup/mohalla-data'),       () => 'lookup:mohalla-data',       TTL.ref),
 };
+
+// ── Event Registration Forms ──────────────────────────────────────────────────
+export const regFormService = {
+  // Forms
+  loadForms:     cache.cached((d) => api.post('/LoadRegForms',   d), (d) => cache.makeKey('regforms', d), TTL.list),
+  getFormById:   cache.cached((d) => api.post('/GetRegFormById', d), (d) => cache.makeKey('regform',  d), TTL.search),
+  addForm:       cache.mutates((d) => api.post('/AddRegForm',    d), 'regforms'),
+  updateForm:    cache.mutates((d) => api.post('/UpdateRegForm', d), 'regforms'),
+  deleteForm:    cache.mutates((d) => api.delete('/DeleteRegForm', { data: d }), 'regforms'),
+  // Questions + Sections
+  loadQuestions: cache.cached((d) => api.post('/LoadFormQuestions', d), (d) => cache.makeKey('regform:q', d), TTL.search),
+  saveQuestions: cache.mutates((d) => api.post('/SaveFormQuestions', d), 'regforms', 'regform:q'),
+  loadSections:  cache.cached((d) => api.post('/LoadFormSections',  d), (d) => cache.makeKey('regform:s', d), TTL.search),
+  saveFormData:  cache.mutates((d) => api.post('/SaveFormData',     d), 'regforms', 'regform:q', 'regform:s'),
+  // Question bank
+  loadBank:      cache.cached((d) => api.post('/LoadQuestionBank',   d), () => 'regbank', TTL.ref),
+  addBank:       cache.mutates((d) => api.post('/AddBankQuestion',    d), 'regbank'),
+  updateBank:    cache.mutates((d) => api.post('/UpdateBankQuestion', d), 'regbank'),
+  deleteBank:    cache.mutates((d) => api.delete('/DeleteBankQuestion', { data: d }), 'regbank'),
+  // Responses (admin)
+  loadResponses:  (d) => api.post('/LoadRegResponses',   d),
+  getResponse:    (d) => api.post('/GetRegResponseById', d),
+  updateResponse: (d) => api.post('/UpdateRegResponse',  d),
+  deleteResponse: (d) => api.delete('/DeleteRegResponse',  { data: d }),
+  clearResponses: (d) => api.delete('/ClearFormResponses', { data: d }),
+};
+
+// Public — no auth (members filling the form)
+export const regFormPublic = {
+  getForm:         (d) => api.post('/GetRegFormById/public',    d),
+  getQuestions:    (d) => api.post('/LoadFormQuestions/public', d),
+  getSections:     (d) => api.post('/LoadFormSections/public',  d),
+  checkDup:        (d) => api.post('/CheckRegDuplicate',        d),
+  submit:          (d) => api.post('/SubmitRegForm',             d),
+  loadForEdit:     (d) => api.post('/LoadRegResponseForEdit',   d),
+};

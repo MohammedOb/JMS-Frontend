@@ -61,6 +61,7 @@ const NAV_SECTIONS = [
       { label: 'Bookings',         href: '/calendar',        icon: CalendarIcon,permission: ['bookings.view', 'seating.view'] },
       { label: 'Ohbat Majlis',     href: '/ohbat-majlis',    icon: StarIcon,    permission: ['ohbat_majlis.view', 'majlis.view'] },
       { label: 'Majlis List',      href: '/majlis',          icon: ListIcon,    permission: ['ohbat_majlis.view', 'majlis.view'] },
+      { label: 'Event Forms',      href: '/event-forms',     icon: FileTextIcon, permission: 'forms.view' },
       { label: 'Safai Chitthi',    href: '/safai-chitthi',   icon: MailIcon,    permission: 'safai.view' },
       { label: 'Musaida List',     href: '/musaida',         icon: GiftIcon,    permission: 'musaida.view' },
     ],
