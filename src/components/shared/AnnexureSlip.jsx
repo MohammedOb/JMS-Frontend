@@ -2,8 +2,17 @@
 
 import { amountInWords, fmt, fmtDate } from '@/utils/receiptUtils';
 
-const LBL  = { fontWeight: 700, fontSize: '11px', color: '#444', whiteSpace: 'nowrap' };
-const VAL  = { fontSize: '12px', paddingLeft: '3px' };
+// ── Font-size knob ───────────────────────────────────────────────────────────
+const EN = 15;   // px – body font size  (original: 12 px)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Derived sizes (proportional to originals, scaled by EN above)
+const enSmall = `${Math.round(11 * EN / 12)}px`;   // was 11
+const enBase  = `${EN}px`;                           // was 12
+const enTitle = `${Math.round(13 * EN / 12)}px`;    // was 13
+
+const LBL  = { fontWeight: 700, fontSize: enSmall, color: '#000', whiteSpace: 'nowrap' };
+const VAL  = { fontSize: enBase, paddingLeft: '3px' };
 const CELL = { padding: '4px 10px', verticalAlign: 'top' };
 
 function Row({ label, value }) {
@@ -36,6 +45,7 @@ export default function AnnexureSlip({ rcpt, profile, date, remark, status }) {
     <div style={{
       border: '1.5px solid #000',
       fontFamily: '"Times New Roman", Georgia, serif',
+      color: '#000',
       background: '#fff',
       position: 'relative',
     }}>
@@ -58,12 +68,12 @@ export default function AnnexureSlip({ rcpt, profile, date, remark, status }) {
 
       {/* Title */}
       <div style={{ borderBottom: '1.5px solid #000', padding: '5px 14px', textAlign: 'center', background: '#f0f0f0' }}>
-        <span style={{ fontWeight: 'bold', fontSize: '13px', letterSpacing: '1px' }}>Receipt Details</span>
+        <span style={{ fontWeight: 'bold', fontSize: enTitle, letterSpacing: '1px' }}>Receipt Details</span>
       </div>
 
       {/* Header details */}
       <div style={{ borderBottom: '1px solid #ccc' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: enBase }}>
           <tbody>
             <tr style={{ borderBottom: '1px solid #eee' }}>
               <Row label="Receipt No"    value={receiptNo} />
@@ -94,7 +104,7 @@ export default function AnnexureSlip({ rcpt, profile, date, remark, status }) {
       </div>
 
       {/* Items grid */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: enBase }}>
         <thead>
           <tr style={{ background: '#e8e8e8' }}>
             <th style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'center', width: '36px' }}>#</th>
@@ -115,7 +125,7 @@ export default function AnnexureSlip({ rcpt, profile, date, remark, status }) {
         </tbody>
         <tfoot>
           <tr style={{ background: '#e8e8e8', fontWeight: 'bold' }}>
-            <td colSpan={3} style={{ border: '1px solid #ccc', padding: '5px 10px', fontStyle: 'italic', fontWeight: 'normal', fontSize: '11px', color: '#333' }}>
+            <td colSpan={3} style={{ border: '1px solid #ccc', padding: '5px 10px', fontStyle: 'italic', fontWeight: 'normal', fontSize: enSmall, color: '#000' }}>
               {amountInWords(totalAmt)}
             </td>
             <td style={{ border: '1px solid #ccc', padding: '5px 8px', textAlign: 'right' }}>₹ {fmt(totalAmt)}</td>

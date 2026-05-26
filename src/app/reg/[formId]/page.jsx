@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect, useRef, use } from 'react';
 import { regFormPublic, memberService } from '@/services';
+import { ELIGIBILITY_CONFIG } from '@/utils/eligibilityConfig';
 import toast from 'react-hot-toast';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -19,16 +20,6 @@ const parseJson = (v, fallback) => {
   try { return JSON.parse(v); } catch { return fallback; }
 };
 
-const calcAge = (dob) => {
-  if (!dob) return null;
-  const birth = new Date(dob);
-  if (isNaN(birth)) return null;
-  const now = new Date();
-  let age = now.getFullYear() - birth.getFullYear();
-  if (now.getMonth() - birth.getMonth() < 0 ||
-    (now.getMonth() === birth.getMonth() && now.getDate() < birth.getDate())) age--;
-  return age;
-};
 
 const buildPrefill = (questions, m, lookupMode, lookupVal) => {
   if (!m) return {};
@@ -38,7 +29,7 @@ const buildPrefill = (questions, m, lookupMode, lookupVal) => {
     if (/\b(full\s?name|name)\b/.test(t))                          map[q.ID] = m.FullName || m.Full_Name || '';
     if (/\b(mobile|phone|whatsapp|contact)\b/.test(t))             map[q.ID] = m.Mobile || '';
     if (/\b(sector)\b/.test(t))                                    map[q.ID] = m.Sector || '';
-    if (/\b(its|itsno|its\s?no|its\s?number)\b/.test(t))          map[q.ID] = String(m.ITSNo || '');
+    if (/\b(its|itsno|its\s?no|its\s?number)\b/.test(t))          map[q.ID] = String(m.ITSNo || m.ITS_ID || (lookupMode === 'itsno' ? lookupVal : '') || '');
     if (/\b(acc\s?no|accno|account\s?no|account\s?number)\b/.test(t))
       map[q.ID] = String(m.AccNo || (lookupMode === 'accno' ? lookupVal : '') || '');
     if (/\b(mohallah|mohalla|locality)\b/.test(t))                 map[q.ID] = m.MohallaDescription || '';
@@ -148,6 +139,11 @@ export default function PublicFormPage({ params }) {
   const [memberData, setMemberData]   = useState(null);
   const [verifyError, setVerifyError] = useState('');
   const [notFoundMode, setNotFoundMode] = useState(false);
+  const verifyInputRef = useRef(null);
+
+  useEffect(() => {
+    if (memberData) verifyInputRef.current?.focus();
+  }, [memberData]);
 
   // Multi-section navigation
   const [sectionIdx, setSectionIdx]     = useState(0);   // index in `sections`
@@ -234,13 +230,14 @@ export default function PublicFormPage({ params }) {
   // ── Proceed to form after verify ─────────────────────────────────────────
 
   const proceedToForm = async (m, accNo, itsNo) => {
-    // Age check
-    if (form.AgeMin > 0 || form.AgeMax > 0) {
-      const age = calcAge(m?.DateOfBirth || m?.DOB);
-      if (age !== null) {
-        if (form.AgeMin > 0 && age < form.AgeMin) { setVerifyError(`Min age: ${form.AgeMin}`); return; }
-        if (form.AgeMax > 0 && age > form.AgeMax) { setVerifyError(`Max age: ${form.AgeMax}`); return; }
-      }
+    if (m) {
+      const rules = parseJson(form.EligibilityRules, null) ?? {};
+      const errors = [];
+      ELIGIBILITY_CONFIG.forEach(field => {
+        const msg = field.validate(rules, m, form);
+        if (msg) errors.push(msg);
+      });
+      if (errors.length) { setVerifyError(errors.join(' ')); return; }
     }
 
     // Duplicate check
@@ -492,7 +489,7 @@ export default function PublicFormPage({ params }) {
                   <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
                     {lookupMode === 'accno' ? 'Enter your ITS Number to verify' : 'Enter your HOF ID to verify'}
                   </label>
-                  <input type="text" value={verifyCode}
+                  <input ref={verifyInputRef} type="text" value={verifyCode}
                     onChange={e => { setVerifyCode(e.target.value); setVerifyError(''); }}
                     onKeyDown={e => e.key === 'Enter' && doVerify()}
                     className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-blue-500"
@@ -506,20 +503,31 @@ export default function PublicFormPage({ params }) {
             )}
 
             {notFoundMode && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
-                <p className="text-[12px] text-amber-800 font-semibold">
-                  {lookupMode === 'accno' ? '⚠️ No member found for this Acc No.' : '⚠️ ITS not found in the system.'}
-                </p>
-                <p className="text-[12px] text-amber-700">
-                  {lookupMode === 'accno'
-                    ? 'You can continue and fill the form manually without an account.'
-                    : 'You may continue as an outside member and fill the form manually.'}
-                </p>
-                <button onClick={proceedManually}
-                  className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[13px] py-2.5 rounded-xl transition-colors">
-                  {lookupMode === 'accno' ? 'Continue without Acc No →' : 'Continue as Outside Member →'}
-                </button>
-              </div>
+              Number(form.AllowOutsideRegistration) === 0 ? (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                  <p className="text-[12px] text-red-700 font-semibold">
+                    ⚠️ {lookupMode === 'accno' ? 'No member found for this Acc No.' : 'ITS not found in the system.'}
+                  </p>
+                  <p className="text-[12px] text-red-600 mt-1">
+                    Registration is restricted to registered members only. Please verify your {lookupMode === 'accno' ? 'Acc No' : 'ITS No'} and try again.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                  <p className="text-[12px] text-amber-800 font-semibold">
+                    {lookupMode === 'accno' ? '⚠️ No member found for this Acc No.' : '⚠️ ITS not found in the system.'}
+                  </p>
+                  <p className="text-[12px] text-amber-700">
+                    {lookupMode === 'accno'
+                      ? 'You can continue and fill the form manually without an account.'
+                      : 'You may continue as an outside member and fill the form manually.'}
+                  </p>
+                  <button onClick={proceedManually}
+                    className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[13px] py-2.5 rounded-xl transition-colors">
+                    {lookupMode === 'accno' ? 'Continue without Acc No →' : 'Continue as Outside Member →'}
+                  </button>
+                </div>
+              )
             )}
 
             {verifyError && (

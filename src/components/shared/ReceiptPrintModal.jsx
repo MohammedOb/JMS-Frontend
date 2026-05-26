@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import ReceiptSlip from './ReceiptSlip';
 import AnnexureSlip from './AnnexureSlip';
 
@@ -35,23 +34,14 @@ function ReceiptWithAnnexure({ rcpt, slipProps, index, total }) {
   );
 }
 
-const SIZE_OPTIONS = [
-  { value: 'A5',  label: 'A5',     hint: '2 pages' },
-  { value: 'A4',  label: 'A4',     hint: '1 page'  },
-  { value: 'LT',  label: 'Letter', hint: '1 page'  },
-  { value: 'LG',  label: 'Legal',  hint: '1 page'  },
-];
-
 /**
  * Modal that shows a print preview and triggers window.print().
  *
- * Paper size toggle in footer:
- *   A5        → A5 landscape, receipt page 1 + annexure page 2
- *   A4/Letter/Legal → portrait, receipt top-half + annexure bottom-half on 1 page
+ * Paper size is chosen in the browser's print dialog — no manual selection needed.
+ *   A5 landscape (page height ≤ 155mm) → receipt fills page 1, annexure on page 2
+ *   A4 portrait  (page height ≥ 250mm) → receipt top-half + annexure bottom-half, 1 page
  */
 export default function ReceiptPrintModal({ open, onClose, printData }) {
-  const [paperSize, setPaperSize] = useState('A5');
-
   if (!open || !printData) return null;
 
   const { receipts = [], profile, date, mode, refNo, createdBy, contributionType } = printData;
@@ -60,16 +50,6 @@ export default function ReceiptPrintModal({ open, onClose, printData }) {
   const slipList = receipts.map((rcpt, i) => (
     <ReceiptWithAnnexure key={i} rcpt={rcpt} slipProps={slipProps} index={i} total={receipts.length} />
   ));
-
-  const isA5 = paperSize === 'A5';
-
-  // @page size string per selection
-  const pageSize = { A5: 'A5 landscape', A4: 'A4 portrait', LT: '215.9mm 279.4mm portrait', LG: '215.9mm 355.6mm portrait' }[paperSize];
-
-  // Usable height of non-A5 pages minus padding (A4=297mm, Letter≈279mm, Legal≈356mm)
-  const pageH  = { A4: 297, LT: 279.4, LG: 355.6 }[paperSize] ?? 297;
-  const receiptH = 148; // always 148mm — matches A5 landscape height
-  const annexH   = pageH - receiptH;  // remaining height for annexure
 
   return (
     <>
@@ -108,50 +88,22 @@ export default function ReceiptPrintModal({ open, onClose, printData }) {
           </div>
 
           {/* Modal footer */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', padding: '10px 16px', borderTop: '1px solid #e5e7eb' }}>
-
-            {/* Paper size selector */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 500 }}>Paper:</span>
-              <div style={{ display: 'flex', border: '1px solid #d1d5db', borderRadius: '6px', overflow: 'hidden' }}>
-                {SIZE_OPTIONS.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setPaperSize(opt.value)}
-                    style={{
-                      padding: '4px 10px',
-                      fontSize: '11px',
-                      fontWeight: 500,
-                      border: 'none',
-                      borderRight: opt.value !== 'LG' ? '1px solid #d1d5db' : 'none',
-                      cursor: 'pointer',
-                      background: paperSize === opt.value ? '#1e3a5f' : '#fff',
-                      color:      paperSize === opt.value ? '#fff'    : '#374151',
-                      transition: 'background 0.15s',
-                    }}
-                    title={`${opt.label} — prints in ${opt.hint}`}
-                  >
-                    {opt.label}
-                    <span style={{ fontSize: '9px', opacity: 0.75, marginLeft: '3px' }}>({opt.hint})</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={onClose}
-                style={{ padding: '7px 18px', borderRadius: '6px', border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}
-              >
-                Close
-              </button>
-              <button
-                onClick={() => window.print()}
-                style={{ padding: '7px 18px', borderRadius: '6px', border: 'none', background: '#1e3a5f', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                🖨 Print
-              </button>
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', padding: '10px 16px', borderTop: '1px solid #e5e7eb' }}>
+            <span style={{ fontSize: '11px', color: '#9ca3af', marginRight: 'auto' }}>
+              Select paper size &amp; orientation in the print dialog
+            </span>
+            <button
+              onClick={onClose}
+              style={{ padding: '7px 18px', borderRadius: '6px', border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}
+            >
+              Close
+            </button>
+            <button
+              onClick={() => window.print()}
+              style={{ padding: '7px 18px', borderRadius: '6px', border: 'none', background: '#1e3a5f', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
+            >
+              🖨 Print
+            </button>
           </div>
         </div>
       </div>
@@ -167,7 +119,8 @@ export default function ReceiptPrintModal({ open, onClose, printData }) {
           font-style: normal;
         }
 
-        @page { size: ${pageSize}; margin: 0; }
+        /* Let the browser print dialog control paper size and orientation */
+        @page { size: auto; margin: 0; }
         #receipt-print-area { display: none; }
 
         @media print {
@@ -186,10 +139,10 @@ export default function ReceiptPrintModal({ open, onClose, printData }) {
           }
           #receipt-print-area * { visibility: visible !important; }
 
-          /* ── Receipt slip — always 148mm tall (= A5 landscape height) ────── */
+          /* Receipt slip — always 148mm tall (= A5 landscape height) */
           #receipt-print-area .receipt-page-wrapper {
-            width: 210mm;
-            height: ${receiptH}mm;
+            width: 100%;
+            height: 148mm;
             padding: 8mm;
             box-sizing: border-box;
             display: flex;
@@ -218,32 +171,33 @@ export default function ReceiptPrintModal({ open, onClose, printData }) {
           #receipt-print-area .receipt-page-wrapper .receipt-slip > div > .receipt-signature-row {
             flex-shrink: 0 !important;
           }
+        }
 
-          ${isA5 ? `
-          /* ── A5: annexure on its own page ─────────────────────────────────── */
+        /* ── A5 landscape: page height ≤ 155mm → annexure on its own page ─── */
+        @media print and (max-height: 155mm) {
           #receipt-print-area .annexure-wrapper {
             page-break-before: always;
             padding: 8mm;
             box-sizing: border-box;
             margin-top: 0 !important;
           }
-          ` : `
-          /* ── A4/Letter/Legal: annexure immediately below receipt (1 page) ── */
+        }
+
+        /* ── A4 portrait: page height ≥ 250mm → annexure below receipt, 1 page */
+        @media print and (min-height: 250mm) {
           #receipt-print-area .annexure-wrapper {
             padding: 0 8mm 4mm;
             box-sizing: border-box;
             margin-top: 0 !important;
-            max-height: ${annexH - 4}mm;
+            max-height: 145mm;
             overflow: hidden;
           }
-          /* Each receipt+annexure pair gets a page break when printing multiples */
           #receipt-print-area .receipt-pair {
             page-break-after: always;
           }
           #receipt-print-area .receipt-pair:last-child {
             page-break-after: avoid;
           }
-          `}
         }
       `}</style>
     </>

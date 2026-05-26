@@ -62,7 +62,7 @@ export default function FormsList() {
   return (
     <div>
       <div className="flex justify-end mb-3">
-        <button className="btn btn-primary" onClick={() => setBuilder({})}>
+        <button className="btn btn-primary" onClick={() => setBuilder({ _ts: Date.now() })}>
           + Create New Form
         </button>
       </div>
@@ -95,7 +95,7 @@ export default function FormsList() {
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="flex gap-1 flex-wrap">
-                      <button className="btn btn-secondary text-[11px] h-7 px-2.5" onClick={() => setBuilder(f)}>Build</button>
+                      <button className="btn btn-secondary text-[11px] h-7 px-2.5" onClick={() => setBuilder({ ...f, _ts: Date.now() })}>Build</button>
                       <button className="btn btn-secondary text-[11px] h-7 px-2.5" onClick={() => setResponses(f)}>Responses</button>
                       {f.Status === 'published' && (
                         <button className="btn btn-secondary text-[11px] h-7 px-2.5" onClick={() => copyLink(f.ID)}>Copy Link</button>
@@ -118,6 +118,7 @@ export default function FormsList() {
 
       {builder !== null && (
         <FormBuilderModal
+          key={builder._ts}
           initialData={builder?.ID ? builder : null}
           onClose={() => setBuilder(null)}
           onSaved={() => { setBuilder(null); load(); }}

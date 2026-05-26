@@ -2,6 +2,19 @@
 
 import { amountInWords, fmt, fmtDate, FUND_URDU, NON_CASH } from '@/utils/receiptUtils';
 
+// ── Font-size knobs ──────────────────────────────────────────────────────────
+const EN = 16;   // px – English / Latin text  (original: 13 px)
+const AR = 16;   // px – Urdu / Arabic text    (original: 13 px)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Derived sizes (proportional to originals, scaled by EN or AR above)
+const enBase   = `${EN}px`;                          // was 13
+const enHeader = `${Math.round(15 * EN / 13)}px`;   // was 15
+const enSmall  = `${Math.round(11 * EN / 13)}px`;   // was 11
+const arLarge  = `${Math.round(19 * AR / 13)}px`;   // was 19
+const arSmall  = `${Math.round(12 * AR / 13)}px`;   // was 12
+const cashSize = `${Math.round(14 * EN / 13)}px`;   // was 14 (CASH MEMO)
+
 // Underlined input-style span used throughout the slip.
 function Dotted({ children, minW = '80px', bold = false, dir = 'ltr', align = 'center' }) {
   return (
@@ -36,18 +49,15 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
   const isCancelled = ['cancelled', 'cancel receipt', 'cancel'].includes((status || '').toLowerCase());
 
   const subHead  = items[0]?.hubSubHead || items[0]?.hubType || '';
-  const fundUrdu = FUND_URDU[subHead] || subHead;
 
   const memberName = familyMemberName || profile?.fullName || '—';
   const address    = profile?.address || profile?.mohalla || profile?.sector || '';
 
-  // contributionType from the API is the source of truth.
-  // Fund lookup is only used as a fallback when no explicit type is set.
+  // subHead (items) takes priority: if it maps to a known fund, ignore contributionType.
+  const knownFund   = Boolean(FUND_URDU[subHead]);
   const ct          = (contributionType || '').toUpperCase();
-  const isVoluntary = ct.includes('VOLUNTARY');
-  const isCorpus    = !isVoluntary && ct.includes('CORPUS');
-  // Show Sabeel/fund Urdu text only when the API gave no recognised contribution type
-  const knownFund   = !isVoluntary && !isCorpus && Boolean(FUND_URDU[subHead]);
+  const isVoluntary = !knownFund && ct.includes('VOLUNTARY');
+  const isCorpus    = !knownFund && !isVoluntary && ct.includes('CORPUS');
   const contribLabel = contributionType || 'VOLUNTARY CONTRIBUTION';
   const corpusLabel  = contributionType || 'CORPUS FUND';
 
@@ -61,7 +71,8 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
       <div style={{
         border: '2px solid #000',
         fontFamily: '"Times New Roman", Georgia, serif',
-        fontSize: '13px',
+        fontSize: enBase,
+        color: '#000',
         lineHeight: 1.6,
         maxWidth: '700px',
         margin: '0 auto',
@@ -87,11 +98,11 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
 
         {/* Header */}
         <div style={{ borderBottom: '1.5px solid #000', padding: '6px 14px', textAlign: 'center' }}>
-          <div style={{ fontWeight: 'bold', fontSize: '15px', letterSpacing: '0.2px' }}>
+          <div style={{ fontWeight: 'bold', fontSize: enHeader, letterSpacing: '0.2px' }}>
             SHIA DAWOODI BOHRA JAMAAT MASJID &amp; DARUL EMARAT, SAGWARA
           </div>
-          <div style={{ fontSize: '13px', marginTop: '2px' }}>Waqf Reg. No. 21 (Dungarpur)</div>
-          <div style={{ fontSize: '13px' }}>Managed by : Anjuman-e-Saifee</div>
+          <div style={{ fontSize: enBase, marginTop: '2px' }}>Waqf Reg. No. 21 (Dungarpur)</div>
+          <div style={{ fontSize: enBase }}>Managed by : Anjuman-e-Saifee</div>
         </div>
 
         {/* Body */}
@@ -100,27 +111,27 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
           {/* Row 1: رسید نمبر (right) | CASH MEMO center | تاریخ (left) */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', direction: 'rtl', marginBottom: '4px' }}>
             <div>
-              <span style={{ fontFamily: arabicFont }}>رسيد نمبر :</span>&nbsp;
+              <span style={{ fontFamily: arabicFont, fontSize: `${AR}px` }}>رسيد نمبر :</span>&nbsp;
               <Dotted minW="60px" bold>{receiptNo || ''}</Dotted>
             </div>
             {isCashMemo && (
-              <div style={{ direction: 'ltr', color: '#dc2626', fontWeight: 'bold', fontSize: '14px', letterSpacing: '1px' }}>
+              <div style={{ direction: 'ltr', color: '#dc2626', fontWeight: 'bold', fontSize: cashSize, letterSpacing: '1px' }}>
                 CASH MEMO
               </div>
             )}
             <div>
-              <span style={{ fontFamily: arabicFont }}>تاريخ :</span>&nbsp;
+              <span style={{ fontFamily: arabicFont, fontSize: `${AR}px` }}>تاريخ :</span>&nbsp;
               <Dotted minW="90px">{fmtDate(date)}</Dotted>
             </div>
           </div>
 
           {/* Row 2: نام */}
           <div style={{ direction: 'rtl', display: 'flex', gap: '6px', alignItems: 'baseline', marginBottom: '4px' }}>
-            <span style={{ whiteSpace: 'nowrap', fontFamily: arabicFont }}>نام :</span>
+            <span style={{ whiteSpace: 'nowrap', fontFamily: arabicFont, fontSize: `${AR}px` }}>نام :</span>
             <Dotted minW="0" bold dir="ltr">
               <span style={{ display: 'block', width: '100%', minWidth: '180px' }}>{memberName}</span>
             </Dotted>
-            <span style={{ whiteSpace: 'nowrap', fontSize: '12px', fontFamily: arabicFont }}>(حفظه الله تعلى)</span>
+            <span style={{ whiteSpace: 'nowrap', fontSize: arSmall, fontFamily: arabicFont }}>(حفظه الله تعلى)</span>
           </div>
 
           {/* Row 3: ITS No | سبل نمبر */}
@@ -130,7 +141,7 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
               <Dotted minW="110px" align="left">{profile?.itsNo || ''}</Dotted>
             </div>
             <div style={{ direction: 'rtl' }}>
-              <span style={{ fontFamily: arabicFont }}>سبل نمبر :</span>&nbsp;
+              <span style={{ fontFamily: arabicFont, fontSize: `${AR}px` }}>سبل نمبر :</span>&nbsp;
               <Dotted minW="60px" bold>{profile?.accno || accno || ''}</Dotted>
             </div>
           </div>
@@ -143,7 +154,7 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
 
           {/* بعد السلام الجميل */}
           <div style={{
-            textAlign: 'center', fontSize: '19px',
+            textAlign: 'center', fontSize: arLarge,
             fontFamily: arabicFont, direction: 'rtl', margin: '6px 0',
           }}>
             بعد السلام الجميل
@@ -154,9 +165,9 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
             direction: 'rtl', display: 'flex', gap: '8px',
             alignItems: 'baseline', margin: '4px 0', flexWrap: 'wrap',
           }}>
-            <span style={{ whiteSpace: 'nowrap', fontFamily: arabicFont }}>اْثث طرف سي روثثية :</span>
+            <span style={{ whiteSpace: 'nowrap', fontFamily: arabicFont, fontSize: `${AR}px` }}>اْثث طرف سي روثثية :</span>
             <span style={{ direction: 'ltr', fontWeight: 'bold' }}><Dotted minW="20px">{fmt(amount)}</Dotted></span>
-            <span style={{ fontFamily: arabicFont }}>انكه</span>
+            <span style={{ fontFamily: arabicFont, fontSize: `${AR}px` }}>انكه</span>
             <span style={{ direction: 'ltr', whiteSpace: 'nowrap' }}><Dotted minW="220px">{amountInWords(amount)}</Dotted></span>
           </div>
 
@@ -165,16 +176,16 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', margin: '8px 0 4px' }}>
               {isVoluntary ? (
                 <>
-                  <span style={{ direction: 'rtl', fontFamily: arabicFont }}>طريقسس وصول تهيا ؛</span>
+                  <span style={{ direction: 'rtl', fontFamily: arabicFont, fontSize: `${AR}px` }}>طريقسس وصول تهيا ؛</span>
                   <span style={{ fontWeight: 'bold', direction: 'ltr' }}>&quot;{contribLabel}&quot;</span>
                 </>
               ) : isCorpus ? (
                 <>
-                  <span style={{ direction: 'rtl', fontFamily: arabicFont }}>طريقسس وصول تهيا ؛</span>
+                  <span style={{ direction: 'rtl', fontFamily: arabicFont, fontSize: `${AR}px` }}>طريقسس وصول تهيا ؛</span>
                   <span style={{ fontWeight: 'bold', direction: 'ltr' }}>&quot;{corpusLabel}&quot;</span>
                 </>
               ) : (
-                <span style={{ fontWeight: 'bold', direction: 'rtl', fontFamily: arabicFont }}>
+                <span style={{ fontWeight: 'bold', direction: 'rtl', fontFamily: arabicFont, fontSize: `${AR}px` }}>
                   سبل الجيروالبركات  فند ما وصول تهيا ؛
                 </span>
               )}
@@ -188,18 +199,18 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
           padding: '4px 14px 8px',
         }}>
-          <div style={{ fontSize: '11px', color: '#333' }}>
+          <div style={{ fontSize: enSmall, color: '#000' }}>
             {mode && <span>{mode}</span>}
             {showRefNo && refNo && (
               <span>&nbsp;|&nbsp;{refLabel}: <strong>{refNo}</strong></span>
             )}
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: arabicFont, fontSize: '12px', direction: 'rtl' }}>
+            <div style={{ fontFamily: arabicFont, fontSize: arSmall, direction: 'rtl' }}>
               (وصول كرنار ني صحيع) عبد سيدنا طع
             </div>
             {createdBy && (
-              <div style={{ fontSize: '11px', color: '#444', marginTop: '50px' }}>{createdBy}</div>
+              <div style={{ fontSize: enSmall, color: '#000', marginTop: '50px' }}>{createdBy}</div>
             )}
           </div>
         </div>
