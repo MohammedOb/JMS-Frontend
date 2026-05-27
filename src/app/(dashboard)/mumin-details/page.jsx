@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import {
   memberService, takhmeenService, receiptService,
   safaiService, vajebaatService, followupService,
+  whatsappService,
 } from '@/services';
 import toast  from 'react-hot-toast';
 import clsx   from 'clsx';
@@ -642,6 +643,36 @@ function MuminDetailsInner() {
         contributionType: rcForm.transType || '',
       });
       setShowPrint(true);
+
+      // Send WhatsApp acknowledgment + PDF
+      if (rcForm.sendWhatsApp) {
+        const waMobile = (rcForm.whatsAppMobile || '').trim() || profile.mobile;
+        if (waMobile) {
+          toast.loading('Sending WhatsApp…', { id: 'wa-send' });
+          const builtPrintData = {
+            receipts:         savedEnvelopes,
+            profile:          { accno: profile.accno, fullName: profile.fullName, mobile: profile.mobile, itsNo: profile.itsNo, sector: profile.sector, address: member?.mohalla || member?.address || member?.MohallaDescription || '' },
+            date:             rcForm.date,
+            mode:             rcForm.mode,
+            refNo:            rcForm.remark || '',
+            createdBy:        createdBy,
+            contributionType: rcForm.transType || '',
+          };
+          whatsappService.sendReceipt({ mobile: waMobile, printData: builtPrintData })
+            .then(res => {
+              const allOk = res.data?.results?.every(r => r.textSent && r.pdfSent);
+              toast.dismiss('wa-send');
+              if (allOk) toast.success('WhatsApp sent successfully');
+              else       toast.error('WhatsApp partially sent — check server logs');
+            })
+            .catch(err => {
+              toast.dismiss('wa-send');
+              toast.error('WhatsApp failed: ' + (err?.response?.data?.message || err.message));
+            });
+        } else {
+          toast.error('No mobile number to send WhatsApp');
+        }
+      }
 
       // Update takhmeen received totals for this member
       await takhmeenService.updateTakhmeenReceived({ AccNo: profile.accno }).catch(() => {});

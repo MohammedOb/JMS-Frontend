@@ -352,6 +352,23 @@ export const lookupService = {
   getMohallaData:       cache.cached(() => api.get('/lookup/mohalla-data'),       () => 'lookup:mohalla-data',       TTL.ref),
 };
 
+// ── WhatsApp ──────────────────────────────────────────────────────────────────
+export const whatsappService = {
+  getStatus:   ()     => api.get('/WhatsAppStatus'),
+  start:       ()     => api.post('/WhatsAppStart'),
+  logout:      ()     => api.post('/WhatsAppLogout'),
+  sendReceipt: (data) => api.post('/SendReceiptWhatsApp', data),
+};
+
+// ── WhatsApp Templates ────────────────────────────────────────────────────────
+export const waTemplateService = {
+  getMeta:        ()            => api.get('/WaTemplateMeta'),
+  getAll:         ()            => api.get('/WaTemplates'),
+  getByKey:       (key)         => api.get(`/WaTemplates/${key}`),
+  save:           (key, data)   => api.post(`/WaTemplates/${key}`, data),
+  resetToDefault: (key)         => api.post(`/WaTemplates/${key}/reset`),
+};
+
 // ── Event Registration Forms ──────────────────────────────────────────────────
 export const regFormService = {
   // Forms

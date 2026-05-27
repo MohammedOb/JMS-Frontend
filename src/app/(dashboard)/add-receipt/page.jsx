@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { memberService, receiptService, takhmeenService } from '@/services';
+import { memberService, receiptService, takhmeenService, whatsappService } from '@/services';
 import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import { TrashIcon, SaveIcon, EditIcon } from '@/components/shared/Icons';
@@ -93,7 +93,7 @@ function distributeItems(items, splitRows) {
 }
 
 const EMPTY_PROFILE = { accno: '', fullName: '', mobile: '', itsNo: '', localHofIts: '', sector: '', grade: '' };
-const EMPTY_RC_FORM = { date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false, isCashMemo: false };
+const EMPTY_RC_FORM = { date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false, isCashMemo: false, sendWhatsApp: false, whatsAppMobile: '' };
 const EMPTY_RC_ITEM = { hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', grade: '', amount: '', remark: '' };
 
 export default function AddReceiptPage() {
@@ -420,8 +420,7 @@ export default function AddReceiptPage() {
       toast.success(`${savedEnvelopes.length} receipt(s) saved: ${savedEnvelopes.map(e => e.receiptNo).join(', ')}`);
       await takhmeenService.updateTakhmeenReceived({ AccNo: profile.accno }).catch(() => {});
 
-      // Show print preview modal
-      setPrintData({
+      const builtPrintData = {
         receipts:         savedEnvelopes,
         profile:          { ...profile },
         date:             rcForm.date,
@@ -429,8 +428,33 @@ export default function AddReceiptPage() {
         refNo:            rcForm.remark || '',
         createdBy:        createdBy,
         contributionType: rcForm.transType || '',
-      });
+      };
+
+      // Show print preview modal
+      setPrintData(builtPrintData);
       setShowPrint(true);
+
+      // Send WhatsApp acknowledgment + PDF
+      if (rcForm.sendWhatsApp) {
+        const waMobile = rcForm.whatsAppMobile.trim() || profile.mobile;
+        if (waMobile) {
+          toast.loading('Sending WhatsApp…', { id: 'wa-send' });
+          whatsappService.sendReceipt({ mobile: waMobile, printData: builtPrintData })
+            .then(res => {
+              const allOk = res.data?.results?.every(r => r.textSent && r.pdfSent);
+              toast.dismiss('wa-send');
+              if (allOk) toast.success('WhatsApp sent successfully');
+              else       toast.error('WhatsApp partially sent — check server logs');
+            })
+            .catch(err => {
+              toast.dismiss('wa-send');
+              toast.error('WhatsApp failed: ' + (err?.response?.data?.message || err.message));
+            });
+        } else {
+          toast.error('No mobile number to send WhatsApp');
+        }
+      }
+
       clearForm();
     } catch (err) {
       toast.error('Failed to save: ' + (err?.response?.data?.message || err?.message || 'Unknown error'));
@@ -862,16 +886,40 @@ export default function AddReceiptPage() {
           </div>
         )}
 
-        {/* ── 6. SMS ────────────────────────────────────────────────────────── */}
-        <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer p-2.5 bg-surface rounded-md border border-border">
-          <input
-            type="checkbox"
-            className="accent-blue-500 w-3.5 h-3.5"
-            checked={rcForm.sendSMS || false}
-            onChange={e => setRcForm(p => ({ ...p, sendSMS: e.target.checked }))}
-          />
-          Send SMS confirmation to {profile.mobile || 'member'}
-        </label>
+        {/* ── 6. Notifications ─────────────────────────────────────────────── */}
+        <div className="flex flex-col gap-2 p-2.5 bg-surface rounded-md border border-border">
+          {/* <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              className="accent-blue-500 w-3.5 h-3.5"
+              checked={rcForm.sendSMS || false}
+              onChange={e => setRcForm(p => ({ ...p, sendSMS: e.target.checked }))}
+            />
+            Send SMS confirmation to {profile.mobile || 'member'}
+          </label> */}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                className="accent-green-600 w-3.5 h-3.5"
+                checked={rcForm.sendWhatsApp || false}
+                onChange={e => setRcForm(p => ({ ...p, sendWhatsApp: e.target.checked }))}
+              />
+              <span className={`font-medium ${rcForm.sendWhatsApp ? 'text-green-700' : 'text-gray-600'}`}>
+                Send WhatsApp acknowledgment + PDF
+              </span>
+            </label>
+            {rcForm.sendWhatsApp && (
+              <input
+                className="form-input text-[11px] w-40"
+                placeholder={profile.mobile || 'Mobile no.'}
+                value={rcForm.whatsAppMobile || ''}
+                onChange={e => setRcForm(p => ({ ...p, whatsAppMobile: e.target.value }))}
+              />
+            )}
+          </div>
+        </div>
 
         {/* ── 7. Action buttons ─────────────────────────────────────────────── */}
         <div className="flex justify-end gap-2 pt-1 flex-wrap">

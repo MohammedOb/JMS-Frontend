@@ -133,7 +133,7 @@ export default function AddReceiptModal({
     setSaving(false);
     // Reset form fields so reopening the modal always starts clean
     setRcItems([]);
-    setRcForm({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false, isCashMemo: false });
+    setRcForm({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false, isCashMemo: false, sendWhatsApp: false, whatsAppMobile: '' });
     setRcItem({ hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', grade: member?.grade || '', amount: '', remark: '' });
   }, [open, member]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -894,16 +894,40 @@ export default function AddReceiptModal({
           </div>
         )}
 
-        {/* ── SMS checkbox ─────────────────────────────────────────────────── */}
-        <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer p-2.5 bg-surface rounded-md border border-border">
-          <input
-            type="checkbox"
-            className="accent-blue-500 w-3.5 h-3.5"
-            checked={rcForm.sendSMS || false}
-            onChange={e => setRcForm(p => ({ ...p, sendSMS: e.target.checked }))}
-          />
-          Send SMS confirmation to {profile.mobile || member?.mobile}
-        </label>
+        {/* ── Notifications ──────────────────────────────────────────────── */}
+        <div className="flex flex-col gap-2 p-2.5 bg-surface rounded-md border border-border">
+          {/* <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              className="accent-blue-500 w-3.5 h-3.5"
+              checked={rcForm.sendSMS || false}
+              onChange={e => setRcForm(p => ({ ...p, sendSMS: e.target.checked }))}
+            />
+            Send SMS confirmation to {profile.mobile || member?.mobile}
+          </label> */}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                className="accent-green-600 w-3.5 h-3.5"
+                checked={rcForm.sendWhatsApp || false}
+                onChange={e => setRcForm(p => ({ ...p, sendWhatsApp: e.target.checked }))}
+              />
+              <span className={`font-medium ${rcForm.sendWhatsApp ? 'text-green-700' : 'text-gray-600'}`}>
+                Send WhatsApp acknowledgment + PDF
+              </span>
+            </label>
+            {rcForm.sendWhatsApp && (
+              <input
+                className="form-input text-[11px] w-40"
+                placeholder={profile.mobile || member?.mobile || 'Mobile no.'}
+                value={rcForm.whatsAppMobile || ''}
+                onChange={e => setRcForm(p => ({ ...p, whatsAppMobile: e.target.value }))}
+              />
+            )}
+          </div>
+        </div>
       </div>
     </Modal>
   );

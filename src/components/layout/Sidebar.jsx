@@ -74,6 +74,8 @@ const NAV_SECTIONS = [
       { label: 'Access Control',    href: '/access-control',     icon: UserCogIcon,   permission: 'users.view' },
       { label: 'System Variables',  href: '/system-variables',   icon: SettingsIcon,  permission: 'utility.view' },
       { label: 'Utility',           href: '/utility',            icon: SettingsIcon,  permission: 'utility.view' },
+      { label: 'WhatsApp Status',    href: '/whatsapp-status',    icon: BellIcon,      permission: 'utility.view' },
+      { label: 'WA Templates',      href: '/whatsapp-templates', icon: FileTextIcon,  permission: 'utility.view' },
     ],
   },
 ];

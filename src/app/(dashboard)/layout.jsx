@@ -39,6 +39,8 @@ const ROUTE_PERMISSIONS = {
   '/access-control':       'users.view',
   '/system-variables':     'utility.view',
   '/utility':              'utility.view',
+  '/whatsapp-status':      'utility.view',
+  '/whatsapp-templates':   'utility.view',
 };
 
 export default function DashboardLayout({ children }) {
