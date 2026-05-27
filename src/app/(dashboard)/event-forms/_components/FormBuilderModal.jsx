@@ -76,12 +76,33 @@ export default function FormBuilderModal({ initialData, onClose, onSaved }) {
   // ── Header image ──────────────────────────────────────────────────────────
 
   const fileRef = useRef(null);
+  const RECOMMENDED_W = 1600;
+  const RECOMMENDED_H = 200;
+  const [imgWarning, setImgWarning] = useState(''); // '' | 'ok' | warning text
 
   const handleImageUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file || !file.type.startsWith('image/')) { toast.error('Select an image file'); return; }
     const reader = new FileReader();
-    reader.onload = ev => sf('HeaderImage', ev.target.result);
+    reader.onload = ev => {
+      const dataUrl = ev.target.result;
+      // Check actual pixel dimensions before committing
+      const img = new window.Image();
+      img.onload = () => {
+        const w = img.naturalWidth;
+        const h = img.naturalHeight;
+        if (w === RECOMMENDED_W && h === RECOMMENDED_H) {
+          setImgWarning('ok');
+        } else {
+          setImgWarning(
+            `Uploaded image is ${w} × ${h} px. ` +
+            `For best results use ${RECOMMENDED_W} × ${RECOMMENDED_H} px.`
+          );
+        }
+        sf('HeaderImage', dataUrl);
+      };
+      img.src = dataUrl;
+    };
     reader.readAsDataURL(file);
   };
 
@@ -105,6 +126,7 @@ export default function FormBuilderModal({ initialData, onClose, onSaved }) {
           ? (typeof q.ConditionalLogic === 'string' ? JSON.parse(q.ConditionalLogic) : q.ConditionalLogic)
           : null,
         IsRequired: !!q.IsRequired,
+        PerMember: !!q.PerMember,
         SectionLocalId: q.SectionID,
       }));
 
@@ -226,20 +248,36 @@ export default function FormBuilderModal({ initialData, onClose, onSaved }) {
             <div className="mb-4">
               <label className="form-label">Header Image (optional)</label>
               {form.HeaderImage ? (
-                <div className="relative">
-                  <img src={form.HeaderImage} alt="header" className="w-full h-28 object-cover rounded-lg border border-border" />
-                  <button
-                    onClick={() => sf('HeaderImage', '')}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs font-bold hover:bg-red-600"
-                  >✕</button>
+                <div className="space-y-2">
+                  <div className="relative">
+                    <img src={form.HeaderImage} alt="header" className="w-full h-[200px] object-fill rounded-lg border border-border" />
+                    <button
+                      onClick={() => { sf('HeaderImage', ''); setImgWarning(''); }}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs font-bold hover:bg-red-600"
+                    >✕</button>
+                  </div>
+                  {/* Dimension feedback */}
+                  {imgWarning === 'ok' ? (
+                    <p className="text-[11px] text-green-600 flex items-center gap-1">
+                      ✓ Image dimensions match the recommended size.
+                    </p>
+                  ) : imgWarning ? (
+                    <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 flex items-start gap-1.5">
+                      <span className="shrink-0 font-bold">⚠</span>
+                      {imgWarning}
+                    </p>
+                  ) : null}
                 </div>
               ) : (
                 <button
                   onClick={() => fileRef.current?.click()}
-                  className="w-full h-20 border-2 border-dashed border-border rounded-lg flex items-center justify-center gap-2
-                             text-gray-400 text-[12px] hover:border-blue-400 hover:text-blue-500 transition-colors"
+                  className="w-full h-24 border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-1
+                             text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
                 >
-                  🖼 Click to upload header image
+                  <span className="text-[13px]">🖼 Click to upload header image</span>
+                  <span className="text-[11px] text-gray-400 font-medium">
+                    Recommended size: {RECOMMENDED_W} × {RECOMMENDED_H} px
+                  </span>
                 </button>
               )}
               <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />

@@ -69,6 +69,23 @@ export default function FormDetailsSection({ form, sf, sfn }) {
           </select>
         </div>
 
+        <div>
+          <label className="form-label">Family Registration</label>
+          <select
+            value={Number(form.AllowFamilyRegistration ?? 0)}
+            onChange={e => sf('AllowFamilyRegistration', Number(e.target.value))}
+            className="form-select"
+          >
+            <option value={0}>Individual — one person per submission</option>
+            <option value={1}>Family — HOF registers multiple members</option>
+          </select>
+          {Number(form.AllowFamilyRegistration) === 1 && (
+            <p className="text-[10px] text-blue-600 mt-1">
+              HOF selects family members. Mark questions as &quot;Per Member&quot; to show them as columns in the family table.
+            </p>
+          )}
+        </div>
+
       </div>
     </div>
   );

@@ -385,5 +385,9 @@ export const regFormPublic = {
   getSections:     (d) => api.post('/LoadFormSections/public',  d),
   checkDup:        (d) => api.post('/CheckRegDuplicate',        d),
   submit:          (d) => api.post('/SubmitRegForm',             d),
-  loadForEdit:     (d) => api.post('/LoadRegResponseForEdit',   d),
+  submitFamily:    (d) => api.post('/SubmitFamilyRegistration', d),
+  loadForEdit:         (d) => api.post('/LoadRegResponseForEdit',          d),
+  loadFamilyResponses: (d) => api.post('/LoadAllFamilyResponses/public',  d),
+  updateResponse:      (d) => api.post('/UpdateRegResponse/public',        d),
+  deleteResponse:      (d) => api.delete('/DeleteRegResponse/public', { data: d }),
 };

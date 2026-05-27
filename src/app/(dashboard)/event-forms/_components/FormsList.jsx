@@ -1,9 +1,12 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { regFormService } from '@/services';
+import { invalidate } from '@/lib/cache';
 import toast from 'react-hot-toast';
 import FormBuilderModal from './FormBuilderModal';
 import ResponsesModal from './ResponsesModal';
+
+const POLL_INTERVAL = 30_000; // 30 s — silent background refresh
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const fmtDate = (v) => {
@@ -35,6 +38,23 @@ export default function FormsList() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Silent background refresh — busts cache first so we always get fresh counts
+  const refresh = useCallback(async () => {
+    try {
+      invalidate('regforms');
+      const res = await regFormService.loadForms({});
+      setForms(res?.data?.data ?? []);
+    } catch {}
+  }, []);
+
+  // Auto-refresh every 30 s; also re-fetch on tab focus
+  useEffect(() => {
+    const id = setInterval(refresh, POLL_INTERVAL);
+    const onVisible = () => { if (document.visibilityState === 'visible') refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(id); document.removeEventListener('visibilitychange', onVisible); };
+  }, [refresh]);
 
   const toggleStatus = async (form) => {
     const next = form.Status === 'published' ? 'closed' : form.Status === 'draft' ? 'published' : 'published';
@@ -128,7 +148,7 @@ export default function FormsList() {
       {responses && (
         <ResponsesModal
           form={responses}
-          onClose={() => setResponses(null)}
+          onClose={() => { setResponses(null); refresh(); }}
         />
       )}
     </div>

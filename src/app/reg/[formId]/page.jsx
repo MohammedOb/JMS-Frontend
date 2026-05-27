@@ -4,140 +4,32 @@ import { regFormPublic, memberService } from '@/services';
 import { ELIGIBILITY_CONFIG } from '@/utils/eligibilityConfig';
 import toast from 'react-hot-toast';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const fmtDate = (v) => {
-  if (!v) return '';
-  const d = new Date(v);
-  if (isNaN(d)) return '';
-  return `${String(d.getDate()).padStart(2,'0')} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-};
-
-const parseJson = (v, fallback) => {
-  if (!v) return fallback;
-  if (typeof v !== 'string') return v;
-  try { return JSON.parse(v); } catch { return fallback; }
-};
-
-
-const buildPrefill = (questions, m, lookupMode, lookupVal) => {
-  if (!m) return {};
-  const map = {};
-  questions.forEach(q => {
-    const t = q.QuestionText.toLowerCase().replace(/[^a-z0-9 ]/g, '');
-    if (/\b(full\s?name|name)\b/.test(t))                          map[q.ID] = m.FullName || m.Full_Name || '';
-    if (/\b(mobile|phone|whatsapp|contact)\b/.test(t))             map[q.ID] = m.Mobile || '';
-    if (/\b(sector)\b/.test(t))                                    map[q.ID] = m.Sector || '';
-    if (/\b(its|itsno|its\s?no|its\s?number)\b/.test(t))          map[q.ID] = String(m.ITSNo || m.ITS_ID || (lookupMode === 'itsno' ? lookupVal : '') || '');
-    if (/\b(acc\s?no|accno|account\s?no|account\s?number)\b/.test(t))
-      map[q.ID] = String(m.AccNo || (lookupMode === 'accno' ? lookupVal : '') || '');
-    if (/\b(mohallah|mohalla|locality)\b/.test(t))                 map[q.ID] = m.MohallaDescription || '';
-  });
-  return map;
-};
-
-// ─── Question renderer ────────────────────────────────────────────────────────
-
-function QuestionInput({ question, value, onChange }) {
-  const opts = parseJson(question.Options, []);
-  switch (question.QuestionType) {
-    case 'textarea':
-      return <textarea rows={3} value={value || ''} onChange={e => onChange(e.target.value)} placeholder="Your answer…"
-        className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none" />;
-    case 'number':
-      return <input type="number" value={value || ''} onChange={e => onChange(e.target.value)} placeholder="0"
-        className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />;
-    case 'date':
-      return <input type="date" value={value || ''} onChange={e => onChange(e.target.value)}
-        className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-blue-500" />;
-    case 'yesno':
-      return (
-        <div className="flex gap-6 pt-1">
-          {['Yes', 'No'].map(opt => (
-            <label key={opt} className="flex items-center gap-2 cursor-pointer text-[13px] text-gray-700 select-none">
-              <input type="radio" name={`q_${question.ID}`} value={opt}
-                checked={value === opt} onChange={() => onChange(opt)} className="accent-blue-600 w-4 h-4" />
-              {opt}
-            </label>
-          ))}
-        </div>
-      );
-    case 'radio':
-      return (
-        <div className="space-y-2 pt-1">
-          {opts.filter(Boolean).map(opt => (
-            <label key={opt} className="flex items-center gap-2 cursor-pointer text-[13px] text-gray-700 select-none">
-              <input type="radio" name={`q_${question.ID}`} value={opt}
-                checked={value === opt} onChange={() => onChange(opt)} className="accent-blue-600 w-4 h-4" />
-              {opt}
-            </label>
-          ))}
-        </div>
-      );
-    case 'select':
-      return (
-        <select value={value || ''} onChange={e => onChange(e.target.value)}
-          className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-blue-500 bg-white">
-          <option value="">Select an option…</option>
-          {opts.filter(Boolean).map(opt => <option key={opt} value={opt}>{opt}</option>)}
-        </select>
-      );
-    case 'checkbox': {
-      const checked = value ? value.split('|') : [];
-      return (
-        <div className="space-y-2 pt-1">
-          {opts.filter(Boolean).map(opt => (
-            <label key={opt} className="flex items-center gap-2 cursor-pointer text-[13px] text-gray-700 select-none">
-              <input type="checkbox" checked={checked.includes(opt)} className="rounded accent-blue-600 w-4 h-4"
-                onChange={() => {
-                  const next = checked.includes(opt) ? checked.filter(v => v !== opt) : [...checked, opt];
-                  onChange(next.join('|'));
-                }} />
-              {opt}
-            </label>
-          ))}
-        </div>
-      );
-    }
-    default:
-      return <input type="text" value={value || ''} onChange={e => onChange(e.target.value)} placeholder="Your answer…"
-        className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" />;
-  }
-}
-
-// ─── Progress bar ─────────────────────────────────────────────────────────────
-
-function ProgressBar({ visited, total }) {
-  if (total <= 1) return null;
-  const pct = Math.round((visited / total) * 100);
-  return (
-    <div className="h-1 bg-gray-200">
-      <div className="h-1 bg-blue-500 transition-all duration-300" style={{ width: `${pct}%` }} />
-    </div>
-  );
-}
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
+import { parseJson, memberKey, buildPrefill } from './_components/helpers';
+import ProgressBar   from './_components/ProgressBar';
+import AnnounceStep  from './_components/AnnounceStep';
+import VerifyStep    from './_components/VerifyStep';
+import FamilyStep    from './_components/FamilyStep';
+import FormStep      from './_components/FormStep';
+import DoneStep      from './_components/DoneStep';
 
 export default function PublicFormPage({ params }) {
   const { formId } = use(params);
 
-  const [form, setForm]           = useState(null);
-  const [sections, setSections]   = useState([]); // [{ID, Title, SortOrder, questions:[...]}]
-  const [loadErr, setLoadErr]     = useState('');
-  const [loading, setLoading]     = useState(true);
+  const [form, setForm]         = useState(null);
+  const [sections, setSections] = useState([]);
+  const [loadErr, setLoadErr]   = useState('');
+  const [loading, setLoading]   = useState(true);
 
-  // step: 'announce' | 'verify' | 'form' | 'done'
+  // step: 'announce' | 'verify' | 'family' | 'form' | 'done'
   const [step, setStep] = useState('announce');
 
   // Verify
-  const [lookupMode, setLookupMode]   = useState('accno');
-  const [lookupVal, setLookupVal]     = useState('');
-  const [verifyCode, setVerifyCode]   = useState('');
-  const [looking, setLooking]         = useState(false);
-  const [memberData, setMemberData]   = useState(null);
-  const [verifyError, setVerifyError] = useState('');
+  const [lookupMode, setLookupMode]     = useState('accno');
+  const [lookupVal, setLookupVal]       = useState('');
+  const [verifyCode, setVerifyCode]     = useState('');
+  const [looking, setLooking]           = useState(false);
+  const [memberData, setMemberData]     = useState(null);
+  const [verifyError, setVerifyError]   = useState('');
   const [notFoundMode, setNotFoundMode] = useState(false);
   const verifyInputRef = useRef(null);
 
@@ -145,16 +37,27 @@ export default function PublicFormPage({ params }) {
     if (memberData) verifyInputRef.current?.focus();
   }, [memberData]);
 
+  // Family registration
+  const [familyLoading, setFamilyLoading]                         = useState(false);
+  const [familyMembers, setFamilyMembers]                         = useState([]);
+  const [selectedKeys, setSelectedKeys]                           = useState(new Set());
+  const [outsideMembers, setOutsideMembers]                       = useState([]); // { Name, ITSNo, _responseId? }
+  const [removedOutsideResponseIds, setRemovedOutsideResponseIds] = useState(new Set());
+  const [memberResponseIds, setMemberResponseIds]                 = useState({}); // { memberKey: ResponseID }
+  const [alreadyRegisteredKeys, setAlreadyRegisteredKeys]         = useState(new Set());
+  const [submitResult, setSubmitResult]                           = useState(null);
+  const [perMemberAnswers, setPerMemberAnswers]                   = useState({});
+
   // Multi-section navigation
-  const [sectionIdx, setSectionIdx]     = useState(0);   // index in `sections`
-  const [sectionHistory, setSectionHistory] = useState([]); // stack of previous indices (for Back)
+  const [sectionIdx, setSectionIdx]         = useState(0);
+  const [sectionHistory, setSectionHistory] = useState([]);
 
   // Answers + submission
-  const [answers, setAnswers]                   = useState({});
-  const [submitting, setSubmitting]             = useState(false);
+  const [answers, setAnswers]                       = useState({});
+  const [submitting, setSubmitting]                 = useState(false);
   const [existingResponseId, setExistingResponseId] = useState(null);
 
-  // ── Load form, sections, questions ───────────────────────────────────────
+  // ── Load form + sections + questions ───────────────────────────────────────
 
   useEffect(() => {
     (async () => {
@@ -179,6 +82,7 @@ export default function PublicFormPage({ params }) {
           Options: parseJson(q.Options, []),
           ConditionalLogic: parseJson(q.ConditionalLogic, null),
           IsRequired: !!q.IsRequired,
+          PerMember: !!q.PerMember,
         })).sort((a, b) => (a.SortOrder ?? 0) - (b.SortOrder ?? 0));
 
         if (dbSections.length) {
@@ -187,7 +91,6 @@ export default function PublicFormPage({ params }) {
             .map(s => ({ ...s, questions: allQs.filter(q => q.SectionID === s.ID) }));
           setSections(built);
         } else {
-          // No sections → all questions in one implicit section
           setSections([{ ID: null, Title: null, questions: allQs }]);
         }
       } catch { setLoadErr('Failed to load form. Please try again.'); }
@@ -195,7 +98,27 @@ export default function PublicFormPage({ params }) {
     })();
   }, [formId]);
 
-  // ── Member lookup ─────────────────────────────────────────────────────────
+  // Derived
+  const allQuestions   = sections.flatMap(s => s.questions);
+  const perMemberQs    = allQuestions.filter(q => q.PerMember);
+  const sharedQs       = allQuestions.filter(q => !q.PerMember);
+  const sharedSections = sections
+    .map(s => ({ ...s, questions: s.questions.filter(q => !q.PerMember) }))
+    .filter(s => s.questions.length > 0);
+
+  // ── Eligibility ────────────────────────────────────────────────────────────
+
+  const getIneligibilityReason = (m) => {
+    if (!m || !form) return null;
+    const rules = parseJson(form.EligibilityRules, null) ?? {};
+    for (const field of ELIGIBILITY_CONFIG) {
+      const msg = field.validate(rules, m, form);
+      if (msg) return msg;
+    }
+    return null;
+  };
+
+  // ── Member lookup ──────────────────────────────────────────────────────────
 
   const doLookup = async () => {
     const val = lookupVal.trim();
@@ -227,24 +150,21 @@ export default function PublicFormPage({ params }) {
     finally { setLooking(false); }
   };
 
-  // ── Proceed to form after verify ─────────────────────────────────────────
+  // ── Proceed to form (individual) ───────────────────────────────────────────
 
   const proceedToForm = async (m, accNo, itsNo) => {
     if (m) {
-      const rules = parseJson(form.EligibilityRules, null) ?? {};
       const errors = [];
       ELIGIBILITY_CONFIG.forEach(field => {
-        const msg = field.validate(rules, m, form);
+        const msg = field.validate(parseJson(form.EligibilityRules, null) ?? {}, m, form);
         if (msg) errors.push(msg);
       });
       if (errors.length) { setVerifyError(errors.join(' ')); return; }
     }
 
-    // Duplicate check
     const dupRes = await regFormPublic.checkDup({ FormID: formId, AccNo: accNo || null, ITSNo: itsNo || null });
     const dup    = dupRes?.data?.data;
-
-    let prefill = {};
+    let prefill  = {};
     if (dup?.duplicate) {
       setExistingResponseId(dup.ResponseID);
       try {
@@ -253,9 +173,7 @@ export default function PublicFormPage({ params }) {
       } catch {}
     }
 
-    // Member-data prefill on empty fields
-    const allQs = sections.flatMap(s => s.questions);
-    const memberPrefill = buildPrefill(allQs, m, lookupMode, lookupVal.trim());
+    const memberPrefill = buildPrefill(allQuestions, m, lookupMode, lookupVal.trim());
     Object.entries(memberPrefill).forEach(([qId, val]) => { if (!prefill[qId]) prefill[qId] = val; });
 
     setAnswers(prefill);
@@ -263,6 +181,112 @@ export default function PublicFormPage({ params }) {
     setSectionHistory([]);
     setStep('form');
   };
+
+  // ── Proceed to family step ─────────────────────────────────────────────────
+
+  const proceedToFamily = async (m, itsNo) => {
+    const reason = getIneligibilityReason(m);
+    if (reason) { setVerifyError(reason); return; }
+
+    setFamilyLoading(true);
+    try {
+      // 1. Load family members from ITS Org
+      const hofHOFID = m.HOF_ID || m.LocalHOFITSNo || itsNo || String(m.ITS_ID || m.ITSNo || '').trim();
+      const res      = await memberService.loadFamilyMembersDetails({ HOF_ID: hofHOFID });
+      const members  = Array.isArray(res?.data?.data ?? res?.data) ? (res?.data?.data ?? res?.data) : [];
+      setFamilyMembers(members);
+
+      const hKey = memberKey(m);
+      setSelectedKeys(new Set(hKey ? [hKey] : []));
+      setRemovedOutsideResponseIds(new Set());
+
+      // 2. Auto-fill per-member answers from ITS Org data (Gender, Age, Misaq, Name, etc.)
+      const initPM = {};
+      members.forEach(mem => {
+        initPM[memberKey(mem)] = buildPrefill(allQuestions, mem, 'accno', String(mem.AccNo || ''));
+      });
+
+      // 3. Load ALL existing family responses in a single round-trip (by AccNo)
+      const accNo       = String(m.AccNo || '').trim() || null;
+      const dupKeys     = new Set();
+      const responseIds = {};
+      const loadedOutside = []; // previously registered outside/guest members
+
+      if (accNo) {
+        try {
+          const allRes = await regFormPublic.loadFamilyResponses({ FormID: formId, AccNo: accNo });
+          const rows   = allRes?.data?.data ?? [];
+
+          // Group rows by ResponseID
+          const byResponseId = {};
+          rows.forEach(row => {
+            if (!byResponseId[row.ResponseID]) {
+              byResponseId[row.ResponseID] = {
+                ITSNo:         row.ITSNo   || null,
+                RespondentName: row.RespondentName || '',
+                answers:       {},
+              };
+            }
+            if (row.QuestionID) {
+              byResponseId[row.ResponseID].answers[row.QuestionID] = row.AnswerText ?? '';
+            }
+          });
+
+          // Build ITSNo → { ResponseID, answers } lookup for fast matching
+          const byIts = {};
+          Object.entries(byResponseId).forEach(([respId, data]) => {
+            if (data.ITSNo) byIts[data.ITSNo] = { ResponseID: Number(respId), answers: data.answers };
+          });
+
+          // 4. Match responses to ITS Org family members by ITSNo
+          const matchedResponseIds = new Set();
+          members.forEach(mem => {
+            const memIts = String(mem.ITS_ID || mem.ITSNo || '').trim();
+            const key    = memberKey(mem);
+            if (memIts && byIts[memIts]) {
+              dupKeys.add(key);
+              responseIds[key] = byIts[memIts].ResponseID;
+              matchedResponseIds.add(byIts[memIts].ResponseID);
+              // Merge saved answers on top of auto-fill (saved answers take priority)
+              initPM[key] = { ...(initPM[key] || {}), ...byIts[memIts].answers };
+            }
+          });
+
+          // 5. Unmatched responses = outside/guest members from a previous registration
+          Object.entries(byResponseId).forEach(([respId, data]) => {
+            if (!matchedResponseIds.has(Number(respId))) {
+              loadedOutside.push({
+                Name:        data.RespondentName,
+                ITSNo:       data.ITSNo || '',
+                _responseId: Number(respId),
+              });
+            }
+          });
+        } catch {}
+      }
+
+      setPerMemberAnswers(initPM);
+      setAlreadyRegisteredKeys(dupKeys);
+      setMemberResponseIds(responseIds);
+      setOutsideMembers(loadedOutside);
+
+      // Pre-select already-registered members (kept by default)
+      setSelectedKeys(prev => {
+        const next = new Set(prev);
+        dupKeys.forEach(k => next.add(k));
+        return next;
+      });
+
+      setStep('family');
+    } catch {
+      const accNo = String(m.AccNo || '').trim() || null;
+      await proceedToForm(m, accNo, itsNo);
+    } finally {
+      setFamilyLoading(false);
+    }
+  };
+
+  // ── doVerify ───────────────────────────────────────────────────────────────
 
   const doVerify = async () => {
     if (!verifyCode.trim()) { setVerifyError('Please enter the verification code'); return; }
@@ -275,54 +299,169 @@ export default function PublicFormPage({ params }) {
       setVerifyError('Verification code does not match. Please check and try again.');
       return;
     }
+
     const accNo = String(m.AccNo || '').trim() || null;
     const itsNo = String(m.ITSNo || m.ITS_ID || '').trim() || null;
-    await proceedToForm(m, accNo, itsNo);
+
+    if (Number(form?.AllowFamilyRegistration) === 1) {
+      await proceedToFamily(m, itsNo);
+    } else {
+      await proceedToForm(m, accNo, itsNo);
+    }
   };
 
   const proceedManually = async () => { await proceedToForm(null, null, null); };
 
-  // ── Section navigation with conditional logic ─────────────────────────────
+  // ── Family step helpers ────────────────────────────────────────────────────
 
-  const currentSection = sections[sectionIdx] ?? null;
+  const toggleKey = (key) =>
+    setSelectedKeys(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
 
-  // Evaluate conditional logic: returns nextSectionIdx or -1 (submit)
+  const selectAll = () => {
+    const eligibleKeys = familyMembers
+      .filter(m => !getIneligibilityReason(m))
+      .map(memberKey);
+    setSelectedKeys(new Set(eligibleKeys));
+  };
+
+  const setPerMemberAnswer = (mKey, qId, val) =>
+    setPerMemberAnswers(prev => ({ ...prev, [mKey]: { ...(prev[mKey] || {}), [qId]: val } }));
+
+  const addOutsideMember  = () => setOutsideMembers(prev => [...prev, { Name: '', ITSNo: '' }]);
+  const updateOutside = (i, field, val) =>
+    setOutsideMembers(prev => prev.map((m, idx) => idx === i ? { ...m, [field]: val } : m));
+  const removeOutside = (i) => {
+    const om = outsideMembers[i];
+    // If this outside member was previously registered, track their ResponseID for deletion on submit
+    if (om?._responseId) {
+      setRemovedOutsideResponseIds(prev => new Set([...prev, om._responseId]));
+    }
+    setOutsideMembers(prev => prev.filter((_, idx) => idx !== i));
+  };
+
+  // All selected family members (including already-registered being kept/updated)
+  const selectedFamilyMembers = familyMembers.filter(m => selectedKeys.has(memberKey(m)));
+  const selectedOutside = outsideMembers.filter(m => m.Name.trim());
+  const selectedCount   = selectedFamilyMembers.length + selectedOutside.length;
+  // Members being removed (were registered, now deselected)
+  const membersToDelete = familyMembers.filter(
+    m => alreadyRegisteredKeys.has(memberKey(m)) && !selectedKeys.has(memberKey(m))
+  );
+
+  // ── Family direct submit ───────────────────────────────────────────────────
+
+  const submitFamilyDirect = async () => {
+    const totalChanges = selectedCount + membersToDelete.length + removedOutsideResponseIds.size;
+    if (totalChanges === 0) { toast.error('No changes to save'); return; }
+
+    // Validate required fields for selected members
+    for (const m of selectedFamilyMembers) {
+      const key = memberKey(m);
+      for (const q of allQuestions) {
+        if (q.IsRequired && !String(perMemberAnswers[key]?.[q.ID] ?? '').trim()) {
+          toast.error(`"${q.QuestionText}" is required for ${m.Full_Name || m.FullName || 'a member'}`);
+          return;
+        }
+      }
+    }
+
+    setSubmitting(true);
+    try {
+      let submitted = 0, updated = 0, deleted = 0;
+
+      // Insert or update selected family members
+      for (const m of selectedFamilyMembers) {
+        const key     = memberKey(m);
+        const answers = allQuestions.map(q => ({ QuestionID: q.ID, AnswerText: perMemberAnswers[key]?.[q.ID] ?? '' }));
+        const respId  = memberResponseIds[key];
+        if (respId) {
+          await regFormPublic.updateResponse({ ResponseID: respId, answers });
+          updated++;
+        } else {
+          await regFormPublic.submit({
+            FormID: formId,
+            AccNo:  m.AccNo || null,
+            ITSNo:  String(m.ITS_ID || m.ITSNo || '').trim() || null,
+            RespondentName: m.Full_Name || m.FullName || '',
+            answers,
+          });
+          submitted++;
+        }
+      }
+
+      // Outside/guest members — update existing or insert new
+      const familyAccNo = memberData?.AccNo ? String(memberData.AccNo).trim() : null;
+      for (const om of selectedOutside) {
+        if (om._responseId) {
+          // Previously registered outside member being kept — update their record
+          await regFormPublic.updateResponse({ ResponseID: om._responseId, answers: [] });
+          updated++;
+        } else {
+          // Brand-new outside member — store under the family AccNo so they appear in future edits
+          await regFormPublic.submit({
+            FormID: formId,
+            AccNo:  familyAccNo,
+            ITSNo:  om.ITSNo?.trim() || null,
+            RespondentName: om.Name.trim(),
+            answers: [],
+          });
+          submitted++;
+        }
+      }
+
+      // Delete outside members that the user removed (had a previous ResponseID)
+      for (const respId of removedOutsideResponseIds) {
+        await regFormPublic.deleteResponse({ ResponseID: respId });
+        deleted++;
+      }
+
+      // Delete deselected already-registered members
+      for (const m of membersToDelete) {
+        const respId = memberResponseIds[memberKey(m)];
+        if (respId) { await regFormPublic.deleteResponse({ ResponseID: respId }); deleted++; }
+      }
+
+      setSubmitResult({ submitted, updated, deleted });
+      setStep('done');
+    } catch { toast.error('Submission failed. Please try again.'); }
+    finally  { setSubmitting(false); }
+  };
+
+  // ── Section navigation ─────────────────────────────────────────────────────
+
+  const currentSharedSection = sharedSections[sectionIdx] ?? null;
+
   const resolveNextSection = () => {
-    if (!currentSection) return -1;
-
-    for (const q of currentSection.questions) {
+    if (!currentSharedSection) return -1;
+    for (const q of currentSharedSection.questions) {
       const logic = q.ConditionalLogic;
       if (!logic?.rules?.length) continue;
       const ans  = String(answers[q.ID] ?? '').trim();
       const rule = logic.rules.find(r => r.answer === ans)
                 ?? logic.rules.find(r => r.answer === '__default__');
       if (!rule) continue;
-
-      if (rule.nextSectionId === 0) return -1; // end form
-
+      if (rule.nextSectionId === 0) return -1;
       if (rule.nextSectionId != null) {
-        const idx = sections.findIndex(s => s.ID === rule.nextSectionId);
+        const idx = sharedSections.findIndex(s => s.ID === rule.nextSectionId);
         if (idx !== -1) return idx;
       }
     }
-
-    // Default: next section in order
-    return sectionIdx < sections.length - 1 ? sectionIdx + 1 : -1;
+    return sectionIdx < sharedSections.length - 1 ? sectionIdx + 1 : -1;
   };
 
   const goNext = () => {
-    // Validate current section required fields
-    for (const q of (currentSection?.questions ?? [])) {
+    for (const q of (currentSharedSection?.questions ?? [])) {
       if (q.IsRequired && !String(answers[q.ID] ?? '').trim()) {
-        toast.error(`"${q.QuestionText}" is required`);
-        return;
+        toast.error(`"${q.QuestionText}" is required`); return;
       }
     }
-
     const next = resolveNextSection();
-    if (next === -1) {
-      submit();
-    } else {
+    if (next === -1) { submit(); }
+    else {
       setSectionHistory(h => [...h, sectionIdx]);
       setSectionIdx(next);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -336,43 +475,62 @@ export default function PublicFormPage({ params }) {
       setSectionIdx(prev);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      setStep('verify');
+      setStep(Number(form?.AllowFamilyRegistration) === 1 && familyMembers.length ? 'family' : 'verify');
     }
   };
 
-  // Is this the last reachable section (no further branching leads elsewhere)?
   const isLastSection = resolveNextSection() === -1;
 
-  // ── Submit ────────────────────────────────────────────────────────────────
+  // ── New Registration — reset all state back to verify step ─────────────────
+
+  const startNewRegistration = () => {
+    setStep('verify');
+    setLookupVal('');
+    setVerifyCode('');
+    setMemberData(null);
+    setVerifyError('');
+    setNotFoundMode(false);
+    setFamilyMembers([]);
+    setSelectedKeys(new Set());
+    setOutsideMembers([]);
+    setRemovedOutsideResponseIds(new Set());
+    setMemberResponseIds({});
+    setAlreadyRegisteredKeys(new Set());
+    setPerMemberAnswers({});
+    setAnswers({});
+    setExistingResponseId(null);
+    setSubmitResult(null);
+    setSectionIdx(0);
+    setSectionHistory([]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
 
   const submit = async () => {
-    // Only validate sections the user actually visited
     const visitedIndices = new Set([...sectionHistory, sectionIdx]);
     for (const idx of visitedIndices) {
-      for (const q of (sections[idx]?.questions ?? [])) {
+      for (const q of (sharedSections[idx]?.questions ?? [])) {
         if (q.IsRequired && !String(answers[q.ID] ?? '').trim()) {
-          toast.error(`"${q.QuestionText}" is required`);
-          return;
+          toast.error(`"${q.QuestionText}" is required`); return;
         }
       }
     }
 
-    const allQs = sections.flatMap(s => s.questions);
-    const m     = memberData;
-    const accNo = m ? (String(m.AccNo || '').trim() || null) : null;
-    const itsNo = m ? (String(m.ITSNo || m.ITS_ID || '').trim() || null) : null;
-    const answersArr = allQs.map(q => ({ QuestionID: q.ID, AnswerText: answers[q.ID] ?? '' }));
-
     setSubmitting(true);
     try {
+      const m     = memberData;
+      const accNo = m ? (String(m.AccNo || '').trim() || null) : null;
+      const itsNo = m ? (String(m.ITSNo || m.ITS_ID || '').trim() || null) : null;
+      const allAnswersArr = allQuestions.map(q => ({ QuestionID: q.ID, AnswerText: answers[q.ID] ?? '' }));
       if (existingResponseId) {
         const { regFormService: s } = await import('@/services');
-        await s.updateResponse({ ResponseID: existingResponseId, answers: answersArr });
+        await s.updateResponse({ ResponseID: existingResponseId, answers: allAnswersArr });
       } else {
         await regFormPublic.submit({
           FormID: formId, AccNo: accNo, ITSNo: itsNo,
           RespondentName: m?.FullName || m?.Full_Name || '',
-          answers: answersArr,
+          answers: allAnswersArr,
         });
       }
       setStep('done');
@@ -380,7 +538,7 @@ export default function PublicFormPage({ params }) {
     finally  { setSubmitting(false); }
   };
 
-  // ── Loading / Error screens ───────────────────────────────────────────────
+  // ── Loading / Error ────────────────────────────────────────────────────────
 
   if (loading) return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -400,218 +558,103 @@ export default function PublicFormPage({ params }) {
     </div>
   );
 
-  const card = "bg-white rounded-2xl shadow-md overflow-hidden max-w-2xl w-full mx-auto";
+  // ── Render ─────────────────────────────────────────────────────────────────
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // Expand card to max-w-7xl for the family table; other steps stay narrow
+  const cardMaxW = step === 'family' ? 'max-w-7xl' : 'max-w-2xl';
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4">
-      <div className={card}>
+    <div className="min-h-screen bg-gray-100 py-6 px-3 sm:px-6">
+      <div className={`bg-white rounded-2xl shadow-md overflow-hidden w-full mx-auto transition-[max-width] duration-300 ${cardMaxW}`}>
 
-        {/* Header image */}
         {form.HeaderImage && (
-          <img src={form.HeaderImage} alt="header" className="w-full h-40 object-cover" />
+          <img src={form.HeaderImage} alt="header" className="w-full h-[200px] object-fill" />
         )}
 
-        {/* Title bar */}
         <div className="bg-[#0b1d38] px-6 py-5">
-          {form.EventName && (
-            <h1 className="text-white font-bold text-[22px] leading-tight">
-              {form.EventName}
-            </h1>
-          )}
+          {form.EventName && <h1 className="text-white font-bold text-[22px] leading-tight">{form.EventName}</h1>}
           <p className="text-white/90 text-[16px] font-semibold mt-1">{form.Title}</p>
         </div>
 
-        {/* Section progress bar (only during form step) */}
         {step === 'form' && (
-          <ProgressBar
-            visited={sectionHistory.length + 1}
-            total={sections.length}
+          <ProgressBar visited={sectionHistory.length + 1} total={sharedSections.length} />
+        )}
+
+        {step === 'announce' && (
+          <AnnounceStep form={form} onNext={() => setStep('verify')} />
+        )}
+
+        {step === 'verify' && (
+          <VerifyStep
+            form={form}
+            lookupMode={lookupMode}   setLookupMode={setLookupMode}
+            lookupVal={lookupVal}     setLookupVal={setLookupVal}
+            verifyCode={verifyCode}   setVerifyCode={setVerifyCode}
+            looking={looking}         familyLoading={familyLoading}
+            memberData={memberData}
+            verifyError={verifyError} setVerifyError={setVerifyError}
+            notFoundMode={notFoundMode} setNotFoundMode={setNotFoundMode}
+            verifyInputRef={verifyInputRef}
+            doLookup={doLookup}
+            doVerify={doVerify}
+            proceedManually={proceedManually}
+            onBack={() => setStep('announce')}
           />
         )}
 
-        {/* ── Announcement ────────────────────────────────────────────────── */}
-        {step === 'announce' && (
-          <div className="p-6">
-            {form.Description ? (
-              <div className="text-gray-700 text-[13px] leading-relaxed whitespace-pre-wrap mb-6">
-                {form.Description}
-              </div>
-            ) : (
-              <p className="text-gray-400 text-[13px] mb-6 italic">No announcement.</p>
-            )}
-            <button onClick={() => setStep('verify')}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[14px] py-3 rounded-xl transition-colors">
-              Next →
-            </button>
-          </div>
+        {step === 'family' && (
+          <FamilyStep
+            form={form}
+            memberData={memberData}
+            familyMembers={familyMembers}
+            selectedKeys={selectedKeys}
+            setSelectedKeys={setSelectedKeys}
+            toggleKey={toggleKey}
+            selectAll={selectAll}
+            alreadyRegisteredKeys={alreadyRegisteredKeys}
+            membersToDelete={membersToDelete}
+            allQuestions={allQuestions}
+            perMemberAnswers={perMemberAnswers}
+            setPerMemberAnswer={setPerMemberAnswer}
+            getIneligibilityReason={getIneligibilityReason}
+            outsideMembers={outsideMembers}
+            addOutsideMember={addOutsideMember}
+            updateOutside={updateOutside}
+            removeOutside={removeOutside}
+            removedOutsideCount={removedOutsideResponseIds.size}
+            selectedCount={selectedCount}
+            onSubmit={submitFamilyDirect}
+            submitting={submitting}
+            onBack={() => setStep('verify')}
+          />
         )}
 
-        {/* ── Verify identity ──────────────────────────────────────────────── */}
-        {step === 'verify' && (
-          <div className="p-6 space-y-5">
-            <h2 className="text-[15px] font-bold text-gray-800">Verify Your Identity</h2>
-
-            <div className="flex rounded-xl border border-gray-200 overflow-hidden">
-              {[{ key: 'accno', label: 'By Acc No' }, { key: 'itsno', label: 'By ITS No' }].map(m => (
-                <button key={m.key}
-                  onClick={() => { setLookupMode(m.key); setLookupVal(''); setMemberData(null); setVerifyError(''); setVerifyCode(''); setNotFoundMode(false); }}
-                  className={`flex-1 py-2.5 text-[12px] font-semibold transition-colors ${lookupMode === m.key ? 'bg-blue-600 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>
-                  {m.label}
-                </button>
-              ))}
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                {lookupMode === 'accno' ? 'Account Number' : 'ITS Number'}
-              </label>
-              <div className="flex gap-2">
-                <input type="text" value={lookupVal}
-                  onChange={e => { setLookupVal(e.target.value); setVerifyError(''); setNotFoundMode(false); setMemberData(null); }}
-                  onKeyDown={e => e.key === 'Enter' && doLookup()}
-                  className="flex-1 border border-gray-300 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-blue-500"
-                  placeholder={lookupMode === 'accno' ? 'e.g. 1001' : 'e.g. 30012345'} />
-                <button onClick={doLookup} disabled={looking}
-                  className="bg-gray-800 hover:bg-gray-700 text-white px-4 rounded-xl text-[12px] font-semibold disabled:opacity-50 min-w-[60px]">
-                  {looking ? '…' : 'Find'}
-                </button>
-              </div>
-            </div>
-
-            {memberData && !notFoundMode && (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
-                <p className="text-[13px] text-green-700 font-semibold">
-                  ✓ Found: {memberData.FullName || memberData.Full_Name}{memberData.Sector ? ` · ${memberData.Sector}` : ''}
-                </p>
-                <div>
-                  <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-                    {lookupMode === 'accno' ? 'Enter your ITS Number to verify' : 'Enter your HOF ID to verify'}
-                  </label>
-                  <input ref={verifyInputRef} type="text" value={verifyCode}
-                    onChange={e => { setVerifyCode(e.target.value); setVerifyError(''); }}
-                    onKeyDown={e => e.key === 'Enter' && doVerify()}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-blue-500"
-                    placeholder="Verification code…" />
-                </div>
-                <button onClick={doVerify}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold text-[13px] py-2.5 rounded-xl transition-colors">
-                  Verify &amp; Continue →
-                </button>
-              </div>
-            )}
-
-            {notFoundMode && (
-              Number(form.AllowOutsideRegistration) === 0 ? (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                  <p className="text-[12px] text-red-700 font-semibold">
-                    ⚠️ {lookupMode === 'accno' ? 'No member found for this Acc No.' : 'ITS not found in the system.'}
-                  </p>
-                  <p className="text-[12px] text-red-600 mt-1">
-                    Registration is restricted to registered members only. Please verify your {lookupMode === 'accno' ? 'Acc No' : 'ITS No'} and try again.
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
-                  <p className="text-[12px] text-amber-800 font-semibold">
-                    {lookupMode === 'accno' ? '⚠️ No member found for this Acc No.' : '⚠️ ITS not found in the system.'}
-                  </p>
-                  <p className="text-[12px] text-amber-700">
-                    {lookupMode === 'accno'
-                      ? 'You can continue and fill the form manually without an account.'
-                      : 'You may continue as an outside member and fill the form manually.'}
-                  </p>
-                  <button onClick={proceedManually}
-                    className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[13px] py-2.5 rounded-xl transition-colors">
-                    {lookupMode === 'accno' ? 'Continue without Acc No →' : 'Continue as Outside Member →'}
-                  </button>
-                </div>
-              )
-            )}
-
-            {verifyError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-[12px] rounded-xl px-4 py-3">{verifyError}</div>
-            )}
-
-            <button onClick={() => setStep('announce')} className="text-[12px] text-gray-400 hover:text-gray-600">← Back</button>
-          </div>
+        {step === 'form' && (
+          <FormStep
+            form={form}
+            currentSharedSection={currentSharedSection}
+            sharedSections={sharedSections}
+            sectionIdx={sectionIdx}
+            existingResponseId={existingResponseId}
+            selectedCount={selectedCount}
+            answers={answers}
+            setAnswers={setAnswers}
+            submitting={submitting}
+            isLastSection={isLastSection}
+            goNext={goNext}
+            goBack={goBack}
+            submit={submit}
+          />
         )}
 
-        {/* ── Form (section by section) ────────────────────────────────────── */}
-        {step === 'form' && currentSection && (
-          <div className="p-6 space-y-6">
-            {existingResponseId && sectionIdx === 0 && (
-              <div className="bg-blue-50 border border-blue-200 text-blue-700 text-[12px] rounded-xl px-4 py-3">
-                You are already registered. Your previous answers are pre-filled — update them if needed.
-              </div>
-            )}
-
-            {/* Section title (only if multi-section and has a title) */}
-            {sections.length > 1 && currentSection.Title && (
-              <div className="border-b border-gray-100 pb-3">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">
-                  Section {sectionIdx + 1} of {sections.length}
-                </p>
-                <h2 className="text-[15px] font-bold text-gray-800">{currentSection.Title}</h2>
-              </div>
-            )}
-
-            {/* Questions */}
-            {currentSection.questions.length === 0 ? (
-              <p className="text-gray-400 text-[13px] text-center py-4">No questions in this section.</p>
-            ) : (
-              currentSection.questions.map((q, i) => (
-                <div key={q.ID}>
-                  <label className="block text-[13px] font-semibold text-gray-800 mb-2">
-                    {i + 1}. {q.QuestionText}
-                    {q.IsRequired && <span className="text-red-500 ml-1">*</span>}
-                  </label>
-                  <QuestionInput
-                    question={q}
-                    value={answers[q.ID] ?? ''}
-                    onChange={v => setAnswers(p => ({ ...p, [q.ID]: v }))}
-                  />
-                </div>
-              ))
-            )}
-
-            {/* Navigation */}
-            <div className="flex gap-3 pt-2">
-              <button onClick={goBack}
-                className="flex-shrink-0 border border-gray-300 text-gray-600 hover:bg-gray-50 font-semibold text-[13px] py-3 px-5 rounded-xl transition-colors">
-                ← Back
-              </button>
-              <button onClick={goNext} disabled={submitting}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-semibold text-[14px] py-3 rounded-xl transition-colors">
-                {submitting
-                  ? 'Submitting…'
-                  : isLastSection
-                    ? (existingResponseId ? 'Update Registration' : 'Submit Registration')
-                    : 'Next →'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Done ─────────────────────────────────────────────────────────── */}
         {step === 'done' && (
-          <div className="p-10 text-center space-y-4">
-            <div className="text-5xl">✅</div>
-            <h2 className="text-[18px] font-bold text-gray-800">
-              {existingResponseId ? 'Registration Updated!' : 'Registration Submitted!'}
-            </h2>
-            {form.AfterSubmitMessage?.trim() ? (
-              <p className="text-gray-700 text-[14px] leading-relaxed whitespace-pre-wrap">
-                {form.AfterSubmitMessage}
-              </p>
-            ) : (
-              <p className="text-gray-500 text-[13px]">
-                Thank you{memberData?.FullName ? `, ${memberData.FullName}` : ''}.
-                <br />Your registration for <strong>{form.EventName || form.Title}</strong> has been saved.
-              </p>
-            )}
-          </div>
+          <DoneStep
+            form={form}
+            memberData={memberData}
+            existingResponseId={existingResponseId}
+            submitResult={submitResult}
+            onNewRegistration={startNewRegistration}
+          />
         )}
 
       </div>

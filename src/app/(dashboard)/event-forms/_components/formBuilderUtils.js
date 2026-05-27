@@ -1,17 +1,50 @@
 export const QUESTION_TYPES = [
-  { value: 'text',     label: 'Short Text' },
-  { value: 'textarea', label: 'Paragraph' },
-  { value: 'number',   label: 'Number' },
-  { value: 'date',     label: 'Date' },
-  { value: 'yesno',    label: 'Yes / No' },
-  { value: 'radio',    label: 'Multiple Choice' },
-  { value: 'select',   label: 'Dropdown' },
-  { value: 'checkbox', label: 'Checkboxes' },
+  // ── Basic ───────────────────────────────────────────────────────────────────
+  { value: 'text',         label: 'Short Text'           },
+  { value: 'textarea',     label: 'Paragraph'            },
+  { value: 'number',       label: 'Number'               },
+  { value: 'date',         label: 'Date'                 },
+  // ── Choice ──────────────────────────────────────────────────────────────────
+  { value: 'yesno',        label: 'Yes / No'             },
+  { value: 'radio',        label: 'Multiple Choice'      },
+  { value: 'select',       label: 'Dropdown'             },
+  { value: 'checkbox',     label: 'Checkboxes'           },
+  // ── Scale / rating ──────────────────────────────────────────────────────────
+  { value: 'linearscale',  label: 'Linear Scale'         },
+  { value: 'rating',       label: 'Rating (Stars)'       },
+  // ── Grid ────────────────────────────────────────────────────────────────────
+  { value: 'mcgrid',       label: 'Multiple-Choice Grid' },
+  { value: 'tickboxgrid',  label: 'Tick Box Grid'        },
+  // ── Upload ──────────────────────────────────────────────────────────────────
+  { value: 'fileupload',   label: 'File Upload'          },
 ];
 
+/** Types that support conditional branching */
 export const BRANCHING_TYPES = ['yesno', 'radio', 'select'];
 
+/** Types that render a flat option list in the builder */
 export const needsOptions = (t) => ['radio', 'select', 'checkbox'].includes(t);
+
+/** Types that need separate rows + columns grids in the builder */
+export const needsGridOptions = (t) => ['mcgrid', 'tickboxgrid'].includes(t);
+
+/**
+ * Return the correct default Options value when a question type is first selected.
+ * Array types stay arrays; structured types return plain objects.
+ */
+export const defaultOptions = (type) => {
+  switch (type) {
+    case 'radio':
+    case 'select':
+    case 'checkbox':    return ['Option 1', 'Option 2'];
+    case 'linearscale': return { min: 1, max: 5, minLabel: '', maxLabel: '' };
+    case 'rating':      return { max: 5 };
+    case 'mcgrid':
+    case 'tickboxgrid': return { rows: ['Row 1', 'Row 2'], columns: ['Column 1', 'Column 2'] };
+    case 'fileupload':  return { accept: '', maxSizeMB: 5 };
+    default:            return [];
+  }
+};
 
 export const toLocalDateStr = (v) => {
   if (!v) return '';
@@ -33,6 +66,7 @@ export const blankQuestion = () => ({
   QuestionType: 'text',
   Options: [],
   IsRequired: false,
+  PerMember: false,
   ConditionalLogic: null,
 });
 
@@ -49,4 +83,5 @@ export const blankForm = () => ({
   ClosedMessage: '',
   EligibilityRules: null,
   AllowOutsideRegistration: 1,
+  AllowFamilyRegistration: 0,
 });

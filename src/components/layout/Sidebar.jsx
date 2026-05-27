@@ -4,6 +4,7 @@
 // Each nav item only renders if the user has the corresponding permission.
 
 import Link              from 'next/link';
+import Image             from 'next/image';
 import { usePathname }   from 'next/navigation';
 import { useAuth }       from '@/context/AuthContext';
 import clsx              from 'clsx';
@@ -12,7 +13,7 @@ import {
   BellIcon, UsersIcon, CoinsIcon, AlertCircleIcon, ClipboardListIcon,
   TrendingUpIcon, TrendingDownIcon, CreditCardIcon, FileTextIcon, TruckIcon,
   MapPinIcon, CalendarIcon, StarIcon, ListIcon, MailIcon, GiftIcon,
-  UtensilsIcon, UserCogIcon, SettingsIcon, MosqueIcon, LogoutIcon, LayersIcon, TableIcon,
+  UtensilsIcon, UserCogIcon, SettingsIcon, LogoutIcon, LayersIcon, TableIcon,
 } from '@/components/shared/Icons';
 
 // ── Nav config ────────────────────────────────────────────────────────────
@@ -60,8 +61,8 @@ const NAV_SECTIONS = [
       { label: 'Seating Layout',   href: '/seating-layout',  icon: TableIcon,   permission: 'seating.view' },
       { label: 'Bookings',         href: '/calendar',        icon: CalendarIcon,permission: ['bookings.view', 'seating.view'] },
       { label: 'Ohbat Majlis',     href: '/ohbat-majlis',    icon: StarIcon,    permission: ['ohbat_majlis.view', 'majlis.view'] },
-      { label: 'Majlis List',      href: '/majlis',          icon: ListIcon,    permission: ['ohbat_majlis.view', 'majlis.view'] },
-      { label: 'Event Forms',      href: '/event-forms',     icon: FileTextIcon, permission: 'forms.view' },
+      { label: 'Majlis List',      href: '/majlis',          icon: ListIcon,    permission: ['majlis.view', 'majlis.view'] },
+      { label: 'Event Forms',      href: '/event-forms',     icon: FileTextIcon, permission: 'eventform.view' },
       { label: 'Safai Chitthi',    href: '/safai-chitthi',   icon: MailIcon,    permission: 'safai.view' },
       { label: 'Musaida List',     href: '/musaida',         icon: GiftIcon,    permission: 'musaida.view' },
     ],
@@ -139,19 +140,15 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       >
 
       {/* Brand */}
-      <div className="flex items-center gap-2.5 px-4 py-3.5 border-b border-white/[0.06] flex-shrink-0 h-[52px]">
-        <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center
-                        text-white flex-shrink-0 shadow-md">
-          <MosqueIcon className="w-4.5 h-4.5 w-[18px] h-[18px]" />
-        </div>
-        <div>
-          <div className="font-display text-[14px] font-bold text-white tracking-tight leading-none">
-            JMS
-          </div>
-          <div className="text-[9px] text-white/25 uppercase tracking-widest mt-0.5">
-            Jamaat System
-          </div>
-        </div>
+      <div className="flex items-center justify-center px-4 py-2 border-b border-white/[0.06] flex-shrink-0 h-[52px]">
+        <Image
+          src="/jmsoptimuslogo1.png"
+          alt="JMS Optimus"
+          width={972}
+          height={213}
+          className="object-contain h-9 w-auto"
+          priority
+        />
       </div>
 
       {/* Navigation */}
@@ -207,7 +204,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
             onClick={logout}
             title="Sign out"
             className="w-7 h-7 flex items-center justify-center rounded-md
-                       bg-white/[0.06] text-white/38
+                       bg-white/[0.06] text-white/70
                        hover:bg-red-500/20 hover:text-red-400 transition-all"
           >
             <LogoutIcon className="w-3.5 h-3.5" />
