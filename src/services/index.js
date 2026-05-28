@@ -354,10 +354,11 @@ export const lookupService = {
 
 // ── WhatsApp ──────────────────────────────────────────────────────────────────
 export const whatsappService = {
-  getStatus:   ()     => api.get('/WhatsAppStatus'),
-  start:       ()     => api.post('/WhatsAppStart'),
-  logout:      ()     => api.post('/WhatsAppLogout'),
-  sendReceipt: (data) => api.post('/SendReceiptWhatsApp', data),
+  getStatus:    ()     => api.get('/WhatsAppStatus'),
+  start:        ()     => api.post('/WhatsAppStart'),
+  logout:       ()     => api.post('/WhatsAppLogout'),
+  clearSession: ()     => api.post('/WhatsAppClearSession'),
+  sendReceipt:  (data) => api.post('/SendReceiptWhatsApp', data),
 };
 
 // ── WhatsApp Templates ────────────────────────────────────────────────────────
