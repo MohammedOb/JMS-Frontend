@@ -660,14 +660,18 @@ function MuminDetailsInner() {
           };
           whatsappService.sendReceipt({ mobile: waMobile, printData: builtPrintData })
             .then(res => {
-              const allOk = res.data?.results?.every(r => r.textSent && r.pdfSent);
               toast.dismiss('wa-send');
-              if (allOk) toast.success('WhatsApp sent successfully');
-              else       toast.error('WhatsApp partially sent — check server logs');
+              const data = res.data;
+              if (data?.success) {
+                toast.success('WhatsApp sent successfully');
+              } else {
+                toast.error(data?.message || 'WhatsApp message could not be delivered.');
+              }
             })
             .catch(err => {
               toast.dismiss('wa-send');
-              toast.error('WhatsApp failed: ' + (err?.response?.data?.message || err.message));
+              const serverMsg = err?.response?.data?.message;
+              toast.error(serverMsg || 'Unable to send WhatsApp. Please check the mobile number and try again.');
             });
         } else {
           toast.error('No mobile number to send WhatsApp');

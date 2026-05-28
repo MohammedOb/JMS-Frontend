@@ -15,12 +15,15 @@ const STATUS_UI = {
 };
 
 export default function WhatsAppStatusPage() {
-  const [data,       setData]       = useState(null);
-  const [fetching,   setFetching]   = useState(true);
-  const [starting,   setStarting]   = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [fetchErr,   setFetchErr]   = useState(null);
-  const intervalRef = useRef(null);
+  const [data,        setData]        = useState(null);
+  const [fetching,    setFetching]    = useState(true);
+  const [starting,    setStarting]    = useState(false);
+  const [loggingOut,  setLoggingOut]  = useState(false);
+  const [fetchErr,    setFetchErr]    = useState(null);
+  const [startingAt,  setStartingAt]  = useState(null);  // timestamp when 'starting' began
+  const [elapsed,     setElapsed]     = useState(0);     // seconds in 'starting' state
+  const intervalRef  = useRef(null);
+  const elapsedRef   = useRef(null);
 
   // ── Fetch current status ────────────────────────────────────────────────────
   const fetchStatus = async (silent = false) => {
@@ -28,7 +31,19 @@ export default function WhatsAppStatusPage() {
     setFetchErr(null);
     try {
       const res = await whatsappService.getStatus();
-      setData(res.data);
+      const next = res.data;
+      setData(prev => {
+        // Track when we first enter 'starting' state
+        if (next?.status === 'starting' && prev?.status !== 'starting') {
+          setStartingAt(Date.now());
+          setElapsed(0);
+        }
+        if (next?.status !== 'starting') {
+          setStartingAt(null);
+          setElapsed(0);
+        }
+        return next;
+      });
     } catch (err) {
       setFetchErr(err?.response?.data?.message || err.message || 'Could not reach server');
     } finally {
@@ -36,14 +51,27 @@ export default function WhatsAppStatusPage() {
     }
   };
 
-  // Auto-refresh: fast while starting/qr, slower once stable
+  // Elapsed-seconds ticker while in 'starting' state
+  useEffect(() => {
+    if (startingAt) {
+      elapsedRef.current = setInterval(() => {
+        setElapsed(Math.floor((Date.now() - startingAt) / 1000));
+      }, 1000);
+    } else {
+      clearInterval(elapsedRef.current);
+    }
+    return () => clearInterval(elapsedRef.current);
+  }, [startingAt]);
+
+  // Auto-refresh: 2 s while starting/qr_ready, 5 s otherwise
   useEffect(() => {
     fetchStatus();
     intervalRef.current = setInterval(() => {
       fetchStatus(true);
-    }, 3000);
+    }, ['starting', 'qr_ready'].includes(data?.status) ? 2000 : 5000);
     return () => clearInterval(intervalRef.current);
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.status]);
 
   // ── Start WhatsApp ──────────────────────────────────────────────────────────
   const handleStart = async () => {
@@ -76,7 +104,8 @@ export default function WhatsAppStatusPage() {
 
   const s   = data?.status || 'disconnected';
   const ui  = STATUS_UI[s] || STATUS_UI.disconnected;
-  const isStartable = ['disconnected', 'error'].includes(s) && !data?.busy;
+  const isStartable    = ['disconnected', 'error'].includes(s) && !data?.busy;
+  const isStuckStarting = s === 'starting' && !data?.busy && elapsed >= 45;
 
   return (
     <div>
@@ -146,9 +175,19 @@ export default function WhatsAppStatusPage() {
 
                 {/* Starting info */}
                 {s === 'starting' && (
-                  <p className="text-[12.5px] text-gray-500 animate-pulse">
-                    Launching browser session — this may take 15–30 seconds. The QR code will appear here once ready.
-                  </p>
+                  <div className="space-y-1.5">
+                    <p className="text-[12.5px] text-gray-500">
+                      Launching browser session — this may take 15–30 seconds. The QR code will appear here once ready.
+                      {elapsed > 0 && (
+                        <span className="ml-1.5 text-blue-500 font-medium tabular-nums">({elapsed}s)</span>
+                      )}
+                    </p>
+                    {isStuckStarting && (
+                      <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                        Still starting after {elapsed}s. The browser session may have stalled — click <strong>Force Restart</strong> to try again.
+                      </p>
+                    )}
+                  </div>
                 )}
 
                 {/* Disconnected info */}
@@ -171,6 +210,16 @@ export default function WhatsAppStatusPage() {
                   disabled={starting}
                 >
                   {starting ? 'Starting…' : '▶ Start WhatsApp'}
+                </button>
+              )}
+
+              {isStuckStarting && (
+                <button
+                  className="btn btn-secondary border-amber-400 text-amber-700 hover:bg-amber-50"
+                  onClick={handleStart}
+                  disabled={starting}
+                >
+                  {starting ? 'Restarting…' : '↺ Force Restart'}
                 </button>
               )}
 
