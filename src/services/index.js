@@ -354,11 +354,34 @@ export const lookupService = {
 
 // ── WhatsApp ──────────────────────────────────────────────────────────────────
 export const whatsappService = {
-  getStatus:    ()     => api.get('/WhatsAppStatus'),
-  start:        ()     => api.post('/WhatsAppStart'),
-  logout:       ()     => api.post('/WhatsAppLogout'),
-  clearSession: ()     => api.post('/WhatsAppClearSession'),
-  sendReceipt:  (data) => api.post('/SendReceiptWhatsApp', data),
+  getStatus:       ()     => api.get('/WhatsAppStatus'),
+  start:           ()     => api.post('/WhatsAppStart'),
+  logout:          ()     => api.post('/WhatsAppLogout'),
+  clearSession:    ()     => api.post('/WhatsAppClearSession'),
+  sendReceipt:     (data) => api.post('/SendReceiptWhatsApp',    data),
+  sendDueReminder: (data) => api.post('/SendDueReminderWhatsApp', data),
+};
+
+// ── WhatsApp Bulk Messaging ───────────────────────────────────────────────────
+export const waBulkService = {
+  members:    (filters)            => api.post('/LoadMuminDetails', filters),
+  sectors:    ()                   => api.get('/WaBulk/sectors'),
+  subsectors: (sector)             => api.get('/WaBulk/subsectors', { params: { Sector: sector } }),
+  mohallahs:  (sector, subsector)  => api.get('/WaBulk/mohallahs', { params: { Sector: sector, SubSector: subsector } }),
+};
+
+// ── WhatsApp Queue ────────────────────────────────────────────────────────────
+export const waQueueService = {
+  create:  (data)  => api.post('/WaQueue', data),
+  active:  ()      => api.get('/WaQueue/active'),
+  recent:  (limit) => api.get('/WaQueue/recent', { params: { limit } }),
+  batch:   (id)    => api.get(`/WaQueue/batch/${id}`),
+  items:   (id)    => api.get(`/WaQueue/batch/${id}/items`),
+  logs:    (id)    => api.get(`/WaQueue/batch/${id}/logs`),
+  pause:   (id)    => api.post(`/WaQueue/batch/${id}/pause`),
+  resume:  (id)    => api.post(`/WaQueue/batch/${id}/resume`),
+  cancel:  (id)    => api.post(`/WaQueue/batch/${id}/cancel`),
+  retry:   (id)    => api.post(`/WaQueue/batch/${id}/retry`),
 };
 
 // ── WhatsApp Templates ────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { whatsappService } from '@/services';
 import PageHeader from '@/components/shared/PageHeader';
 import toast from 'react-hot-toast';
+import { MessageIcon } from './../../../components/shared/Icons';
 
 // ── Status definitions ────────────────────────────────────────────────────────
 const STATUS_UI = {
@@ -253,9 +254,15 @@ export default function WhatsAppStatusPage() {
                 {s === 'starting' && (
                   <div className="space-y-2">
                     <StageProgress initStage={data.initStage} />
-                    {isStuckStarting && (
+                    {data.initStage === 'restoring' && (
+                      <p className="text-[12px] text-blue-600 bg-blue-50 border border-blue-200 rounded-md px-3 py-2">
+                        Restoring your saved session — this can take up to 2 minutes on a slow connection. Please wait.
+                        {elapsed > 0 && <span className="ml-1 font-medium tabular-nums">({elapsed}s)</span>}
+                      </p>
+                    )}
+                    {isStuckStarting && data.initStage !== 'restoring' && (
                       <p className="text-[12px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
-                        Still starting after {elapsed}s. If the session is corrupt, use <strong>Clear Session & Restart</strong>.
+                        Still starting after {elapsed}s. Try <strong>Force Restart</strong>. If that fails, use <strong>Clear Session & Restart</strong>.
                       </p>
                     )}
                   </div>
@@ -280,7 +287,7 @@ export default function WhatsAppStatusPage() {
                 {s === 'connected' && (
                   <div className="space-y-1">
                     <p className="text-[12.5px] text-gray-600">
-                      WhatsApp is linked and ready to send receipt acknowledgments and PDFs.
+                      WhatsApp is linked and ready to send messages.
                     </p>
                     {connectedSince && (
                       <p className="text-[11.5px] text-green-700">Session active since <strong>{connectedSince}</strong></p>

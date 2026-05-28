@@ -73,7 +73,8 @@ import ReceiptPrintModal   from '@/components/shared/ReceiptPrintModal';
 import ResetPasswordModal  from './components/modals/ResetPasswordModal';
 import AddFollowupModal    from './components/modals/AddFollowupModal';
 
-import OverallDueModal     from './components/modals/OverallDueModal';
+import OverallDueModal        from './components/modals/OverallDueModal';
+import SendDueReminderModal  from './components/modals/SendDueReminderModal';
 import TakhmeenPreviewModal from './components/modals/TakhmeenPreviewModal';
 import EditMemberModal     from './components/modals/EditMemberModal';
 import AddNewMemberModal   from './components/modals/AddNewMemberModal';
@@ -174,10 +175,12 @@ function MuminDetailsInner() {
     resetPass:   false, addFollowup:  false,
     sabeelDue:   false, overallDue:   false,
     takPreview:  false, fmbPrint:     false,
+    dueReminder: false,
   });
   const openModal  = (k) => setModals(p => ({ ...p, [k]: true }));
   const closeModal = (k) => setModals(p => ({ ...p, [k]: false }));
 
+  const [dueReminderData, setDueReminderData] = useState(null);
   const [printData, setPrintData] = useState(null);
   const [showPrint, setShowPrint] = useState(false);
 
@@ -946,7 +949,11 @@ function MuminDetailsInner() {
             <div className="flex flex-col sm:flex-row gap-3 mb-3">
               {FEATURES.dueSummary && (
                 <div className="sm:w-[35%] shrink-0">
-                  <DueSummaryCards takhmeen={takhmeen} onOverallDue={FEATURES.overallDue ? () => openModal('overallDue') : null} />
+                  <DueSummaryCards
+                    takhmeen={takhmeen}
+                    onOverallDue={FEATURES.overallDue ? () => openModal('overallDue') : null}
+                    onSendReminder={(data) => { setDueReminderData(data); openModal('dueReminder'); }}
+                  />
                 </div>
               )}
               {FEATURES.alertBanners && (
@@ -1232,6 +1239,10 @@ function MuminDetailsInner() {
       <OverallDueModal
         open={modals.overallDue} onClose={() => closeModal('overallDue')}
         member={member} due={due} takhmeen={takhmeen}
+      />
+      <SendDueReminderModal
+        open={modals.dueReminder} onClose={() => closeModal('dueReminder')}
+        member={member} dueData={dueReminderData}
       />
       <TakhmeenPreviewModal
         open={modals.takPreview} onClose={() => closeModal('takPreview')}

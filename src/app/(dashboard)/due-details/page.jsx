@@ -9,8 +9,11 @@ import { dueService, takhmeenService, memberService, lookupService } from '@/ser
 import { useAuth } from '@/context/AuthContext';
 import {
   RefreshIcon, XIcon, DownloadIcon,
-  BarChartIcon, FileTextIcon, PrintIcon,
+  BarChartIcon, FileTextIcon, PrintIcon, SendIcon,
 } from '@/components/shared/Icons';
+import WAReminderModal from './components/WAReminderModal';
+import WABulkModal     from './components/WABulkModal';
+import WAQueuePanel    from './components/WAQueuePanel';
 
 const INIT_FILTERS = {
   receivedFrom: '',
@@ -25,7 +28,7 @@ const INIT_FILTERS = {
   sabeelType:   '',
 };
 
-const TABLE_COLS = 17;
+const TABLE_COLS = 19; // +checkbox +send
 
 const PAGE_SIZE_OPTIONS = [
   { label: '100',    value: 100   },
@@ -188,6 +191,12 @@ export default function DueDetailsPage() {
   const [thaaliStatuses,setThaaliStatuses]= useState([]);
   const [loading,      setLoading]      = useState(false);
   const [showExport,  setShowExport]  = useState(false);
+
+  // ── WhatsApp reminder state ───────────────────────────────────────────────
+  const [selectedAccnos, setSelectedAccnos] = useState(new Set());
+  const [waReminderRow,  setWaReminderRow]  = useState(null);
+  const [waBulkRows,     setWaBulkRows]     = useState([]);
+  const [waBulkOpen,     setWaBulkOpen]     = useState(false);
   const [exportPos,   setExportPos]   = useState({});
   const [filters,     setFilters]     = useState(INIT_FILTERS);
   const [pageSize,    setPageSize]    = useState(100);
@@ -365,6 +374,29 @@ export default function DueDetailsPage() {
 
   const hasFilters   = Object.keys(INIT_FILTERS).some(k => filters[k] !== INIT_FILTERS[k]);
   const clearFilters = useCallback(() => setFilters(INIT_FILTERS), []);
+
+  // ── Checkbox helpers ──────────────────────────────────────────────────────
+  const isAllSelected = filteredRows.length > 0 &&
+    filteredRows.every(r => selectedAccnos.has(r.accno));
+
+  const toggleRow = useCallback((accno) => {
+    setSelectedAccnos(prev => {
+      const next = new Set(prev);
+      next.has(accno) ? next.delete(accno) : next.add(accno);
+      return next;
+    });
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    setSelectedAccnos(prev => {
+      const allSelected = filteredRows.every(r => prev.has(r.accno));
+      if (allSelected) return new Set();
+      return new Set(filteredRows.map(r => r.accno));
+    });
+  }, [filteredRows]);
+
+  // Clear selection when filters produce a new result set
+  useEffect(() => { setSelectedAccnos(new Set()); }, [filteredRows]);
 
   const totTakhmeen  = useMemo(() => filteredRows.reduce((s, r) => s + r.takhmeen,  0), [filteredRows]);
   const totReceived  = useMemo(() => filteredRows.reduce((s, r) => s + r.received,  0), [filteredRows]);
@@ -631,12 +663,65 @@ export default function DueDetailsPage() {
         document.body
       )}
 
+      {/* WhatsApp queue status panel */}
+      <WAQueuePanel />
+
+      {/* WhatsApp bulk action bar */}
+      {filteredRows.length > 0 && (
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <span className="text-[11.5px] text-gray-500">
+            {selectedAccnos.size > 0
+              ? `${selectedAccnos.size} selected`
+              : 'Select rows for bulk reminder'}
+          </span>
+          <button
+            className="btn btn-sm bg-green-600 text-white border-green-600 hover:bg-green-700"
+            disabled={selectedAccnos.size === 0}
+            onClick={() => {
+              setWaBulkRows(filteredRows.filter(r => selectedAccnos.has(r.accno)));
+              setWaBulkOpen(true);
+            }}
+          >
+            <SendIcon className="w-3.5 h-3.5 mr-1.5" />
+            Send Selected ({selectedAccnos.size})
+          </button>
+          <button
+            className="btn btn-sm bg-green-700 text-white border-green-700 hover:bg-green-800"
+            onClick={() => {
+              setWaBulkRows(filteredRows);
+              setWaBulkOpen(true);
+            }}
+          >
+            <SendIcon className="w-3.5 h-3.5 mr-1.5" />
+            Send All ({filteredRows.length})
+          </button>
+          {selectedAccnos.size > 0 && (
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={() => setSelectedAccnos(new Set())}
+            >
+              <XIcon className="w-3 h-3 mr-1" />Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Table */}
       <div className="card">
         <div className="overflow-auto">
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
               <tr>
+                {/* Select-all checkbox */}
+                <th className="th-navy px-2 w-8">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={toggleAll}
+                    className="cursor-pointer"
+                    title={isAllSelected ? 'Deselect all' : 'Select all'}
+                  />
+                </th>
                 {[
                   'S No', 'Acc No', 'Full Name', 'Mobile', 'Mobile1',
                   'Sector', 'Subsector', 'Sabeel Type', 'Thaali Status',
@@ -646,6 +731,7 @@ export default function DueDetailsPage() {
                 ].map(h => (
                   <th key={h} className="th-navy whitespace-nowrap">{h}</th>
                 ))}
+                <th className="th-navy px-2 w-8" title="Send WhatsApp reminder">WA</th>
               </tr>
             </thead>
             <tbody>
@@ -658,7 +744,21 @@ export default function DueDetailsPage() {
                   </td>
                 </tr>
               ) : pagedRows.map((r, i) => (
-                <tr key={r.accno + '-' + (rowOffset + i)} className="hover:bg-blue-500/[0.025]">
+                <tr
+                  key={r.accno + '-' + (rowOffset + i)}
+                  className={selectedAccnos.has(r.accno)
+                    ? 'bg-green-50 hover:bg-green-100'
+                    : 'hover:bg-blue-500/[0.025]'}
+                >
+                  {/* Checkbox */}
+                  <td className="px-2 py-2.5 border-t border-border text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedAccnos.has(r.accno)}
+                      onChange={() => toggleRow(r.accno)}
+                      className="cursor-pointer"
+                    />
+                  </td>
                   <td className="px-3 py-2.5 border-t border-border text-gray-400">{rowOffset + i + 1}</td>
                   <td className="px-3 py-2.5 border-t border-border text-blue-500 font-semibold cursor-pointer"
                     onClick={() => router.push(`/mumin-details?accno=${r.accno}`)}>
@@ -679,19 +779,29 @@ export default function DueDetailsPage() {
                   <td className="px-3 py-2.5 border-t border-border text-center">{r.tillPaid  || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border text-center">{r.fromYear  || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border text-center">{r.toYear    || '—'}</td>
+                  {/* Send button */}
+                  <td className="px-2 py-2.5 border-t border-border text-center">
+                    <button
+                      title={`Send reminder to ${r.fullName}`}
+                      onClick={() => setWaReminderRow(r)}
+                      className="inline-flex items-center justify-center w-6 h-6 rounded text-green-600 hover:bg-green-100 transition-colors"
+                    >
+                      <SendIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
             {filteredRows.length > 0 && (
               <tfoot>
                 <tr className="bg-navy-800/[0.04] font-bold text-[12px]">
-                  <td colSpan={11} className="px-3 py-2.5 border-t-2 border-navy-800/20">
+                  <td colSpan={12} className="px-3 py-2.5 border-t-2 border-navy-800/20">
                     Total ({filteredRows.length.toLocaleString()} records)
                   </td>
                   <td className="px-3 py-2.5 border-t-2 border-navy-800/20 text-right">₹{fmt(totTakhmeen)}</td>
                   <td className="px-3 py-2.5 border-t-2 border-navy-800/20 text-right text-green-700">₹{fmt(totReceived)}</td>
                   <td className="px-3 py-2.5 border-t-2 border-navy-800/20 text-right text-red-600">₹{fmt(totRemaining)}</td>
-                  <td colSpan={3} className="px-3 py-2.5 border-t-2 border-navy-800/20" />
+                  <td colSpan={4} className="px-3 py-2.5 border-t-2 border-navy-800/20" />
                 </tr>
               </tfoot>
             )}
@@ -713,6 +823,18 @@ export default function DueDetailsPage() {
           </div>
         )}
       </div>
+
+      {/* ── WhatsApp reminder modals ─────────────────────────────────────── */}
+      <WAReminderModal
+        open={!!waReminderRow}
+        onClose={() => setWaReminderRow(null)}
+        row={waReminderRow}
+      />
+      <WABulkModal
+        open={waBulkOpen}
+        onClose={() => setWaBulkOpen(false)}
+        rows={waBulkRows}
+      />
     </div>
   );
 }

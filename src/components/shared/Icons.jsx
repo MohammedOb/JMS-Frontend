@@ -324,3 +324,17 @@ export const EyeViewIcon = mk(<>
   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
   <circle cx="12" cy="12" r="3"/>
 </>);
+
+export const SmartphoneIcon = mk(<>
+  <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+  <line x1="12" y1="18" x2="12.01" y2="18"/>
+</>);
+
+export const ChevronDownIcon = mk(<>
+  <polyline points="6 9 12 15 18 9"/>
+</>);
+
+export const InboxIcon = mk(<>
+  <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+  <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+</>);
