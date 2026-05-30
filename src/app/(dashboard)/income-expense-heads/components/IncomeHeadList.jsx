@@ -8,17 +8,18 @@ import { EditIcon, TrashIcon, PlusIcon } from '@/components/shared/Icons';
 import SuggestionInput from './SuggestionInput';
 
 export default function IncomeHeadList({ rows, loading, onAdd, onEdit, onDeleted }) {
-  const [hubFilter,  setHubFilter]  = useState('');
-  const [deletingId, setDeletingId] = useState(null);
-  const [togglingId, setTogglingId] = useState(null);
+  const [hubGroupFilter, setHubGroupFilter] = useState('');
+  const [hubFilter,      setHubFilter]      = useState('');
+  const [deletingId,     setDeletingId]     = useState(null);
+  const [togglingId,     setTogglingId]     = useState(null);
 
-  // Unique HubMainHead values for the autocomplete filter
-  const hubMainHeadOptions = [...new Set(rows.map(r => r.HubMainHead).filter(Boolean))];
+  const hubGroupCodeOptions = [...new Set(rows.map(r => r.HubHeadCode).filter(Boolean))];
+  const hubMainHeadOptions  = [...new Set(rows.map(r => r.HubMainHead).filter(Boolean))];
 
-  // Client-side filter + sort: active first, then by HubMainHead → HubSubHead
-  const filtered = (hubFilter
-    ? rows.filter(r => r.HubMainHead?.toLowerCase().includes(hubFilter.toLowerCase()))
-    : rows
+  // Client-side filter + sort: active first, then by HubHeadCode → HubMainHead → HubSubHead
+  const filtered = rows.filter(r =>
+    (!hubGroupFilter || r.HubHeadCode?.toLowerCase().includes(hubGroupFilter.toLowerCase())) &&
+    (!hubFilter      || r.HubMainHead?.toLowerCase().includes(hubFilter.toLowerCase()))
   ).slice().sort((a, b) => {
     if ((b.IsActive ?? 1) !== (a.IsActive ?? 1)) return (b.IsActive ?? 1) - (a.IsActive ?? 1);
     const main = (a.HubMainHead ?? '').localeCompare(b.HubMainHead ?? '');
@@ -34,6 +35,7 @@ export default function IncomeHeadList({ rows, loading, onAdd, onEdit, onDeleted
     try {
       await incomeHeadService.update({
         ID:               item.ID,
+        HubHeadCode:     item.HubHeadCode     ?? '',
         HubMainHead:      item.HubMainHead,
         HubSubHead:       item.HubSubHead,
         ContributionType: item.ContributionType ?? '',
@@ -68,15 +70,27 @@ export default function IncomeHeadList({ rows, loading, onAdd, onEdit, onDeleted
     <>
       {/* Filter bar */}
       <div className="bg-white border border-border rounded-lg p-4 mb-4 flex flex-wrap gap-3 items-end justify-between">
-        <div>
-          <label className="form-label">Hub Main Head</label>
-          <SuggestionInput
-            className="w-64"
-            placeholder="Type to filter…"
-            value={hubFilter}
-            onChange={setHubFilter}
-            suggestions={hubMainHeadOptions}
-          />
+        <div className="flex flex-wrap gap-3 items-end">
+          <div>
+            <label className="form-label">Hub Head Code</label>
+            <SuggestionInput
+              className="w-44"
+              placeholder="Type to filter…"
+              value={hubGroupFilter}
+              onChange={setHubGroupFilter}
+              suggestions={hubGroupCodeOptions}
+            />
+          </div>
+          <div>
+            <label className="form-label">Hub Main Head</label>
+            <SuggestionInput
+              className="w-52"
+              placeholder="Type to filter…"
+              value={hubFilter}
+              onChange={setHubFilter}
+              suggestions={hubMainHeadOptions}
+            />
+          </div>
         </div>
         <button className="btn btn-primary btn-sm" onClick={onAdd}>
           <PlusIcon className="w-3.5 h-3.5 mr-1.5" />Add Income Head
@@ -90,7 +104,7 @@ export default function IncomeHeadList({ rows, loading, onAdd, onEdit, onDeleted
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
               <tr>
-                {['#', 'Action', 'Active', 'Hub Main Head', 'Hub Sub Head', 'Contribution Type', 'Cash Limit', 'Default Laagat'].map(h => (
+                {['#', 'Action', 'Active', 'Hub Head Code', 'Hub Main Head', 'Hub Sub Head', 'Contribution Type', 'Cash Limit', 'Default Laagat'].map(h => (
                   <th key={h} className="th-navy">{h}</th>
                 ))}
               </tr>
@@ -99,7 +113,7 @@ export default function IncomeHeadList({ rows, loading, onAdd, onEdit, onDeleted
               {loading ? (
                 <tr><td colSpan={8} className="text-center py-10 text-gray-400">Loading…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-10 text-gray-400">No income heads found</td></tr>
+                <tr><td colSpan={9} className="text-center py-10 text-gray-400">No income heads found</td></tr>
               ) : filtered.map((r, i) => (
                 <tr key={r.ID ?? i} className="hover:bg-blue-500/[0.025]">
                   <td className="px-3 py-2.5 border-t border-border text-gray-400 text-center">{i + 1}</td>
@@ -138,6 +152,7 @@ export default function IncomeHeadList({ rows, loading, onAdd, onEdit, onDeleted
                       )} />
                     </button>
                   </td>
+                  <td className="px-3 py-2.5 border-t border-border font-medium">{r.HubHeadCode || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border font-medium">{r.HubMainHead}</td>
                   <td className="px-3 py-2.5 border-t border-border">{r.HubSubHead}</td>
                   <td className="px-3 py-2.5 border-t border-border">{r.ContributionType || '—'}</td>

@@ -15,13 +15,20 @@ const allowedDevOrigins = Array.from(
   )
 );
 
+const isVercel = !!process.env.VERCEL;
+const isDocker = process.env.DOCKER_BUILD === '1';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   allowedDevOrigins,
-  // Keep local Next.js artifacts out of `.next` to reduce Windows file-lock
-  // collisions during dev/build cleanup, but let Vercel use the default output
-  // directory because its deployment pipeline expects `.next`.
-  ...(process.env.VERCEL ? {} : { distDir: 'build' }),
+  // Docker: use standalone output (minimal production image) with default .next dir.
+  // Local dev: keep artifacts in `build/` to reduce Windows file-lock collisions.
+  // Vercel: use defaults (Vercel manages output itself).
+  ...(isDocker
+    ? { output: 'standalone' }
+    : isVercel
+    ? {}
+    : { distDir: 'build' }),
 };
 
 module.exports = nextConfig;

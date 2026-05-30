@@ -9,7 +9,7 @@ import { incomeHeadService }   from '@/services';
 import SuggestionInput         from './SuggestionInput';
 
 export default function IncomeHeadEditModal({ open, onClose, item, onSaved, existingRows = [], contribSuggestions = [] }) {
-  const [form,   setForm]   = useState({ HubMainHead: '', HubSubHead: '', ContributionType: '', CashLimit: '', DefaultLaagat: '', IsActive: 1 });
+  const [form,   setForm]   = useState({ HubHeadCode: '', HubMainHead: '', HubSubHead: '', ContributionType: '', CashLimit: '', DefaultLaagat: '', IsActive: 1 });
   const [saving, setSaving] = useState(false);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
@@ -18,6 +18,7 @@ export default function IncomeHeadEditModal({ open, onClose, item, onSaved, exis
   useEffect(() => {
     if (item) {
       setForm({
+        HubHeadCode:     item.HubHeadCode     ?? '',
         HubMainHead:      item.HubMainHead      ?? '',
         HubSubHead:       item.HubSubHead       ?? '',
         ContributionType: item.ContributionType ?? '',
@@ -32,8 +33,13 @@ export default function IncomeHeadEditModal({ open, onClose, item, onSaved, exis
     if (!form.HubMainHead.trim()) { toast.error('Hub Main Head is required'); return; }
     if (!form.HubSubHead.trim())  { toast.error('Hub Sub Head is required');  return; }
 
+    const groupTrimLC = form.HubHeadCode.trim().toLowerCase();
+    const rowsByGroup = groupTrimLC
+      ? existingRows.filter(r => r.HubHeadCode?.toLowerCase() === groupTrimLC)
+      : existingRows;
+
     // Block creating a brand-new HubMainHead via Edit
-    const mainExists = existingRows.some(r =>
+    const mainExists = rowsByGroup.some(r =>
       r.HubMainHead?.trim().toLowerCase() === form.HubMainHead.trim().toLowerCase()
     );
     if (!mainExists) {
@@ -42,7 +48,7 @@ export default function IncomeHeadEditModal({ open, onClose, item, onSaved, exis
     }
 
     // Block creating a brand-new HubSubHead under this Main Head via Edit
-    const subExists = existingRows.some(r =>
+    const subExists = rowsByGroup.some(r =>
       r.HubMainHead?.trim().toLowerCase() === form.HubMainHead.trim().toLowerCase() &&
       r.HubSubHead?.trim().toLowerCase()  === form.HubSubHead.trim().toLowerCase()
     );
@@ -66,6 +72,7 @@ export default function IncomeHeadEditModal({ open, onClose, item, onSaved, exis
     try {
       await incomeHeadService.update({
         ID:               item.ID,
+        HubHeadCode:     form.HubHeadCode.trim(),
         HubMainHead:      form.HubMainHead.trim(),
         HubSubHead:       form.HubSubHead.trim(),
         ContributionType: form.ContributionType.trim(),
@@ -102,18 +109,36 @@ export default function IncomeHeadEditModal({ open, onClose, item, onSaved, exis
     >
       <div className="space-y-3">
         {(() => {
-          const mainSuggestions = [...new Set(existingRows.map(r => r.HubMainHead).filter(Boolean))];
+          const groupSuggestions = [...new Set(existingRows.map(r => r.HubHeadCode).filter(Boolean))];
+          const groupTrimLC      = form.HubHeadCode.trim().toLowerCase();
+
+          const rowsByGroup = groupTrimLC
+            ? existingRows.filter(r => r.HubHeadCode?.toLowerCase() === groupTrimLC)
+            : existingRows;
+
+          const mainSuggestions = [...new Set(rowsByGroup.map(r => r.HubMainHead).filter(Boolean))];
           const subSuggestions  = [...new Set(
-            existingRows
+            rowsByGroup
               .filter(r => r.HubMainHead?.toLowerCase() === form.HubMainHead.trim().toLowerCase())
               .map(r => r.HubSubHead)
               .filter(Boolean)
           )];
+
           const isNewMain = form.HubMainHead.trim() && !mainSuggestions.some(s => s.toLowerCase() === form.HubMainHead.trim().toLowerCase());
           const isNewSub  = form.HubSubHead.trim()  && !subSuggestions.some(s => s.toLowerCase() === form.HubSubHead.trim().toLowerCase());
 
           return (
             <>
+              <div>
+                <label className="form-label">Hub Head Code</label>
+                <SuggestionInput
+                  placeholder="Enter hub head code"
+                  value={form.HubHeadCode}
+                  onChange={v => { set('HubHeadCode', v); set('HubMainHead', ''); set('HubSubHead', ''); }}
+                  suggestions={groupSuggestions}
+                />
+              </div>
+
               <div>
                 <label className="form-label flex items-center gap-2">
                   Hub Main Head <span className="text-red-500">*</span>
@@ -122,7 +147,7 @@ export default function IncomeHeadEditModal({ open, onClose, item, onSaved, exis
                 <SuggestionInput
                   placeholder="Enter hub main head"
                   value={form.HubMainHead}
-                  onChange={v => set('HubMainHead', v)}
+                  onChange={v => { set('HubMainHead', v); set('HubSubHead', ''); }}
                   suggestions={mainSuggestions}
                 />
               </div>
