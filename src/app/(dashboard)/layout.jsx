@@ -12,7 +12,7 @@ import PermissionGuard          from '@/components/shared/PermissionGuard';
 // Route → can() code(s). null = always accessible when authenticated.
 // Arrays use OR logic (any match grants access).
 const ROUTE_PERMISSIONS = {
-  '/dashboard':            ['member_search.view', 'receipt_quick.create', 'daily_report.view'],
+  '/dashboard':            ['dashboard.view', 'member_search.view', 'receipt_quick.create', 'daily_report.view'],
   '/add-receipt':          'receipt_quick.create',
   '/daily-report':         'daily_report.view',
   '/mumin-search':         'members.view',

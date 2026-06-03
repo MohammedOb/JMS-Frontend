@@ -14,8 +14,34 @@ const TTL = {
 
 // ── Dashboard ────────────────────────────────────────────────────────────────
 export const dashboardService = {
-  getStats:              cache.cached(() => api.get('/dashboard/stats'),                        () => 'dash:stats',              TTL.list),
-  getRecentTransactions: cache.cached((limit=5) => api.get(`/dashboard/recent?limit=${limit}`),(limit=5) => `dash:recent:${limit}`, TTL.search),
+  getStats:              cache.cached(() => api.get('/dashboard/stats'),                         () => 'dash:stats',               TTL.list),
+  getRecentTransactions: cache.cached((limit=5) => api.get(`/dashboard/recent?limit=${limit}`), (limit=5) => `dash:recent:${limit}`, TTL.search),
+  getWidgetRecent: cache.cached(
+    (p) => api.get('/dashboard/recent', { params: {
+      hubs:     (p.hubs     || []).join(','),
+      subheads: (p.subheads || []).join(','),
+      limit:    p.limit || 5,
+    }}),
+    (p) => `dash:recent:${(p.hubs||[]).join(',')}:${(p.subheads||[]).join(',')}:${p.limit||5}`,
+    TTL.search
+  ),
+  getSabeelStats:        cache.cached((year='') => api.get('/dashboard/sabeel',   { params: { year } }), (y='') => `dash:sabeel:${y}`,   TTL.list),
+  getFmbStats:           cache.cached((year='') => api.get('/dashboard/fmb',      { params: { year } }), (y='') => `dash:fmb:${y}`,      TTL.list),
+  getMainHeadStats:      cache.cached((year='') => api.get('/dashboard/mainhead', { params: { year } }), (y='') => `dash:mainhead:${y}`, TTL.list),
+  getDashboardMeta:      cache.cached(() => api.get('/dashboard/meta'), () => 'dash:meta', TTL.lookup),
+  getDashboardConfig:         () => api.get('/dashboard/config'),
+  getDashboardConfigForScope: (scope, scopeId) => api.get('/dashboard/config', { params: { scope, scopeId } }),
+  saveDashboardConfig:        (payload) => api.put('/dashboard/config', payload),
+  getWidgetData:         cache.cached(
+    (p) => api.get('/dashboard/widget', { params: {
+      hubs:     (p.hubs     || []).join(','),
+      subheads: (p.subheads || []).join(','),
+      metrics:  (p.metrics  || []).join(','),
+      year:     p.year || '',
+    }}),
+    (p) => `dash:widget:${(p.hubs||[]).join(',')}:${(p.subheads||[]).join(',')}:${(p.metrics||[]).join(',')}:${p.year||''}`,
+    TTL.list
+  ),
 };
 
 // ── Receipts ─────────────────────────────────────────────────────────────────

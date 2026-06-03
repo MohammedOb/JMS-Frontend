@@ -3,14 +3,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import Modal from '@/components/shared/Modal';
 import { SaveIcon } from '@/components/shared/Icons';
-import { rbacService } from '@/services';
+import { rbacService, dashboardService } from '@/services';
+import { useAuth } from '@/context/AuthContext';
+import DashboardConfig from '@/app/(dashboard)/dashboard/_components/DashboardConfig';
 import toast from 'react-hot-toast';
 import { moduleColor } from './constants';
 
 export default function RoleModal({ open, onClose, editRole, scopes, onSuccess }) {
-  const [form,        setForm]        = useState({ code: '', name: '', description: '', is_active: true, permission_ids: [], scope_ids: [] });
-  const [permissions, setPermissions] = useState([]);
-  const [saving,      setSaving]      = useState(false);
+  const { user } = useAuth();
+  const isSuperAdmin = user?.roles?.includes('super_admin');
+
+  const [form,            setForm]            = useState({ code: '', name: '', description: '', is_active: true, permission_ids: [], scope_ids: [] });
+  const [permissions,     setPermissions]     = useState([]);
+  const [saving,          setSaving]          = useState(false);
+  const [dashWidgets,     setDashWidgets]     = useState(null);  // null = not loaded yet
+  const [dashConfigOpen,  setDashConfigOpen]  = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -33,8 +40,15 @@ export default function RoleModal({ open, onClose, editRole, scopes, onSuccess }
           });
         })
         .catch(e => toast.error(e.response?.data?.message || 'Failed to load role'));
+
+      // Fetch dashboard widget config for this role
+      setDashWidgets(null);
+      dashboardService.getDashboardConfigForScope('role', editRole.code)
+        .then(r => setDashWidgets(Array.isArray(r.data?.widgets) ? r.data.widgets : false))
+        .catch(() => setDashWidgets(false));
     } else {
       setForm({ code: '', name: '', description: '', is_active: true, permission_ids: [], scope_ids: [] });
+      setDashWidgets(false);
     }
   }, [open, editRole]);
 
@@ -185,7 +199,7 @@ export default function RoleModal({ open, onClose, editRole, scopes, onSuccess }
           <div className="text-center py-8 text-gray-400 text-[12px]">Loading permissions…</div>
         )}
 
-        <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+        <div className="space-y-3 max-h-[320px] overflow-y-auto pr-1">
           {Object.entries(permByModule).map(([module, perms]) => {
             const moduleIds   = perms.map(p => p.id);
             const selectedCnt = moduleIds.filter(id => form.permission_ids.includes(id)).length;
@@ -233,6 +247,62 @@ export default function RoleModal({ open, onClose, editRole, scopes, onSuccess }
           })}
         </div>
       </div>
+
+      {/* Dashboard Widgets — configure which widgets this role sees */}
+      {editRole && (
+        <div className="mt-5">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+              Dashboard Widgets
+              <span className="text-gray-400 font-normal ml-1 normal-case">(what this role sees on the dashboard)</span>
+            </div>
+            {isSuperAdmin && (
+              <button
+                onClick={() => setDashConfigOpen(true)}
+                className="text-[10px] px-2.5 py-1 rounded border border-blue-200 text-blue-600 hover:bg-blue-50 transition-colors"
+              >
+                {dashWidgets && dashWidgets.length > 0 ? 'Edit Widgets' : '+ Configure Widgets'}
+              </button>
+            )}
+          </div>
+          {dashWidgets === null && (
+            <div className="text-[11px] text-gray-400 italic">Loading…</div>
+          )}
+          {dashWidgets === false && (
+            <div className="text-[11px] text-gray-400">No custom config — inherits global default.</div>
+          )}
+          {Array.isArray(dashWidgets) && dashWidgets.length === 0 && (
+            <div className="text-[11px] text-gray-400">Configured as empty (no widgets shown).</div>
+          )}
+          {Array.isArray(dashWidgets) && dashWidgets.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {dashWidgets.map(w => (
+                <span key={w.id} className="text-[10px] px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full font-medium">
+                  {w.title}
+                  <span className="text-blue-400 font-normal ml-1">({w.metrics?.length ?? 0} metrics)</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* DashboardConfig panel — slides over everything when open */}
+      {dashConfigOpen && isSuperAdmin && editRole && (
+        <DashboardConfig
+          widgets={Array.isArray(dashWidgets) ? dashWidgets : []}
+          isSuperAdmin={true}
+          defaultScope="role"
+          defaultScopeId={editRole.code}
+          lockScope={true}
+          onSave={(newWidgets, scope, scopeId) => {
+            dashboardService.saveDashboardConfig({ scope, scopeId, widgets: newWidgets })
+              .then(() => setDashWidgets(newWidgets))
+              .catch(() => toast.error('Failed to save widget config'));
+          }}
+          onClose={() => setDashConfigOpen(false)}
+        />
+      )}
     </Modal>
   );
 }
