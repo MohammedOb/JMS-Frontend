@@ -260,9 +260,22 @@ export const rbacService = {
 
 // ── FMB Menu ─────────────────────────────────────────────────────────────────
 export const fmbMenuService = {
-  getAll:  (params)        => api.get('/fmb-menu', { params }),
-  create:  (data)          => api.post('/fmb-menu', data),
-  update:  (id, data)      => api.put(`/fmb-menu/${id}`, data),
+  getAll:        (params)    => api.get('/fmb-menu', { params }),
+  create:        (data)      => api.post('/fmb-menu', data),
+  update:        (id, data)  => api.put(`/fmb-menu/${id}`, data),
+  remove:        (id)        => api.delete(`/fmb-menu/${id}`),
+  closeFeedback:  (id)       => api.post(`/fmb-menu/${id}/close-feedback`),
+  reopenFeedback: (id)       => api.post(`/fmb-menu/${id}/reopen-feedback`),
+};
+
+// ── FMB Menu Feedback ─────────────────────────────────────────────────────────
+export const fmbFeedbackService = {
+  // Public (token-based — never exposes numeric id)
+  getMenuByToken: (token)        => api.get(`/fmb-menu/token/${token}`),
+  submitByToken:  (token, data)  => api.post(`/fmb-menu/token/${token}/feedback`, data),
+  // Admin (numeric id, auth required)
+  getAll:         (menuId)       => api.get(`/fmb-menu/${menuId}/feedback`),
+  getSummary:     (menuId)       => api.get(`/fmb-menu/${menuId}/feedback/summary`),
 };
 
 // ── Notifications ─────────────────────────────────────────────────────────────
