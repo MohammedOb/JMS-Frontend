@@ -211,13 +211,6 @@ export const majlisService = {
   delete: cache.mutates((data) => api.delete('/DeleteMajlisRegistration', { data }), 'majlis'),
 };
 
-// ── Musaida ──────────────────────────────────────────────────────────────────
-export const musaidaService = {
-  getAll:  (params)        => api.get('/musaida', { params }),
-  create:  (data)          => api.post('/musaida', data),
-  update:  (id, data)      => api.put(`/musaida/${id}`, data),
-};
-
 // ── Users (legacy) ───────────────────────────────────────────────────────────
 export const userService = {
   getAll:           ()       => api.get('/users'),
@@ -286,30 +279,6 @@ export const notificationService = {
   markRead:    (id)        => api.patch(`/notifications/${id}/read`),
   markAllRead: ()          => api.patch('/notifications/read-all'),
   delete:      (id)        => api.delete(`/notifications/${id}`),
-};
-
-// ── Sabeel Statistics ─────────────────────────────────────────────────────────
-export const sabeelStatsService = {
-  getSummary:           cache.cached((params) => api.get('/sabeel/statistics/summary',          { params }), (p)    => cache.makeKey('sabeel:sum',      p), TTL.report),
-  getByYear:            cache.cached((year)   => api.get(`/sabeel/statistics/${year}`),                      (year) => `sabeel:year:${year}`,              TTL.report),
-  getMohallahBreakdown: cache.cached((year)   => api.get(`/sabeel/statistics/${year}/mohallah`),             (year) => `sabeel:mohallah:${year}`,          TTL.report),
-};
-
-// ── FMB Statistics ────────────────────────────────────────────────────────────
-export const fmbStatsService = {
-  getSummary:  cache.cached((params) => api.get('/fmb/statistics/summary',          { params }), (p)    => cache.makeKey('fmb:sum',     p), TTL.report),
-  getMonthly:  cache.cached((year)   => api.get(`/fmb/statistics/${year}/monthly`),              (year) => `fmb:monthly:${year}`,          TTL.report),
-  getMohallah: cache.cached((year)   => api.get(`/fmb/statistics/${year}/mohallah`),             (year) => `fmb:mohallah:${year}`,         TTL.report),
-  getThaali:   cache.cached((params) => api.get('/fmb/statistics/thaali',           { params }), (p)    => cache.makeKey('fmb:thaali',  p), TTL.report),
-};
-
-// ── Ohbat Majlis ─────────────────────────────────────────────────────────────
-export const ohbatService = {
-  getAll:    (params)    => api.get('/ohbat-majlis',                   { params }),
-  create:    (data)      => api.post('/ohbat-majlis', data),
-  update:    (id, data)  => api.put(`/ohbat-majlis/${id}`, data),
-  delete:    (id)        => api.delete(`/ohbat-majlis/${id}`),
-  addMember: (id, data)  => api.post(`/ohbat-majlis/${id}/members`, data),
 };
 
 // ── Utility ──────────────────────────────────────────────────────────────────
@@ -460,6 +429,7 @@ export const regFormService = {
 
 // Public — no auth (members filling the form)
 export const regFormPublic = {
+  getFormByToken:  (token) => api.get(`/reg-form/token/${token}`),
   getForm:         (d) => api.post('/GetRegFormById/public',    d),
   getQuestions:    (d) => api.post('/LoadFormQuestions/public', d),
   getSections:     (d) => api.post('/LoadFormSections/public',  d),

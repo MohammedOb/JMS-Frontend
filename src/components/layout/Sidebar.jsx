@@ -10,8 +10,8 @@ import clsx             from 'clsx';
 import {
   DashboardIcon, ReceiptIcon, BarChartIcon, SearchIcon, AlertTriangleIcon,
   BellIcon, UsersIcon, CoinsIcon, AlertCircleIcon, ClipboardListIcon,
-  TrendingUpIcon, TrendingDownIcon, CreditCardIcon, FileTextIcon, TruckIcon,
-  MapPinIcon, CalendarIcon, StarIcon, ListIcon, MailIcon, GiftIcon,
+  CreditCardIcon, FileTextIcon, TruckIcon,
+  MapPinIcon, CalendarIcon, ListIcon, MailIcon,
   UtensilsIcon, UserCogIcon, SettingsIcon, LogoutIcon, LayersIcon, TableIcon,
   MessageIcon, SmartphoneIcon, ZapIcon, InboxIcon, ChevronDownIcon, SendIcon,
 } from '@/components/shared/Icons';
@@ -43,8 +43,6 @@ const NAV_SECTIONS = [
     items: [
       { label: 'Due Details',       href: '/due-details',       icon: AlertCircleIcon,   permission: 'due.view' },
       { label: 'Follow Up List',    href: '/followup',          icon: ClipboardListIcon, permission: 'followup.view' },
-      { label: 'Sabeel Statistics', href: '/sabeel-statistics', icon: TrendingUpIcon,    permission: 'sabeel_stats.view' },
-      { label: 'FMB Statistics',    href: '/fmb-statistics',    icon: TrendingDownIcon,  permission: 'fmb_stats.view' },
     ],
   },
   {
@@ -61,11 +59,9 @@ const NAV_SECTIONS = [
       { label: 'Mohallah Details', href: '/mohallah',       icon: MapPinIcon,   permission: 'mohallah.view' },
       { label: 'Seating Layout',   href: '/seating-layout', icon: TableIcon,    permission: 'seating.view' },
       { label: 'Bookings',         href: '/calendar',       icon: CalendarIcon, permission: ['bookings.view', 'seating.view'] },
-      { label: 'Ohbat Majlis',     href: '/ohbat-majlis',   icon: StarIcon,     permission: ['ohbat_majlis.view', 'majlis.view'] },
-      { label: 'Majlis List',      href: '/majlis',         icon: ListIcon,     permission: ['majlis.view', 'ohbat_majlis.view'] },
+      { label: 'Majlis List',      href: '/majlis',         icon: ListIcon,     permission: 'majlis.view' },
       { label: 'Event Forms',      href: '/event-forms',    icon: FileTextIcon, permission: 'eventform.view' },
       { label: 'Safai Chitthi',    href: '/safai-chitthi',  icon: MailIcon,     permission: 'safai.view' },
-      { label: 'Musaida List',     href: '/musaida',        icon: GiftIcon,     permission: 'musaida.view' },
     ],
   },
   // ── Messaging ────────────────────────────────────────────────────────────

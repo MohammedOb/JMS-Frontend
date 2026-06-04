@@ -62,19 +62,20 @@ export default function PublicFormPage({ params }) {
   useEffect(() => {
     (async () => {
       try {
-        const [fRes, sRes, qRes] = await Promise.all([
-          regFormPublic.getForm({ ID: formId }),
-          regFormPublic.getSections({ FormID: formId }),
-          regFormPublic.getQuestions({ FormID: formId }),
-        ]);
-
+        const fRes = await regFormPublic.getFormByToken(formId);
         const f = fRes?.data?.data;
-        if (!f) { setLoadErr('Form not found.'); return; }
+        if (!f) { setLoadErr('Form not found.'); setLoading(false); return; }
         if (f.Status !== 'published') {
           setLoadErr(f.ClosedMessage?.trim() || 'This form is not currently accepting responses.');
+          setLoading(false);
           return;
         }
         setForm(f);
+
+        const [sRes, qRes] = await Promise.all([
+          regFormPublic.getSections({ FormID: f.ID }),
+          regFormPublic.getQuestions({ FormID: f.ID }),
+        ]);
 
         const dbSections = sRes?.data?.data ?? [];
         const allQs = (qRes?.data?.data ?? []).map(q => ({

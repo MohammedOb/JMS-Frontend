@@ -74,8 +74,8 @@ export default function FormsList() {
     } catch { toast.error('Failed to delete form'); }
   };
 
-  const copyLink = (id) => {
-    const url = `${window.location.origin}/reg/${id}`;
+  const copyLink = (token) => {
+    const url = `${window.location.origin}/reg/${token}`;
     navigator.clipboard.writeText(url).then(() => toast.success('Link copied!'));
   };
 
@@ -118,7 +118,7 @@ export default function FormsList() {
                       <button className="btn btn-secondary text-[11px] h-7 px-2.5" onClick={() => setBuilder({ ...f, _ts: Date.now() })}>Build</button>
                       <button className="btn btn-secondary text-[11px] h-7 px-2.5" onClick={() => setResponses(f)}>Responses</button>
                       {f.Status === 'published' && (
-                        <button className="btn btn-secondary text-[11px] h-7 px-2.5" onClick={() => copyLink(f.ID)}>Copy Link</button>
+                        <button className="btn btn-secondary text-[11px] h-7 px-2.5" onClick={() => copyLink(f.form_token)}>Copy Link</button>
                       )}
                       <button
                         className={`btn text-[11px] h-7 px-2.5 ${f.Status === 'published' ? 'btn-secondary text-orange-600' : 'btn-primary'}`}
