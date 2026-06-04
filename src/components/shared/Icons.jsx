@@ -338,3 +338,15 @@ export const InboxIcon = mk(<>
   <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
   <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
 </>);
+
+export const UploadIcon = mk(<>
+  <polyline points="16 16 12 12 8 16"/>
+  <line x1="12" y1="12" x2="12" y2="21"/>
+  <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+</>);
+
+export const DatabaseIcon = mk(<>
+  <ellipse cx="12" cy="5" rx="9" ry="3"/>
+  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+</>);

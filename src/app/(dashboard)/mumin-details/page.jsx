@@ -334,9 +334,12 @@ function MuminDetailsInner() {
         } catch { /* leave hofName from loadMuminDetails as fallback */ }
       }
 
+      // Use the real AccNo from the member record — callers may pass an ITS number
+      const realAccno = memberData.accno;
+
       let takhmeen = [];
       try {
-        const takRes = await takhmeenService.loadDetails({ AccNo: accno });
+        const takRes = await takhmeenService.loadDetails({ AccNo: realAccno });
         takhmeen = normalizeArray(takRes.data).map(normalizeTakRow);
       } catch (err) {
         console.error('LoadTakhmeenDetails failed', err);
@@ -344,7 +347,7 @@ function MuminDetailsInner() {
 
       let receipts = [];
       try {
-        const rRes = await receiptService.loadTransactionDetails({ AccNo: accno });
+        const rRes = await receiptService.loadTransactionDetails({ AccNo: realAccno });
         receipts = normalizeArray(rRes.data).map(normalizeReceiptRow);
       } catch (err) {
         console.error('LoadTransactionDetails failed', err);
@@ -356,8 +359,8 @@ function MuminDetailsInner() {
       setFamily(normalized.family);
       setSafaiList(normalized.safai);
       setMemberForm(memberData);
-      router.replace(`/mumin-details?accno=${accno}`, { scroll: false });
-      takhmeenService.updateTakhmeenReceived({ AccNo: accno }).catch(() => {});
+      router.replace(`/mumin-details?accno=${realAccno}`, { scroll: false });
+      takhmeenService.updateTakhmeenReceived({ AccNo: realAccno }).catch(() => {});
     } catch (err) {
       console.error('loadMember failed', err);
       toast.error('Member not found');

@@ -427,6 +427,13 @@ export const regFormService = {
   clearResponses: (d) => api.delete('/ClearFormResponses', { data: d }),
 };
 
+// ── ITS Data ──────────────────────────────────────────────────────────────────
+export const itsService = {
+  search:       (filters) => api.post('/SearchITSData', filters),
+  importData:   (data)    => api.post('/ImportITSData', data),
+  getDistincts: ()        => api.get('/GetITSDistincts'),
+};
+
 // Public — no auth (members filling the form)
 export const regFormPublic = {
   getFormByToken:  (token) => api.get(`/reg-form/token/${token}`),

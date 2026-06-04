@@ -4,7 +4,8 @@ import { useState } from 'react';
 import toast      from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import { utilityService } from '@/services';
-import { CalculatorIcon, XIcon, RefreshIcon, MapPinIcon, BarChartIcon, TrashIcon, SaveIcon } from '@/components/shared/Icons';
+import { CalculatorIcon, XIcon, RefreshIcon, MapPinIcon, BarChartIcon, TrashIcon, SaveIcon, DatabaseIcon } from '@/components/shared/Icons';
+import ITSImportPanel from './_components/ITSImportPanel';
 
 const NOTE_DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
 
@@ -80,7 +81,7 @@ export default function UtilityPage() {
     <div>
       <PageHeader title="Utility" subtitle="System maintenance tools and SP operations" />
 
-      {/* SP Action Cards */}
+      {/* SP Action Cards + ITS Import */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {ACTIONS.map(a => (
           <div key={a.key} className={`card border ${a.color}`}>
@@ -100,6 +101,17 @@ export default function UtilityPage() {
             </div>
           </div>
         ))}
+
+        {/* ITS Import — sits next to Backup Data in the grid */}
+        <div className="card border border-blue-500/30 bg-blue-500/[0.04]">
+          <div className="card-body">
+            <div className="flex items-center gap-2 mb-3">
+              <DatabaseIcon className="w-5 h-5 text-blue-500 opacity-80" />
+              <span className="font-semibold text-[13px] text-navy-800">Import ITS Data</span>
+            </div>
+            <ITSImportPanel />
+          </div>
+        </div>
       </div>
 
       {/* Note Counting Tool */}
