@@ -58,7 +58,10 @@ function extractMuminRow(data, searchAccno) {
     localHofIts: raw.LocalHOFITSNo                   || '',
     sector:      raw.Sector       || raw.sector       || '',
     grade:       raw.CurrentGrade || raw.grade        || '',
-    address:     raw.Address      || raw.address      || raw.MohallaDescription || raw.Mohalla || raw.mohalla || '',
+    address:     [
+      (raw.Address || raw.address || '').replace(/-\s*$/, '').trim(),
+      (raw.MohallaDescription || raw.Mohalla || raw.mohalla || '').trim(),
+    ].filter(Boolean).join(' - '),
   };
 }
 
@@ -134,8 +137,8 @@ export default function AddReceiptPage() {
   const currentContributionType = selectedHead?.ContributionType || rcForm.transType || 'VOLUNTARY CONTRIBUTION';
 
   const grandTotal = rcItems.reduce((s, i) => s + Number(i.amount || 0), 0);
-  const isCashMemo = !!rcForm.isCashMemo;
-  const needsSplit = rcForm.mode === 'Cash' && grandTotal > cashLimit && !isCashMemo;
+  const isCashMemo = rcForm.mode === 'Cash Memo';
+  const needsSplit = rcForm.mode === 'Cash' && grandTotal > cashLimit;
   const splitTotal = splitRows.reduce((s, r) => s + Number(r.amount || 0), 0);
   const splitDiff  = grandTotal - splitTotal;
   const splitOk    = needsSplit ? Math.abs(splitDiff) < 0.01 : true;
@@ -385,7 +388,7 @@ export default function AddReceiptPage() {
           ReceivedAmount: env.amount,
           HubMainHead:    mainHead,
           HubSubHead:     subHead,
-          IsCashMemo:     rcForm.isCashMemo ? 1 : 0,
+          IsCashMemo:     isCashMemo ? 1 : 0,
         });
 
         const { insertId, receiptNo } = txRes.data;
@@ -413,7 +416,7 @@ export default function AddReceiptPage() {
           mobile:     env.mobile || profile.mobile,
           amount:     env.amount,
           items:      env.items,
-          isCashMemo: !!rcForm.isCashMemo,
+          isCashMemo,
         });
       }
 
@@ -564,23 +567,10 @@ export default function AddReceiptPage() {
                   <select
                     className="form-select flex-1"
                     value={rcForm.mode || 'Cash'}
-                    onChange={e => setRcForm(p => ({ ...p, mode: e.target.value, isCashMemo: false }))}
+                    onChange={e => setRcForm(p => ({ ...p, mode: e.target.value }))}
                   >
-                    {['Cash', 'Online', 'Cheque', 'UPI'].map(m => <option key={m}>{m}</option>)}
+                    {['Cash', 'Cash Memo', 'Online', 'Cheque', 'UPI'].map(m => <option key={m}>{m}</option>)}
                   </select>
-                  {rcForm.mode === 'Cash' && (
-                    <label className="flex items-center gap-1 cursor-pointer shrink-0" title="Cash Memo — bypasses cash limit">
-                      <input
-                        type="checkbox"
-                        checked={isCashMemo}
-                        onChange={e => setRcForm(p => ({ ...p, isCashMemo: e.target.checked }))}
-                        className="w-3.5 h-3.5 accent-blue-600"
-                      />
-                      <span className={`text-[11px] font-medium ${isCashMemo ? 'text-blue-600' : 'text-gray-500'}`}>
-                        Cash Memo
-                      </span>
-                    </label>
-                  )}
                 </div>
               </div>
               <div className="lg:col-span-2">

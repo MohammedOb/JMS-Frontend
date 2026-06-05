@@ -193,27 +193,24 @@ function FmbForm({ member, fmbTakhmeen, counts, currentYear, printDate }) {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
 
             {/* Member info box */}
-            <div style={{ borderBottom: BORDER, padding: '7px 9px', minHeight: '176px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div style={{ wordBreak: 'break-word' }}>
-                <span style={{ fontSize: '14px', fontWeight: 'normal' }}>Name : </span>
-                <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{member.name}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px' }}>{subsectorName}</span>
-                <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Sabeel No :</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', color: '#555' }}>{member.itsNo || ''}</span>
-                <span style={{ fontSize: '18px', fontWeight: 'bold', lineHeight: 1 }}>{member.accno}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '12px', fontWeight: 'normal' }}>Contact No :</span>
-                <span style={{ fontSize: '14px' }}>{member.mobile}</span>
-              </div>
+            <div style={{ borderBottom: BORDER, padding: '8px 10px' }}>
+              {[
+                ['Name',   member.name],
+                ['Acc No', member.accno],
+                ['ITS No', member.itsNo || '—'],
+                ['Mobile', member.mobile || '—'],
+                ['Sector', subsectorName || '—'],
+              ].map(([label, value]) => (
+                <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '5px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 'normal', minWidth: '52px', flexShrink: 0 }}>{label}</span>
+                  <span style={{ fontSize: '13px', fontWeight: 'normal' }}>:</span>
+                  <span style={{ fontSize: '13px', fontWeight: 'bold', wordBreak: 'break-word' }}>{value}</span>
+                </div>
+              ))}
             </div>
 
             {/* نيار تخمين */}
-            <RightBox label="نيار تخمين" sub={currentYear} minHeight={70} />
+            <RightBox label="نيار تخمين" sub={<span style={{ fontSize: '24px', fontWeight: 'bold', fontFamily: ALKANZ }}>{currentYear}</span>} minHeight={70} />
 
             {/* ذبيحه */}
             <RightBox label="ذبيحه :" minHeight={58} />
@@ -238,7 +235,7 @@ function FmbForm({ member, fmbTakhmeen, counts, currentYear, printDate }) {
         </div>
 
         {/* ════ DASHED DIVIDER ════ */}
-        <div style={{ borderTop: '2px dashed #999' }} />
+        <div style={{ borderTop: BORDER }} />
 
         {/* ════ SIGNATURE ROW ════ */}
         <div style={{ display: 'flex' }}>
@@ -266,24 +263,21 @@ function FmbForm({ member, fmbTakhmeen, counts, currentYear, printDate }) {
         </div>
 
         {/* ════ BOTTOM INFO STRIP ════ */}
-        <div style={{ display: 'flex', borderTop: BORDER }}>
+        <div style={{ display: 'flex', borderTop: '2px dashed #999', borderColor: 'black', padding: '6px 10px', fontSize: '10px', gap: '7px' }}>
 
           {/* Left: Name / Mobile / Sabeel */}
-          <div style={{ flex: 1, borderRight: BORDER, padding: '10px 12px' }}>
-            <div style={{ fontWeight: 'bold', fontSize: '13px', marginBottom: '5px' }}>
-              Name : {member.name}
-            </div>
-            <div style={{ fontSize: '15px', fontWeight: 'bold', marginBottom: '8px' }}>
-              {member.mobile}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '13px', fontWeight: 'bold' }}>Sabeel No :</span>
-              <span style={{
-                border: '1.5px solid #333',
-                padding: '2px 16px',
-                fontSize: '17px', fontWeight: 'bold',
-              }}>{member.accno}</span>
-            </div>
+          <div style={{ flex: 1, borderRight: BORDER, padding: '10px 7px' }}>
+            {[
+              ['Name',   member.name],
+              ['Acc No', member.accno],
+              ['Mobile', member.mobile || '—'],
+            ].map(([label, value]) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '5px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 'normal', minWidth: '42px', flexShrink: 0 }}>{label}</span>
+                <span style={{ fontSize: '13px', fontWeight: 'normal' }}>:</span>
+                <span style={{ fontSize: '13px', fontWeight: 'bold', wordBreak: 'break-word' }}>{value}</span>
+              </div>
+            ))}
           </div>
 
           {/* Right: FMB Takhmeen / Zabihat / Amount */}

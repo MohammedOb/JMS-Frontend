@@ -22,7 +22,7 @@ export default function DistributionTable({ rows, loading }) {
         <table className="w-full border-collapse text-[12.5px]">
           <thead>
             <tr>
-              {['S No','Acc No','Full Name','Mobile','Masjid Area','M Code','Mohalla Name','Thaali Size','Distributor Name','Action'].map(h => (
+              {['S No','Acc No','Full Name','Mobile','Sector','Subsector','MohallaDescription','Thaali Size','Distributor Name','Action'].map(h => (
                 <th key={h} className="th-navy">{h}</th>
               ))}
             </tr>

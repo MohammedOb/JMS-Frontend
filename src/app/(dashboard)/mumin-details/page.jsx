@@ -194,8 +194,8 @@ function MuminDetailsInner() {
       : [{ hubSubHead: row.subHead || '', forYear: row.forYear || '', amount: Number(row.amount) || 0 }];
     const totalAmount = items.reduce((s, it) => s + it.amount, 0);
     setPrintData({
-      receipts:         [{ receiptNo: row.receiptNo, familyMemberName: row.fullName || row.ReceivedFrom || member?.name || '', amount: totalAmount, items, status: row.status || row.Status || '', isCashMemo: !!(row.IsCashMemo || row.isCashMemo) }],
-      profile:          { accno: member?.accno, fullName: member?.name, mobile: member?.mobile, itsNo: member?.itsNo, sector: member?.sector, address: member?.mohalla || member?.address || member?.MohallaDescription || '' },
+      receipts:         [{ receiptNo: row.receiptNo, familyMemberName: row.fullName || row.ReceivedFrom || member?.name || '', amount: totalAmount, items, status: row.status || row.Status || '', isCashMemo: !!(row.IsCashMemo || row.isCashMemo) || (row.mode || row.Mode) === 'Cash Memo' }],
+      profile:          { accno: member?.accno, fullName: member?.name, mobile: member?.mobile, itsNo: member?.itsNo, sector: member?.sector, address: member?.address || '' },
       date:             row.receivedDate || row.date || '',
       mode:             row.mode || row.Mode || '',
       refNo:            row.remark || row.Remark || '',
@@ -229,7 +229,7 @@ function MuminDetailsInner() {
   const [newMemberForm, setNewMemberForm] = useState({
     AccNo: '', FullName: '', Sector: '', Mobile: '', Mobile1: '',
     ITSNo: '', LocalHOFITSNo: '', HOFName: '', Subsector: '', SubsectorName: '',
-    StayingIn: '', WorkStatus: '', SabeelRemark: '',
+    StayingIn: '', WorkStatus: '', SabeelRemark: '', Address: '',
   });
   const setNF = (k, v) => setNewMemberForm(p => ({ ...p, [k]: v }));
 
@@ -608,7 +608,7 @@ function MuminDetailsInner() {
           ReceivedAmount: env.amount,
           HubMainHead:    mainHead,
           HubSubHead:     subHead,
-          IsCashMemo:     rcForm.isCashMemo ? 1 : 0,
+          IsCashMemo:     rcForm.mode === 'Cash Memo' ? 1 : 0,
         });
 
         const { insertId, receiptNo } = txRes.data;
@@ -643,11 +643,11 @@ function MuminDetailsInner() {
         familyMemberName:  env.familyMemberName || profile.fullName || '',
         amount:            env.amount,
         items:             env.items.map(it => ({ hubSubHead: it.hubSubHead || it.hubType || '', forYear: it.forYear || '', amount: Number(it.amount) || 0 })),
-        isCashMemo:        !!rcForm.isCashMemo,
+        isCashMemo:        rcForm.mode === 'Cash Memo',
       }));
       setPrintData({
         receipts:         savedEnvelopes,
-        profile:          { accno: profile.accno, fullName: profile.fullName, mobile: profile.mobile, itsNo: profile.itsNo, sector: profile.sector, address: member?.mohalla || member?.address || member?.MohallaDescription || '' },
+        profile:          { accno: profile.accno, fullName: profile.fullName, mobile: profile.mobile, itsNo: profile.itsNo, sector: profile.sector, address: member?.address || '' },
         date:             rcForm.date,
         mode:             rcForm.mode,
         refNo:            rcForm.remark || '',
@@ -663,7 +663,7 @@ function MuminDetailsInner() {
           toast.loading('Sending WhatsApp…', { id: 'wa-send' });
           const builtPrintData = {
             receipts:         savedEnvelopes,
-            profile:          { accno: profile.accno, fullName: profile.fullName, mobile: profile.mobile, itsNo: profile.itsNo, sector: profile.sector, address: member?.mohalla || member?.address || member?.MohallaDescription || '' },
+            profile:          { accno: profile.accno, fullName: profile.fullName, mobile: profile.mobile, itsNo: profile.itsNo, sector: profile.sector, address: member?.address || '' },
             date:             rcForm.date,
             mode:             rcForm.mode,
             refNo:            rcForm.remark || '',
@@ -818,10 +818,11 @@ function MuminDetailsInner() {
         Subsector: f.Subsector || 'N/A', SubsectorName: f.SubsectorName || undefined,
         StayingIn: f.StayingIn || 'N/A', WorkStatus: f.WorkStatus || undefined,
         SabeelRemark: f.SabeelRemark || undefined,
+        Address: f.Address || undefined,
       });
       toast.success(`Member ${f.AccNo} added successfully`);
       closeModal('newMember');
-      setNewMemberForm({ AccNo: '', FullName: '', Sector: '', Mobile: '', Mobile1: '', ITSNo: '', LocalHOFITSNo: '', HOFName: '', Subsector: '', SubsectorName: '', StayingIn: '', WorkStatus: '', SabeelRemark: '' });
+      setNewMemberForm({ AccNo: '', FullName: '', Sector: '', Mobile: '', Mobile1: '', ITSNo: '', LocalHOFITSNo: '', HOFName: '', Subsector: '', SubsectorName: '', StayingIn: '', WorkStatus: '', SabeelRemark: '', Address: '' });
       setSearchVal(f.AccNo);
       await loadMember(f.AccNo);
     } catch (err) {
@@ -849,6 +850,7 @@ function MuminDetailsInner() {
       if (f.sabeelType    !== undefined) basicPayload.SabeelType     = f.sabeelType;
       if (f.grade         !== undefined) basicPayload.CurrentGrade   = f.grade;
       if (f.sabeelRemark  !== undefined) basicPayload.SabeelRemark   = f.sabeelRemark;
+      if (f.address       !== undefined) basicPayload.Address        = f.address;
 
       await memberService.updateMuminDetails(basicPayload);
       toast.success('Member profile updated');

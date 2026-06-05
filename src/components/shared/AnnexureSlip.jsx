@@ -34,7 +34,7 @@ function Row({ label, value }) {
  *   remark  – free-text remark / reference number
  *   status  – receipt status (used for the CANCELLED watermark)
  */
-export default function AnnexureSlip({ rcpt, profile, date, remark, status }) {
+export default function AnnexureSlip({ rcpt, profile, date, mode, remark, status }) {
   const isCancelled = ['cancelled', 'cancel receipt', 'cancel'].includes((status || '').toLowerCase());
   const { accno, receiptNo, amount, items = [] } = rcpt;
   const totalAmt = items.length > 0
@@ -88,7 +88,7 @@ export default function AnnexureSlip({ rcpt, profile, date, remark, status }) {
             <tr style={{ borderBottom: '1px solid #eee' }}>
               <Row label="ITS No" value={profile?.itsNo} />
               <Row label="Mobile" value={profile?.mobile} />
-              <Row label="Sector" value={profile?.sector} />
+              <Row label="Mode" value={mode} />
               <td style={CELL} />
             </tr>
             <tr>

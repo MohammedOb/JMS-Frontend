@@ -219,7 +219,7 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
                   <td className={td}>{r.forYear ?? '—'}</td>
                   <td className={td}>{r.grade ?? '—'}</td>
                   <td className={`${td} font-semibold`}>{fmt(r.amount)}</td>
-                  <td className={td}>{r.mode}</td>
+                  <td className={td}>{(r.isCashMemo || r.mode === 'Cash Memo') ? 'Cash Memo' : r.mode}</td>
                   <td className={td}>
                     {isCancelled
                       ? <span className="inline-block bg-white text-red-600 text-xs font-semibold px-2 py-0.5 rounded">{r.status}</span>

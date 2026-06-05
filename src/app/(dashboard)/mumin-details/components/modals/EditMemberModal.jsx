@@ -15,6 +15,11 @@ function SectionHeader({ title }) {
   );
 }
 
+function computeAddress(sector, subsector, subsectorName) {
+  const locPart = [subsector, subsectorName].filter(Boolean).join(' - ');
+  return [sector, locPart].filter(Boolean).join(', ');
+}
+
 export default function EditMemberModal({
   open, onClose, member,
   memberForm, setMemberForm,
@@ -27,6 +32,13 @@ export default function EditMemberModal({
   const [hofLookupLoading, setHofLookupLoading] = useState(false);
   const hofTimer = useRef(null);
   const prevHofIts = useRef(memberForm?.hofIts);
+  const prevAutoAddr = useRef('');
+
+  useEffect(() => {
+    if (open && memberForm) {
+      prevAutoAddr.current = computeAddress(memberForm.sector || '', memberForm.subsector || '', memberForm.subsectorName || '');
+    }
+  }, [open]); // eslint-disable-line
 
   useEffect(() => {
     const its = String(memberForm?.hofIts ?? '').trim();
@@ -138,12 +150,20 @@ export default function EditMemberModal({
                 value={memberForm.subsector || ''}
                 options={subsectorOpts(memberForm.sector)}
                 placeholder="Type or select subsector…"
-                onChange={(v, o) => setMemberForm(p => ({
-                  ...p,
-                  subsector:     v,
-                  subsectorName: o?.subsectorName ?? p.subsectorName,
-                  sector:        o?.sector        ?? p.sector,
-                }))}
+                onChange={(v, o) => setMemberForm(p => {
+                  const newSubName = o?.subsectorName ?? p.subsectorName;
+                  const newSector  = o?.sector        ?? p.sector;
+                  const newComputed = computeAddress(newSector, v, newSubName);
+                  const shouldUpdate = !p.address || p.address === prevAutoAddr.current;
+                  if (shouldUpdate) prevAutoAddr.current = newComputed;
+                  return {
+                    ...p,
+                    subsector:     v,
+                    subsectorName: newSubName,
+                    sector:        newSector,
+                    address:       shouldUpdate ? newComputed : p.address,
+                  };
+                })}
               />
             </div>
             <div>
@@ -156,6 +176,13 @@ export default function EditMemberModal({
                 onChange={e => set('status', e.target.value)}>
                 {['Active','Closed','BlackList'].map(s => <option key={s}>{s}</option>)}
               </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-3">
+            <div>
+              <label className="form-label">Address</label>
+              <textarea className="form-input resize" rows={2} value={memberForm.address || ''}
+                onChange={e => set('address', e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

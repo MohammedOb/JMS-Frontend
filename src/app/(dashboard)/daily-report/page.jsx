@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/Badge';
 import EditReceiptModal from '@/app/(dashboard)/mumin-details/components/modals/EditReceiptModal';
-import PrintReceiptModal from '@/app/(dashboard)/mumin-details/components/modals/PrintReceiptModal';
+import ReceiptPrintModal from '@/components/shared/ReceiptPrintModal';
 import {
   DownloadIcon, PrintIcon, SearchIcon, XIcon, EditIcon, TrashIcon,
   BarChartIcon, FileTextIcon,
@@ -36,8 +36,8 @@ const EXPORT_COLS = [
   { key: 'ReceivedFrom',       label: 'Received From'     },
   { key: 'ITSNo',              label: 'ITS No'            },
   { key: 'Mobile',             label: 'Mobile'            },
-  { key: 'Sector',             label: 'Masjid Area'       },
-  { key: 'Subsector',          label: 'Mohalla Code'      },
+  { key: 'Sector',             label: 'Sector'            },
+  { key: 'Subsector',          label: 'Subsector'         },
   { key: 'Amount',             label: 'Amount'            },
   { key: 'Mode',               label: 'Mode'              },
   { key: 'HubMainHead',        label: 'Main Head'         },
@@ -352,23 +352,47 @@ export default function DailyReportPage() {
   };
 
   // ── Print handler ─────────────────────────────────────────────────────────────
-  const handlePrint = (row) => {
+  const handlePrint = async (row) => {
+    const isCashMemo = !!(row.IsCashMemo) || row.Mode === 'Cash Memo';
+
+    // Fallback address from transaction row fields
+    const locPart = [row.Subsector, row.MohallaDescription].filter(Boolean).join(' - ');
+    let address = [row.Sector, locPart].filter(Boolean).join(', ');
+
+    // Fetch stored Address from mumindetail
+    try {
+      const res  = await memberService.loadMuminDetails({ Search: row.AccNo });
+      const data = res.data;
+      const list = Array.isArray(data) ? data
+        : Array.isArray(data?.recordset)      ? data.recordset
+        : Array.isArray(data?.recordsets?.[0]) ? data.recordsets[0]
+        : Array.isArray(data?.data)            ? data.data : [];
+      const found = list.find(m => String(m.AccNo) === String(row.AccNo));
+      if (found?.Address) address = found.Address;
+    } catch { /* keep fallback */ }
+
     setPrintData({
-      member: {
-        name:   row.ReceivedFrom || '',
-        accno:  row.AccNo,
-        mobile: row.Mobile || '',
+      receipts: [{
+        receiptNo:        row.ReceiptNo,
+        familyMemberName: row.ReceivedFrom || '',
+        amount:           Number(row.Amount) || 0,
+        items:            [{ hubSubHead: row.HubSubHead || '', forYear: row.ForYear || '', amount: Number(row.Amount) || 0 }],
+        status:           row.Status || '',
+        isCashMemo,
+        contributionType: row.ContributionType || '',
+      }],
+      profile: {
+        accno:    row.AccNo        || '',
+        fullName: row.ReceivedFrom || '',
+        mobile:   row.Mobile       || '',
+        itsNo:    row.ITSNo        || '',
+        sector:   row.Sector       || '',
+        address,
       },
-      receipt: {
-        receiptNo:    row.ReceiptNo,
-        receivedDate: row.ReceivedDate,
-        mode:         row.Mode,
-        status:       row.Status,
-        mainHead:     row.HubMainHead,
-        subHead:      row.HubSubHead,
-        forYear:      row.ForYear,
-        amount:       Number(row.Amount) || 0,
-      },
+      date:             row.ReceivedDate || '',
+      mode:             isCashMemo ? 'Cash Memo' : (row.Mode || ''),
+      createdBy:        row.Createdby   || '',
+      contributionType: row.ContributionType || '',
     });
     setPrintModal(true);
   };
@@ -470,7 +494,7 @@ export default function DailyReportPage() {
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div>
-      <PageHeader title="Receipt List" subtitle="SP: LoadTransactionDetails" />
+      <PageHeader title="Receipt List" subtitle="List of Transaction Details" />
 
       {/* ── Filters ─────────────────────────────────────────────────────────── */}
       <div className="bg-white border border-border rounded-lg p-4 mb-3">
@@ -639,8 +663,8 @@ export default function DailyReportPage() {
                 <th className="th-navy">Received From</th>
                 <th className="th-navy">ITS No</th>
                 <th className="th-navy">Mobile</th>
-                <th className="th-navy">Masjid Area</th>
-                <th className="th-navy">Mohalla Code</th>
+                <th className="th-navy">Sector</th>
+                <th className="th-navy">Subsector</th>
                 <th className="th-navy">Amount</th>
                 <th className="th-navy">Mode</th>
                 <th className="th-navy">Main Head</th>
@@ -718,7 +742,7 @@ export default function DailyReportPage() {
                     <td className={td}>{r.Sector   || '—'}</td>
                     <td className={td}>{r.Subsector || '—'}</td>
                     <td className={`${td} font-semibold`}>{fmt(r.Amount)}</td>
-                    <td className={td}>{r.Mode      || '—'}</td>
+                    <td className={td}>{r.IsCashMemo || r.Mode === 'Cash Memo' ? 'Cash Memo' : (r.Mode || '—')}</td>
                     <td className={td}>{r.HubMainHead || '—'}</td>
                     <td className={td}>{r.HubSubHead  || '—'}</td>
                     <td className={td}>{r.ForYear     || '—'}</td>
@@ -843,11 +867,10 @@ export default function DailyReportPage() {
 
       {/* ── Print Receipt Modal ───────────────────────────────────────────────── */}
       {printModal && printData && (
-        <PrintReceiptModal
+        <ReceiptPrintModal
           open={printModal}
           onClose={() => setPrintModal(false)}
-          member={printData.member}
-          receipt={printData.receipt}
+          printData={printData}
         />
       )}
     </div>

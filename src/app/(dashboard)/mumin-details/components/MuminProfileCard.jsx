@@ -30,6 +30,7 @@ export default function MuminProfileCard({ member, initials, features = {}, onEd
           ['Alt Mobile',      member.mobile1 || '—'],
           ['HOF ITS',         member.hofIts || '—'],
           ['HOF Name',        member.hofName || '—'],
+          ['Address',         member.address || '—'],
           ['Sector Area',     member.sector || '—'],
           ['Subsector',       member.mohallah || '—'],
           ['Staying In',      member.stayingIn || '—'],

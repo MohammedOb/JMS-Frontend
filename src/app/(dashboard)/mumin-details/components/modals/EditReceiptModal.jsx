@@ -120,9 +120,10 @@ export default function EditReceiptModal({
     },
   ];
 
-  const isCash    = rcForm?.mode === 'Cash';
-  const amount    = items.reduce((s, it) => s + Number(it.amount || 0), 0);
-  const overLimit = isCash && amount > cashLimit;
+  const isCashMemo = rcForm?.mode === 'Cash Memo' || !!(rcForm?.IsCashMemo || rcForm?.isCashMemo);
+  const isCash     = rcForm?.mode === 'Cash';
+  const amount     = items.reduce((s, it) => s + Number(it.amount || 0), 0);
+  const overLimit  = isCash && amount > cashLimit;
 
   // ── Item edit handlers ────────────────────────────────────────────────────
   const startItemEdit = (index) => {
@@ -305,14 +306,21 @@ export default function EditReceiptModal({
               />
             </div>
             <div>
-              <label className="form-label">Mode</label>
-              <select
-                className="form-select"
-                value={rcForm?.mode || 'Cash'}
-                onChange={e => setRcForm(p => ({ ...p, mode: e.target.value }))}
-              >
-                {['Cash', 'Online', 'Cheque', 'UPI'].map(m => <option key={m}>{m}</option>)}
-              </select>
+              <label className="form-label flex items-center gap-1.5">
+                Mode
+                {isCashMemo && <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded">Locked</span>}
+              </label>
+              {isCashMemo ? (
+                <input className="form-input bg-gray-50 cursor-not-allowed" value="Cash Memo" readOnly />
+              ) : (
+                <select
+                  className="form-select"
+                  value={rcForm?.mode || 'Cash'}
+                  onChange={e => setRcForm(p => ({ ...p, mode: e.target.value }))}
+                >
+                  {['Cash', 'Online', 'Cheque', 'UPI'].map(m => <option key={m}>{m}</option>)}
+                </select>
+              )}
             </div>
             <div>
               <label className="form-label">Status</label>

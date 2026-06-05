@@ -26,6 +26,7 @@ function ReceiptWithAnnexure({ rcpt, slipProps, index, total }) {
           rcpt={rcpt}
           profile={slipProps.profile}
           date={slipProps.date}
+          mode={slipProps.mode}
           remark={slipProps.refNo}
           status={rcpt.status}
         />

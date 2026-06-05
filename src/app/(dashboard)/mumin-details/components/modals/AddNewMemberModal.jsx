@@ -119,11 +119,19 @@ export default function AddNewMemberModal({
               options={subsectorOpts(newMemberForm.Sector)}
               placeholder="Type or select subsector…"
               onChange={(v, o) => {
-                setNF('Subsector', v);
-                if (o) {
-                  setNF('SubsectorName', o.subsectorName ?? '');
-                  setNF('Sector', o.sector ?? newMemberForm.Sector);
-                }
+                const newSubName = o?.subsectorName ?? '';
+                const newSector  = o?.sector ?? newMemberForm.Sector;
+                setNewMemberForm(p => {
+                  const locPart  = [v, newSubName].filter(Boolean).join(' - ');
+                  const computed = [newSector, locPart].filter(Boolean).join(', ');
+                  return {
+                    ...p,
+                    Subsector:    v,
+                    SubsectorName: newSubName,
+                    Sector:       newSector,
+                    Address:      p.Address || computed,
+                  };
+                });
               }}
             />
           </div>
@@ -139,6 +147,15 @@ export default function AddNewMemberModal({
               placeholder="Type or select city…"
               onChange={(v) => setNF('StayingIn', v)}
             />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3">
+          <div>
+            <label className="form-label">Address</label>
+            <textarea className="form-input resize" rows={2} placeholder="Auto-filled from location, or enter custom address"
+              value={newMemberForm.Address}
+              onChange={e => setNF('Address', e.target.value)} />
           </div>
         </div>
 

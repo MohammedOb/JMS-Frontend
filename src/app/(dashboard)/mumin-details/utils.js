@@ -157,7 +157,14 @@ export const normalizeSfRow = (r) => ({
   sfAmount: r.SFAmount || r.sfAmount || 0,
 });
 
-export const normalizeMember = (m = {}) => ({
+export const normalizeMember = (m = {}) => {
+  const sector  = String(m.Sector        ?? '');
+  const sub     = String(m.Subsector     ?? '');
+  const subName = String(m.MohallaDescription ?? m.SubsectorName ?? '');
+  const locPart = [sub, subName].filter(Boolean).join(' - ');
+  const defaultAddress = [sector, locPart].filter(Boolean).join(', ');
+
+  return ({
   accno:         m.AccNo          || m.accno          || m.ACCNO          || '',
   name:          m.FullName       || m.name           || m.NAME           || '',
   itsNo:         m.ITSNo          || m.itsNo          || m.ITS            || m.its  || '',
@@ -165,10 +172,11 @@ export const normalizeMember = (m = {}) => ({
   mobile1:       m.Mobile1        || m.mobile1        || '',
   hofIts:        m.LocalHOFITSNo  || '',
   hofName:       m.HOFName        || m.hofName        || m.HofName        || '',
-  mohallah:      (m.Subsector || '') + ' - ' + (m.MohallaDescription || m.SubsectorName || ''),
-  subsector:     String(m.Subsector ?? ''),
-  subsectorName: String(m.MohallaDescription ?? m.SubsectorName ?? ''),
-  sector:        String(m.Sector        ?? ''),
+  mohallah:      sub + ' - ' + subName,
+  subsector:     sub,
+  subsectorName: subName,
+  sector:        sector,
+  address:       m.Address        || m.address        || defaultAddress   || '',
   stayingIn:     m.StayingIn      || m.stayingIn      || '',
   workStatus:    m.WorkStatus     || m.workStatus     || '',
   sabeelType:    m.SabeelType     || m.sabeelType     || '',
@@ -197,6 +205,7 @@ export const normalizeMember = (m = {}) => ({
                || m.vajUnlock     === 'True'   || m.vajUnlock       === true,
   status:        m.Status         || m.status         || m.AccountStatus  || m.accountStatus || '',
 });
+};
 
 export const normalizeMemberPayload = (payload) => {
   if (!payload) return { member: null, takhmeen: [], receipts: [], family: [], safai: [] };

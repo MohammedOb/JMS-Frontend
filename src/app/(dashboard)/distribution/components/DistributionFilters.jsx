@@ -104,7 +104,7 @@ export default function DistributionFilters({
 
         {/* Masjid Area = Sector */}
         <div className="flex flex-col gap-1">
-          <label className="text-[11px] text-gray-500 font-medium">Masjid Area</label>
+          <label className="text-[11px] text-gray-500 font-medium">Sector</label>
           <AutocompleteInput
             className="form-input w-40"
             placeholder="Type to search…"
@@ -117,7 +117,7 @@ export default function DistributionFilters({
 
         {/* M Code — Mohalla Name (combined, cascades from Masjid Area) */}
         <div className="flex flex-col gap-1">
-          <label className="text-[11px] text-gray-500 font-medium">M Code — Mohalla Name</label>
+          <label className="text-[11px] text-gray-500 font-medium">Subsector — MohallaDescription</label>
           <AutocompleteInput
             className="form-input w-60"
             placeholder="Type to search…"

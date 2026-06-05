@@ -18,7 +18,7 @@ const cashSize = `${Math.round(14 * EN / 13)}px`;   // was 14 (CASH MEMO)
 // Underlined input-style span used throughout the slip.
 function Dotted({ children, minW = '80px', bold = false, dir = 'ltr', align = 'center' }) {
   return (
-    <span style={{
+    <span spellCheck={false} style={{
       borderBottom: '1px dotted #000',
       minWidth: minW,
       display: 'inline-block',
@@ -121,7 +121,7 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
             )}
             <div>
               <span style={{ fontFamily: arabicFont, fontSize: `${AR}px` }}>تاريخ :</span>&nbsp;
-              <Dotted minW="90px">{fmtDate(date)}</Dotted>
+              <Dotted minW="90px" bold>{fmtDate(date)}</Dotted>
             </div>
           </div>
 
@@ -166,9 +166,9 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
             alignItems: 'baseline', margin: '4px 0', flexWrap: 'wrap',
           }}>
             <span style={{ whiteSpace: 'nowrap', fontFamily: arabicFont, fontSize: `${AR}px` }}>اْثث طرف سي روثثية :</span>
-            <span style={{ direction: 'ltr', fontWeight: 'bold' }}><Dotted minW="20px">{fmt(amount)}</Dotted></span>
+            <span style={{ direction: 'ltr' }}><Dotted minW="20px" bold>{fmt(amount)}</Dotted></span>
             <span style={{ fontFamily: arabicFont, fontSize: `${AR}px` }}>انكه</span>
-            <span style={{ direction: 'ltr', whiteSpace: 'nowrap' }}><Dotted minW="220px">{amountInWords(amount)}</Dotted></span>
+            <span style={{ direction: 'ltr', whiteSpace: 'nowrap' }}><Dotted minW="220px" bold>{amountInWords(amount)}</Dotted></span>
           </div>
 
           {/* Fund / contribution type label — hidden for cash memo receipts */}
