@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import {
   memberService, takhmeenService, receiptService,
   safaiService, vajebaatService, followupService,
-  whatsappService,
+  whatsappService, lookupService,
 } from '@/services';
 import toast  from 'react-hot-toast';
 import clsx   from 'clsx';
@@ -234,7 +234,7 @@ function MuminDetailsInner() {
   const setNF = (k, v) => setNewMemberForm(p => ({ ...p, [k]: v }));
 
   const [fmbForm, setFmbForm] = useState({
-    ThaaliStatus: '', ThaaliSize: '', DistributorName: '',
+    ThaaliStatus: '', ThaaliSize: '', DistributorName: '', DistributorID: '',
     ThaliCloseYear: '', ThaliCloseDate: '', TempFromDate: '', TempToDate: '',
     Reason: '', FMBRemark: '',
   });
@@ -408,9 +408,15 @@ function MuminDetailsInner() {
         const rows = toArray(res);
         setLookupCities([...new Set(rows.map(m => m.StayingIn ?? m.stayingIn ?? '').filter(Boolean))].sort());
         setLookupWorkStatuses([...new Set(rows.map(m => m.WorkStatus ?? m.workStatus ?? '').filter(Boolean))].sort());
-        setLookupDistributors([...new Set(rows.map(m => m.DistributorName ?? m.distributorName ?? '').filter(Boolean))].sort());
       })
       .catch(err => console.error('LoadMuminDetails (cities) failed:', err?.response?.data ?? err.message));
+
+    lookupService.getDistributors()
+      .then(res => {
+        const data = res?.data?.data ?? res?.data ?? [];
+        setLookupDistributors(data);
+      })
+      .catch(err => console.error('getDistributors failed:', err?.response?.data ?? err.message));
   }, []); // eslint-disable-line
 
   const loadFamilyMembers = useCallback(async () => {
@@ -762,6 +768,7 @@ function MuminDetailsInner() {
         ThaaliStatus:    f.ThaaliStatus    || undefined,
         ThaaliSize:      f.ThaaliSize      || undefined,
         DistributorName: f.DistributorName || undefined,
+        DistributorID:   f.DistributorID   || undefined,
         ThaliCloseYear:  f.ThaliCloseYear  || undefined,
         ThaliCloseDate:  f.ThaliCloseDate  || undefined,
         TempFromDate:    f.TempFromDate    || undefined,
@@ -917,6 +924,7 @@ function MuminDetailsInner() {
                     ThaaliStatus:    member.thaaliStatus  || '',
                     ThaaliSize:      member.thaaliSize    || '',
                     DistributorName: member.distributor   || '',
+                    DistributorID:   member.distributorId || '',
                     ThaliCloseYear:  member.closeYear     || '',
                     ThaliCloseDate:  toInputDate(member.closeDate),
                     TempFromDate:    toInputDate(member.tempFrom),

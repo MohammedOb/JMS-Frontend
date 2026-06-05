@@ -175,8 +175,15 @@ export const expenseHeadService = {
 
 // ── Distribution ─────────────────────────────────────────────────────────────
 export const distributionService = {
-  getAll:  (params)        => api.get('/distribution', { params }),
-  update:  (id, data)      => api.put(`/distribution/${id}`, data),
+  getAll: cache.cached((params) => api.get('/distribution', { params }), (p) => cache.makeKey('distribution', p), TTL.list),
+};
+
+// ── Distributor Master ────────────────────────────────────────────────────────
+export const distributorService = {
+  load:   cache.cached((data) => api.post('/LoadDistributorDetails',   data), (d) => cache.makeKey('distributor', d), TTL.ref),
+  add:    cache.mutates((data) => api.post('/AddDistributorDetails',    data), 'distributor', 'lookup:distributors'),
+  update: cache.mutates((data) => api.post('/UpdateDistributorDetails', data), 'distributor', 'lookup:distributors'),
+  remove: cache.mutates((data) => api.delete('/DeleteDistributorDetails', { data }), 'distributor', 'lookup:distributors'),
 };
 
 // ── Mohallah ─────────────────────────────────────────────────────────────────

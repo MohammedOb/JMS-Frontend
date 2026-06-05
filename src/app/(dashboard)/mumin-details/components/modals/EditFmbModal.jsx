@@ -8,6 +8,20 @@ const THAALI_STATUS_OPTS = ['Regular','Temporary','Only Amount Pay','Not Taken',
 const THAALI_SIZE_OPTS   = ['Full','Half','Large','Medium','Small','N/A'];
 
 export default function EditFmbModal({ open, onClose, member, fmbForm, setFF, distributorOptions, onSave }) {
+  const handleDistributorChange = (v) => {
+    if (!v) {
+      setFF('DistributorName', '');
+      setFF('DistributorID', '');
+      return;
+    }
+    // distributorOptions is [{ID, DistributorName}] from master table
+    const found = distributorOptions?.find(d => d.DistributorName === v);
+    setFF('DistributorName', v);
+    setFF('DistributorID', found ? found.ID : '');
+  };
+
+  const distributorNames = (distributorOptions || []).map(d => d.DistributorName ?? d);
+
   return (
     <Modal open={open} onClose={onClose} title={`Edit FMB Details — ${member?.name}`} size="lg"
       footer={
@@ -43,9 +57,9 @@ export default function EditFmbModal({ open, onClose, member, fmbForm, setFF, di
             <label className="form-label">Distributor Name</label>
             <ComboBox
               value={fmbForm.DistributorName}
-              options={distributorOptions || []}
+              options={distributorNames}
               placeholder="Type or select…"
-              onChange={(v) => setFF('DistributorName', v)}
+              onChange={handleDistributorChange}
             />
           </div>
         </div>

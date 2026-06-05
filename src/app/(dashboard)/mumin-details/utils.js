@@ -178,6 +178,7 @@ export const normalizeMember = (m = {}) => ({
   thaaliStatus:  m.ThaaliStatus   || m.thaaliStatus   || '',
   thaaliSize:    m.ThaaliSize     || m.thaaliSize     || '',
   distributor:   m.DistributorName|| m.distributorname|| '',
+  distributorId: m.DistributorID  || m.distributorId  || null,
   createdDate:   m.AccountCreated || '',
   smsEligibility:m.SmsEligibility || m.smsEligibility || '',
   loginAccess:   m.LoginAccess    || m.loginAccess    || '',
