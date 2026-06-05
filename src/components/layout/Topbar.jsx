@@ -1,8 +1,10 @@
 'use client';
 // src/components/layout/Topbar.jsx
 
+import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { useAuth }     from '@/context/AuthContext';
+import { whatsappService } from '@/services';
 
 // Map routes to page titles
 const PAGE_TITLES = {
@@ -33,9 +35,37 @@ const PAGE_TITLES = {
   '/system-variables':  'System Variables',
 };
 
+const WA_STATUS_META = {
+  connected:    { dot: 'bg-green-500 shadow-[0_0_0_2px_rgba(34,197,94,0.2)]',   pulse: true,  label: 'WA Connected'  },
+  qr:           { dot: 'bg-amber-400 shadow-[0_0_0_2px_rgba(251,191,36,0.2)]',  pulse: true,  label: 'Scan QR'       },
+  loading:      { dot: 'bg-gray-400',                                            pulse: true,  label: 'WA Starting…'  },
+  initializing: { dot: 'bg-gray-400',                                            pulse: true,  label: 'WA Starting…'  },
+  disconnected: { dot: 'bg-red-500  shadow-[0_0_0_2px_rgba(239,68,68,0.2)]',    pulse: false, label: 'WA Off'        },
+  error:        { dot: 'bg-red-500  shadow-[0_0_0_2px_rgba(239,68,68,0.2)]',    pulse: false, label: 'WA Error'      },
+};
+
 export default function Topbar({ sidebarOpen, onToggleSidebar }) {
   const pathname  = usePathname();
   const { user } = useAuth();
+
+  const [waStatus, setWaStatus] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await whatsappService.getStatus();
+        if (!cancelled) setWaStatus(res.data?.status ?? null);
+      } catch {
+        if (!cancelled) setWaStatus(null);
+      }
+    };
+
+    poll();
+    const id = setInterval(poll, 30_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
 
   const pageTitle = PAGE_TITLES[pathname] || 'JMS';
 
@@ -94,13 +124,17 @@ export default function Topbar({ sidebarOpen, onToggleSidebar }) {
           </div>
         )}
 
-        {/* Connected status */}
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-500
-                        bg-surface border border-border rounded-full px-3 py-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-green-500
-                           shadow-[0_0_0_2px_rgba(34,197,94,0.2)] animate-pulse" />
-          Connected
-        </div>
+        {/* WhatsApp connection status */}
+        {waStatus && (() => {
+          const meta = WA_STATUS_META[waStatus] ?? { dot: 'bg-gray-400', pulse: false, label: waStatus };
+          return (
+            <div className="flex items-center gap-1.5 text-[11px] text-gray-500
+                            bg-surface border border-border rounded-full px-3 py-1">
+              <span className={`w-1.5 h-1.5 rounded-full ${meta.dot} ${meta.pulse ? 'animate-pulse' : ''}`} />
+              {meta.label}
+            </div>
+          );
+        })()}
 
         {/* Username */}
         <div className="text-[12px] text-gray-500 font-medium hidden md:block">

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { memberService } from '@/services';
+import { useSystemVars } from '@/context/SystemVarsContext';
 
 const fmt    = n => (n != null ? `₹${Number(n).toLocaleString('en-IN')}` : '—');
 const ALKANZ = 'AL-KANZ, serif';
@@ -52,6 +53,9 @@ function RightBox({ label, sub, children, minHeight = 60, flex }) {
 }
 
 function FmbForm({ member, fmbTakhmeen, counts, currentYear, printDate }) {
+  const { vars } = useSystemVars();
+  const jamaatCity = vars.JAMAAT_CITY || 'Sagwara';
+
   const { Male = 0, Female = 0, Children = 0, Total = 0 } = counts || {};
   const sector = member.sector || (member.subsector || '').split(' - ')[0];
   const subsectorName = sector  
@@ -76,7 +80,7 @@ function FmbForm({ member, fmbTakhmeen, counts, currentYear, printDate }) {
             borderRight: BORDER,
             padding: '6px 8px',
           }}>
-            {[['Mouze :', 'Sagwara'], ['Date :', printDate]].map(([label, value]) => (
+            {[['Mouze :', jamaatCity], ['Date :', printDate]].map(([label, value]) => (
               <div key={label} style={{ display: 'flex', gap: '4px', alignItems: 'baseline', marginBottom: '4px' }}>
                 <span style={{ fontSize: '14px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>{label}</span>
                 <span style={{ fontSize: '14px', fontWeight: 'bold' }}>{value}</span>

@@ -16,7 +16,7 @@ export const PLACEHOLDERS = [
 ];
 
 /** Build template variable map from a normalised due-details row. */
-export function rowVars(row) {
+export function rowVars(row, orgName = 'Shia Dawoodi Bohra Jamaat, Sagwara') {
   if (!row) return {};
   const forYear = row.fromYear
     ? (row.toYear && row.toYear !== row.fromYear
@@ -37,7 +37,7 @@ export function rowVars(row) {
     Mobile:     row.mobile     || '—',
     SabeelType: row.sabeelType || '—',
     HubSubHead: row.hubSubHead || '—',
-    OrgName:    'Shia Dawoodi Bohra Jamaat, Sagwara',
+    OrgName:    orgName,
   };
 }
 

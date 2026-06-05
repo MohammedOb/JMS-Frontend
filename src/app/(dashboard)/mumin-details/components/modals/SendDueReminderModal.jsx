@@ -6,10 +6,13 @@ import { waTemplateService, whatsappService } from '@/services';
 import { SendIcon } from '@/components/shared/Icons';
 import toast from 'react-hot-toast';
 import { fmt } from '../../utils';
+import { useSystemVars } from '@/context/SystemVarsContext';
 
 // dueData shape:
 //   { rows: [{ head, rem, yearRange }], total: number, isOverall: boolean }
 export default function SendDueReminderModal({ open, onClose, member, dueData }) {
+  const { vars } = useSystemVars();
+
   const [templates,   setTemplates]   = useState([]);
   const [selectedKey, setSelectedKey] = useState('due_reminder');
   const [mobile,      setMobile]      = useState('');
@@ -56,7 +59,7 @@ export default function SendDueReminderModal({ open, onClose, member, dueData })
       HubSubHead: isOverall ? 'Overall Due' : (rows[0]?.head || '—'),
       ForYear:    isOverall ? (allYears.join(', ') || '—') : (rows[0]?.yearRange || '—'),
       DueAmount:  fmt(isOverall ? total : rows[0]?.rem),
-      OrgName:    'Shia Dawoodi Bohra Jamaat, Sagwara',
+      OrgName:    vars.JAMAAT_NAME_FORMAL || 'Shia Dawoodi Bohra Jamaat, Sagwara',
     };
   }
 

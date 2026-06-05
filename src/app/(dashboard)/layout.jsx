@@ -8,6 +8,7 @@ import { useAuth }              from '@/context/AuthContext';
 import Sidebar                  from '@/components/layout/Sidebar';
 import Topbar                   from '@/components/layout/Topbar';
 import PermissionGuard          from '@/components/shared/PermissionGuard';
+import { SystemVarsProvider }   from '@/context/SystemVarsContext';
 
 // Route → can() code(s). null = always accessible when authenticated.
 // Arrays use OR logic (any match grants access).
@@ -77,19 +78,21 @@ export default function DashboardLayout({ children }) {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface">
-      <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      <div
-        className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out"
-        style={{ marginLeft: sidebarOpen ? '228px' : '0px' }}
-      >
-        <Topbar sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(v => !v)} />
-        <main className="flex-1 overflow-y-auto p-3 sm:p-6">
-          <PermissionGuard permission={requiredPermission}>
-            {children}
-          </PermissionGuard>
-        </main>
+    <SystemVarsProvider>
+      <div className="flex h-screen overflow-hidden bg-surface">
+        <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
+        <div
+          className="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out"
+          style={{ marginLeft: sidebarOpen ? '228px' : '0px' }}
+        >
+          <Topbar sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen(v => !v)} />
+          <main className="flex-1 overflow-y-auto p-3 sm:p-6">
+            <PermissionGuard permission={requiredPermission}>
+              {children}
+            </PermissionGuard>
+          </main>
+        </div>
       </div>
-    </div>
+    </SystemVarsProvider>
   );
 }

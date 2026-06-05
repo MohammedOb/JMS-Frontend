@@ -9,6 +9,7 @@ import {
 } from '@/components/shared/Icons';
 import toast from 'react-hot-toast';
 import { interpolate } from '@/app/(dashboard)/due-details/components/waUtils';
+import { useSystemVars } from '@/context/SystemVarsContext';
 
 // ── Placeholders for API members ──────────────────────────────────────────────
 const MEMBER_PLACEHOLDERS = [
@@ -24,7 +25,7 @@ const MEMBER_PLACEHOLDERS = [
   { key: '{OrgName}',     label: 'Org Name'    },
 ];
 
-function memberVars(m) {
+function memberVars(m, orgName = 'Shia Dawoodi Bohra Jamaat, Sagwara') {
   return {
     FullName:   m.FullName          || '—',
     AccNo:      m.AccNo             || '—',
@@ -35,7 +36,7 @@ function memberVars(m) {
     Mobile:     m.Mobile            || '—',
     Mobile1:    m.Mobile1           || '—',
     SabeelType: m.SabeelRemark      || '—',
-    OrgName:    'Shia Dawoodi Bohra Jamaat, Sagwara',
+    OrgName:    orgName,
   };
 }
 
@@ -85,6 +86,9 @@ function FilterSelect({ label, value, onChange, options, disabled }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function WaBulkApiPage() {
+  const { vars } = useSystemVars();
+  const orgName = vars.JAMAAT_NAME_FORMAL || 'Shia Dawoodi Bohra Jamaat, Sagwara';
+
   // ── Lookup state ─────────────────────────────────────────────────────────
   const [sectors,    setSectors]    = useState([]);
   const [subsectors, setSubsectors] = useState([]);
@@ -225,8 +229,8 @@ export default function WaBulkApiPage() {
 
   const previewMember = selectedMembers[0] || displayed[0];
   const previewMsg    = useMemo(
-    () => previewMember && msgTemplate ? interpolate(msgTemplate, memberVars(previewMember)) : '',
-    [previewMember, msgTemplate]
+    () => previewMember && msgTemplate ? interpolate(msgTemplate, memberVars(previewMember, orgName)) : '',
+    [previewMember, msgTemplate, orgName]
   );
 
   // ── Selection helpers ─────────────────────────────────────────────────────
@@ -259,7 +263,7 @@ export default function WaBulkApiPage() {
       accno:    m.AccNo    || null,
       fullName: m.FullName || null,
       mobile:   isValidMobile(m.Mobile) ? normalizeMobile(m.Mobile) : null,
-      message:  interpolate(msgTemplate, memberVars(m)),
+      message:  interpolate(msgTemplate, memberVars(m, orgName)),
     }));
 
     const label = batchLabel.trim() || `Bulk Messaging — ${items.length} members`;

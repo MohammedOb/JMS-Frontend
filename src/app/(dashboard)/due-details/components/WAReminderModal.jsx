@@ -6,8 +6,12 @@ import { waTemplateService, whatsappService } from '@/services';
 import { SendIcon, RefreshIcon } from '@/components/shared/Icons';
 import toast from 'react-hot-toast';
 import { rowVars, interpolate, PLACEHOLDERS } from './waUtils';
+import { useSystemVars } from '@/context/SystemVarsContext';
 
 export default function WAReminderModal({ open, onClose, row }) {
+  const { vars } = useSystemVars();
+  const orgName = vars.JAMAAT_NAME_FORMAL || 'Shia Dawoodi Bohra Jamaat, Sagwara';
+
   const [templates,   setTemplates]   = useState([]);
   const [selectedKey, setSelectedKey] = useState('due_reminder');
   const [mobile,      setMobile]      = useState('');
@@ -36,12 +40,12 @@ export default function WAReminderModal({ open, onClose, row }) {
   useEffect(() => {
     if (!templates.length || !row || !selectedKey) return;
     const tpl = templates.find(t => t.template_key === selectedKey);
-    if (tpl) setMessage(interpolate(tpl.body, rowVars(row)));
-  }, [templates, selectedKey, row]);
+    if (tpl) setMessage(interpolate(tpl.body, rowVars(row, orgName)));
+  }, [templates, selectedKey, row, orgName]);
 
   function resetToTemplate() {
     const tpl = templates.find(t => t.template_key === selectedKey);
-    if (tpl && row) setMessage(interpolate(tpl.body, rowVars(row)));
+    if (tpl && row) setMessage(interpolate(tpl.body, rowVars(row, orgName)));
   }
 
   async function handleSend() {

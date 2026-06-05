@@ -1,6 +1,7 @@
 'use client';
 
 import { amountInWords, fmt, fmtDate, FUND_URDU, NON_CASH } from '@/utils/receiptUtils';
+import { useSystemVars } from '@/context/SystemVarsContext';
 
 // ── Font-size knobs ──────────────────────────────────────────────────────────
 const EN = 16;   // px – English / Latin text  (original: 13 px)
@@ -45,6 +46,11 @@ function Dotted({ children, minW = '80px', bold = false, dir = 'ltr', align = 'c
  *   index / total    – position in a multi-receipt batch (controls page breaks)
  */
 export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdBy, contributionType, index, total }) {
+  const { vars } = useSystemVars();
+  const jamaatName = vars.JAMAAT_NAME || 'SHIA DAWOODI BOHRA JAMAAT MASJID & DARUL EMARAT, SAGWARA';
+  const waqfReg    = vars.WAQF_REG   || 'Waqf Reg. No. 21 (Dungarpur)';
+  const managedBy  = vars.MANAGED_BY || 'Managed by : Anjuman-e-Saifee';
+
   const { accno, receiptNo, familyMemberName, amount, items = [], status, isCashMemo } = rcpt;
   const isCancelled = ['cancelled', 'cancel receipt', 'cancel'].includes((status || '').toLowerCase());
 
@@ -99,10 +105,10 @@ export default function ReceiptSlip({ rcpt, profile, date, mode, refNo, createdB
         {/* Header */}
         <div style={{ borderBottom: '1.5px solid #000', padding: '6px 14px', textAlign: 'center' }}>
           <div style={{ fontWeight: 'bold', fontSize: enHeader, letterSpacing: '0.2px' }}>
-            SHIA DAWOODI BOHRA JAMAAT MASJID &amp; DARUL EMARAT, SAGWARA
+            {jamaatName}
           </div>
-          <div style={{ fontSize: enBase, marginTop: '2px' }}>Waqf Reg. No. 21 (Dungarpur)</div>
-          <div style={{ fontSize: enBase }}>Managed by : Anjuman-e-Saifee</div>
+          <div style={{ fontSize: enBase, marginTop: '2px' }}>{waqfReg}</div>
+          <div style={{ fontSize: enBase }}>{managedBy}</div>
         </div>
 
         {/* Body */}

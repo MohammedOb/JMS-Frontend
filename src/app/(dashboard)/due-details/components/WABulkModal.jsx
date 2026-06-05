@@ -6,6 +6,7 @@ import { waTemplateService, waQueueService } from '@/services';
 import { SendIcon, RefreshIcon } from '@/components/shared/Icons';
 import toast from 'react-hot-toast';
 import { rowVars, interpolate, PLACEHOLDERS } from './waUtils';
+import { useSystemVars } from '@/context/SystemVarsContext';
 
 // ── ETA helper ────────────────────────────────────────────────────────────────
 function etaStr(n) {
@@ -18,6 +19,9 @@ function etaStr(n) {
 
 // ═════════════════════════════════════════════════════════════════════════════
 export default function WABulkModal({ open, onClose, rows = [] }) {
+  const { vars } = useSystemVars();
+  const orgName = vars.JAMAAT_NAME_FORMAL || 'Shia Dawoodi Bohra Jamaat, Sagwara';
+
   const [templates,   setTemplates]   = useState([]);
   const [selectedKey, setSelectedKey] = useState('due_reminder');
   const [msgTemplate, setMsgTemplate] = useState('');
@@ -29,8 +33,8 @@ export default function WABulkModal({ open, onClose, rows = [] }) {
   // Live preview for first row
   const previewMessage = useMemo(() => {
     if (!msgTemplate || !rows[0]) return '';
-    return interpolate(msgTemplate, rowVars(rows[0]));
-  }, [msgTemplate, rows]);
+    return interpolate(msgTemplate, rowVars(rows[0], orgName));
+  }, [msgTemplate, rows, orgName]);
 
   // Load templates on open
   useEffect(() => {
@@ -65,7 +69,7 @@ export default function WABulkModal({ open, onClose, rows = [] }) {
       accno:      row.accno       || null,
       fullName:   row.fullName    || null,
       mobile:     (row.mobile || '').trim() || null,
-      message:    interpolate(msgTemplate, rowVars(row)),
+      message:    interpolate(msgTemplate, rowVars(row, orgName)),
       hubSubHead: row.hubSubHead  || null,
       dueAmount:  row.remaining   || null,
     }));

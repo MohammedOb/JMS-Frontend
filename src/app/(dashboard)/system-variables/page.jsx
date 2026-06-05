@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { systemVarsService }   from '@/services';
 import { useAuth }             from '@/context/AuthContext';
+import { useSystemVars }       from '@/context/SystemVarsContext';
 import toast                   from 'react-hot-toast';
 import Modal                   from '@/components/shared/Modal';
 import { SaveIcon, TrashIcon } from '@/components/shared/Icons';
@@ -20,6 +21,8 @@ export default function SystemVariablesPage() {
   const [deleteModal, setDeleteModal] = useState(false);
   const [form,        setForm]        = useState(EMPTY);
   const [target,      setTarget]      = useState(null); // row being edited / deleted
+
+  const { refreshVars } = useSystemVars();
 
   const canEdit   = can('utility.view');
   const canDelete = can('utility.view');
@@ -51,6 +54,7 @@ export default function SystemVariablesPage() {
       setEditModal(false);
       setForm(EMPTY);
       await load();
+      refreshVars();
     } catch {
       toast.error('Failed to save');
     } finally {
@@ -67,6 +71,7 @@ export default function SystemVariablesPage() {
       setDeleteModal(false);
       setTarget(null);
       await load();
+      refreshVars();
     } catch {
       toast.error('Failed to delete');
     } finally {
