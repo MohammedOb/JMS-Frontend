@@ -6,12 +6,15 @@ import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import { itsService, memberService } from '@/services';
 import {
-  SearchIcon, XIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon,
+  SearchIcon, XIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon, SendIcon,
 } from '@/components/shared/Icons';
 import PaginationBar     from './_components/PaginationBar';
 import PrefixRadio       from './_components/PrefixRadio';
 import TypeBadge         from './_components/TypeBadge';
 import AutocompleteInput from './_components/AutocompleteInput';
+import WAReminderModal   from '../mumin-search/components/WAReminderModal';
+import WABulkModal       from '../mumin-search/components/WABulkModal';
+import WAQueuePanel      from '../takhmeen-not-done/components/WAQueuePanel';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -123,6 +126,12 @@ export default function ITSDataPage() {
   const [showExport,    setShowExport]    = useState(false);
   const [exportPos,     setExportPos]     = useState({});
   const [searchSummary, setSearchSummary] = useState('');
+
+  // ── WhatsApp state ──────────────────────────────────────────────────────────
+  const [selectedItsIds, setSelectedItsIds] = useState(new Set());
+  const [waReminderRow,  setWaReminderRow]  = useState(null);
+  const [waBulkRows,     setWaBulkRows]     = useState([]);
+  const [waBulkOpen,     setWaBulkOpen]     = useState(false);
 
   // Autocomplete lookup data
   const [mohallaRows, setMohallaRows] = useState([]);
@@ -354,6 +363,38 @@ export default function ITSDataPage() {
   };
 
   const hasFilters = Object.keys(INIT_FILTERS).some(k => filters[k] !== INIT_FILTERS[k]);
+
+  // ── WA helpers ──────────────────────────────────────────────────────────────
+
+  const toWARow = useCallback((r) => ({
+    name:        v(r, 'Full_Name')  || '—',
+    mobile:      v(r, 'WhatsApp_No') || v(r, 'Mobile') || '',
+    accno:       v(r, 'ITS_ID')    || '',
+    sector:      v(r, 'Sector')    || '',
+    sabeelType:  '',
+    stayingIn:   '',
+    thaliStatus: '',
+  }), []);
+
+  const isAllSelected = results.length > 0 && results.every(r => selectedItsIds.has(v(r, 'ITS_ID')));
+
+  const toggleRow = useCallback((itsId) => {
+    setSelectedItsIds(prev => {
+      const next = new Set(prev);
+      next.has(itsId) ? next.delete(itsId) : next.add(itsId);
+      return next;
+    });
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    setSelectedItsIds(prev => {
+      const allSel = results.every(r => prev.has(v(r, 'ITS_ID')));
+      const next   = new Set(prev);
+      if (allSel) results.forEach(r => next.delete(v(r, 'ITS_ID')));
+      else        results.forEach(r => next.add(v(r, 'ITS_ID')));
+      return next;
+    });
+  }, [results]);
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -607,6 +648,46 @@ export default function ITSDataPage() {
         document.body
       )}
 
+      {/* ── WhatsApp queue status panel ─────────────────────────────────────── */}
+      <WAQueuePanel />
+
+      {/* ── WhatsApp bulk action bar ─────────────────────────────────────────── */}
+      {searched && results.length > 0 && (
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <span className="text-[11.5px] text-gray-500">
+            {selectedItsIds.size > 0
+              ? `${selectedItsIds.size} selected`
+              : 'Select rows for bulk message'}
+          </span>
+          <button
+            className="btn btn-sm bg-green-600 text-white border-green-600 hover:bg-green-700"
+            disabled={selectedItsIds.size === 0}
+            onClick={() => {
+              setWaBulkRows(results.filter(r => selectedItsIds.has(v(r, 'ITS_ID'))).map(toWARow));
+              setWaBulkOpen(true);
+            }}
+          >
+            <SendIcon className="w-3.5 h-3.5 mr-1.5" />
+            Send Selected ({selectedItsIds.size})
+          </button>
+          <button
+            className="btn btn-sm bg-green-700 text-white border-green-700 hover:bg-green-800"
+            onClick={() => {
+              setWaBulkRows(results.map(toWARow));
+              setWaBulkOpen(true);
+            }}
+          >
+            <SendIcon className="w-3.5 h-3.5 mr-1.5" />
+            Send All ({results.length})
+          </button>
+          {selectedItsIds.size > 0 && (
+            <button className="btn btn-sm btn-secondary" onClick={() => setSelectedItsIds(new Set())}>
+              <XIcon className="w-3 h-3 mr-1" />Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {/* ── Search Status ────────────────────────────────────────────────────── */}
       {searched && (
         <div className="text-[12px] text-gray-900 mb-3 px-1 space-y-0.5">
@@ -624,6 +705,15 @@ export default function ITSDataPage() {
           <table className="w-full border-collapse text-[12px]">
             <thead>
               <tr>
+                <th className="th-navy px-2 w-8">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={toggleAll}
+                    className="cursor-pointer"
+                    title={isAllSelected ? 'Deselect all' : 'Select all'}
+                  />
+                </th>
                 {[
                   'Sr', 'ITS ID', 'HOF ID', 'Type', 'Full Name', 'Full Name (AR)',
                   'Prefix', 'First Name', 'Surname',
@@ -636,21 +726,30 @@ export default function ITSDataPage() {
                   'Vatan', 'Nationality', 'Sector', 'Sub Sector',
                   'City', 'State', 'Data Verified', 'Tanzeem File No.',
                 ].map(h => <th key={h} className="th-navy whitespace-nowrap">{h}</th>)}
+                <th className="th-navy px-2 w-8" title="Send WhatsApp message">WA</th>
               </tr>
             </thead>
             <tbody>
               {!searched ? (
                 <tr>
-                  <td colSpan={39} className="text-center py-16 text-gray-900">
+                  <td colSpan={41} className="text-center py-16 text-gray-900">
                     Enter filters above and click <strong>Search</strong>
                   </td>
                 </tr>
               ) : loading ? (
-                <tr><td colSpan={39} className="text-center py-16 text-gray-900">Searching…</td></tr>
+                <tr><td colSpan={41} className="text-center py-16 text-gray-900">Searching…</td></tr>
               ) : results.length === 0 ? (
-                <tr><td colSpan={39} className="text-center py-16 text-gray-900">No records found</td></tr>
+                <tr><td colSpan={41} className="text-center py-16 text-gray-900">No records found</td></tr>
               ) : pagedRows.map((r, i) => (
-                <tr key={v(r, 'ITS_ID') + '-' + (rowOffset + i)} className="hover:bg-blue-500/[0.025]">
+                <tr key={v(r, 'ITS_ID') + '-' + (rowOffset + i)} className={selectedItsIds.has(v(r, 'ITS_ID')) ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-blue-500/[0.025]'}>
+                  <td className="px-2 py-2 border-t border-border text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedItsIds.has(v(r, 'ITS_ID'))}
+                      onChange={() => toggleRow(v(r, 'ITS_ID'))}
+                      className="cursor-pointer"
+                    />
+                  </td>
                   <td className="px-3 py-2 border-t border-border text-gray-900">{rowOffset + i + 1}</td>
                   <td className="px-3 py-2 border-t border-border font-semibold text-navy-800">{v(r, 'ITS_ID') || '—'}</td>
                   <td className="px-3 py-2 border-t border-border">
@@ -708,6 +807,15 @@ export default function ITSDataPage() {
                   <td className="px-3 py-2 border-t border-border">{v(r, 'State')           || '—'}</td>
                   <td className="px-3 py-2 border-t border-border text-[11px]">{v(r, 'Data_Verification_Status') || '—'}</td>
                   <td className="px-3 py-2 border-t border-border">{v(r, 'TanzeemFile_No')  || '—'}</td>
+                  <td className="px-2 py-2 border-t border-border text-center">
+                    <button
+                      title={`Send message to ${v(r, 'Full_Name')}`}
+                      onClick={() => setWaReminderRow(toWARow(r))}
+                      className="inline-flex items-center justify-center w-6 h-6 rounded text-green-600 hover:bg-green-100 transition-colors"
+                    >
+                      <SendIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -725,6 +833,19 @@ export default function ITSDataPage() {
           </div>
         )}
       </div>
+
+      {/* ── WhatsApp modals ───────────────────────────────────────────────────── */}
+      <WAReminderModal
+        open={!!waReminderRow}
+        onClose={() => setWaReminderRow(null)}
+        row={waReminderRow}
+      />
+      <WABulkModal
+        open={waBulkOpen}
+        onClose={() => setWaBulkOpen(false)}
+        rows={waBulkRows}
+        batchLabel="ITS Data"
+      />
     </div>
   );
 }
