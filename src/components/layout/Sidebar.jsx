@@ -29,7 +29,6 @@ const NAV_SECTIONS = [
       { label: 'Daily Report',      href: '/daily-report',      icon: BarChartIcon,      permission: 'daily_report.view' },
       { label: 'Member Search',     href: '/mumin-search',      icon: SearchIcon,        permission: 'members.view' },
       { label: 'Takhmeen Not Done', href: '/takhmeen-not-done', icon: AlertTriangleIcon, permission: 'takhmeen.report_view' },
-      { label: 'Notifications',     href: '/notifications',     icon: BellIcon,          permission: 'notifications.view' },
     ],
   },
   {

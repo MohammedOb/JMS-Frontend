@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import PageHeader from '@/components/shared/PageHeader';
-import { SendIcon, FileTextIcon, UsersIcon, InboxIcon } from '@/components/shared/Icons';
+import { FileTextIcon, InboxIcon } from '@/components/shared/Icons';
 import { waQueueService } from '@/services';
 
 function ModeCard({ href, icon: Icon, title, desc, tag, color }) {
@@ -79,14 +79,6 @@ export default function WaBulkLandingPage() {
 
       {/* Mode cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <ModeCard
-          href="/messaging/wa-bulk/api"
-          icon={UsersIcon}
-          title="API Messaging"
-          desc="Load members from the system with filters (sector, mohalla, sabeel type, etc.) and send personalized messages using dynamic placeholders."
-          tag="Live Data"
-          color="bg-blue-100 text-blue-600"
-        />
         <ModeCard
           href="/messaging/wa-bulk/excel"
           icon={FileTextIcon}

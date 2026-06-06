@@ -1,13 +1,16 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { memberService, lookupService } from '@/services';
 import { useRouter }     from 'next/navigation';
 import toast             from 'react-hot-toast';
 import PageHeader        from '@/components/shared/PageHeader';
-import { XIcon, RefreshIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon } from '@/components/shared/Icons';
+import { XIcon, RefreshIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon, SendIcon } from '@/components/shared/Icons';
 import { useAuth } from '@/context/AuthContext';
+import WAReminderModal from './components/WAReminderModal';
+import WABulkModal     from './components/WABulkModal';
+import WAQueuePanel    from '../takhmeen-not-done/components/WAQueuePanel';
 
 const ACCOUNT_STATUSES = ['Active', 'Closed', 'BlackList'];
 const FMB_STATUSES     = ['Regular', 'Temporary', 'Only Amount Pay', 'Not Taken', 'Temp Closed', 'Closed', 'Closed with Due', 'N/A'];
@@ -27,7 +30,7 @@ const EXPORT_COLS = [
   { key: 'thaliStatus',      label: 'Thali Status'   },
 ];
 
-const TABLE_COLS = 15;
+const TABLE_COLS = 17;
 
 export default function MuminSearchPage() {
   const router        = useRouter();
@@ -43,6 +46,12 @@ export default function MuminSearchPage() {
   const [loaded,          setLoaded]          = useState(false);
   const [showExport,      setShowExport]      = useState(false);
   const [exportPos,       setExportPos]       = useState({});
+
+  // ── WhatsApp state ────────────────────────────────────────────────────────
+  const [selectedAccnos, setSelectedAccnos] = useState(new Set());
+  const [waReminderRow,  setWaReminderRow]  = useState(null);
+  const [waBulkRows,     setWaBulkRows]     = useState([]);
+  const [waBulkOpen,     setWaBulkOpen]     = useState(false);
 
   const [filters, setFilters] = useState({
     search: '', sector: '', subsector: '', stayingIn: '', status: '', fmbStatus: '', sabeelType: '',
@@ -186,6 +195,31 @@ export default function MuminSearchPage() {
   const clearFilters = () => setFilters({ search: '', sector: '', subsector: '', stayingIn: '', status: '', fmbStatus: '', sabeelType: '' });
   const hasFilters   = Object.values(filters).some(v => v !== '');
   const exportLabel  = `${filteredRows.length} ${hasFilters ? 'filtered ' : ''}members`;
+
+  // ── Checkbox helpers ──────────────────────────────────────────────────────
+  const isAllSelected = filteredRows.length > 0 && filteredRows.every(r => selectedAccnos.has(r.accno));
+
+  const toggleRow = useCallback((accno) => {
+    setSelectedAccnos(prev => {
+      const next = new Set(prev);
+      next.has(accno) ? next.delete(accno) : next.add(accno);
+      return next;
+    });
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    setSelectedAccnos(prev => {
+      const allSelected = filteredRows.every(r => prev.has(r.accno));
+      if (allSelected) {
+        const next = new Set(prev);
+        filteredRows.forEach(r => next.delete(r.accno));
+        return next;
+      }
+      const next = new Set(prev);
+      filteredRows.forEach(r => next.add(r.accno));
+      return next;
+    });
+  }, [filteredRows]);
 
   // ── Export helpers ────────────────────────────────────────────────────────
   const download = (blob, filename) => {
@@ -372,15 +406,68 @@ export default function MuminSearchPage() {
         document.body
       )}
 
+      {/* WhatsApp queue status panel */}
+      <WAQueuePanel />
+
+      {/* WhatsApp bulk action bar */}
+      {filteredRows.length > 0 && (
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <span className="text-[11.5px] text-gray-500">
+            {selectedAccnos.size > 0
+              ? `${selectedAccnos.size} selected`
+              : 'Select rows for bulk message'}
+          </span>
+          <button
+            className="btn btn-sm bg-green-600 text-white border-green-600 hover:bg-green-700"
+            disabled={selectedAccnos.size === 0}
+            onClick={() => {
+              setWaBulkRows(filteredRows.filter(r => selectedAccnos.has(r.accno)));
+              setWaBulkOpen(true);
+            }}
+          >
+            <SendIcon className="w-3.5 h-3.5 mr-1.5" />
+            Send Selected ({selectedAccnos.size})
+          </button>
+          <button
+            className="btn btn-sm bg-green-700 text-white border-green-700 hover:bg-green-800"
+            onClick={() => {
+              setWaBulkRows(filteredRows);
+              setWaBulkOpen(true);
+            }}
+          >
+            <SendIcon className="w-3.5 h-3.5 mr-1.5" />
+            Send All ({filteredRows.length})
+          </button>
+          {selectedAccnos.size > 0 && (
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={() => setSelectedAccnos(new Set())}
+            >
+              <XIcon className="w-3 h-3 mr-1" />Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Results table */}
       <div className="card">
         <div className="overflow-auto">
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
               <tr>
+                <th className="th-navy px-2 w-8">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={toggleAll}
+                    className="cursor-pointer"
+                    title={isAllSelected ? 'Deselect all' : 'Select all'}
+                  />
+                </th>
                 {['S No','Acc No','Full Name','Sector','Mobile','Mobile 1','ITS No','Local HOF ITS','Subsector','Members','Staying In','Sabeel Type','Thali Size','Thali Status','Action'].map(h => (
                   <th key={h} className="th-navy">{h}</th>
                 ))}
+                <th className="th-navy px-2 w-8" title="Send WhatsApp message">WA</th>
               </tr>
             </thead>
             <tbody>
@@ -391,7 +478,15 @@ export default function MuminSearchPage() {
                   {hasFilters ? 'No members match the current filters' : 'No members found'}
                 </td></tr>
               ) : filteredRows.map((m, i) => (
-                <tr key={i} className="hover:bg-blue-500/[0.025]">
+                <tr key={i} className={selectedAccnos.has(m.accno) ? 'bg-green-50 hover:bg-green-100' : 'hover:bg-blue-500/[0.025]'}>
+                  <td className="px-2 py-2.5 border-t border-border text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedAccnos.has(m.accno)}
+                      onChange={() => toggleRow(m.accno)}
+                      className="cursor-pointer"
+                    />
+                  </td>
                   <td className="px-3 py-2.5 border-t border-border text-gray-400">{i + 1}</td>
                   <td className="px-3 py-2.5 border-t border-border text-blue-500 font-semibold">{m.accno}</td>
                   <td className="px-3 py-2.5 border-t border-border font-medium">{m.name}</td>
@@ -412,12 +507,34 @@ export default function MuminSearchPage() {
                       View
                     </button>
                   </td>
+                  <td className="px-2 py-2.5 border-t border-border text-center">
+                    <button
+                      title={`Send message to ${m.name}`}
+                      onClick={() => setWaReminderRow(m)}
+                      className="inline-flex items-center justify-center w-6 h-6 rounded text-green-600 hover:bg-green-100 transition-colors"
+                    >
+                      <SendIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* WhatsApp modals */}
+      <WAReminderModal
+        open={!!waReminderRow}
+        onClose={() => setWaReminderRow(null)}
+        row={waReminderRow}
+      />
+      <WABulkModal
+        open={waBulkOpen}
+        onClose={() => setWaBulkOpen(false)}
+        rows={waBulkRows}
+        batchLabel="Member List"
+      />
     </div>
   );
 }

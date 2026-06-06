@@ -31,7 +31,6 @@ const PAGE_TITLES = {
   '/fmb-daily-menu':   'FMB Daily Menu',
   '/manage-users':     'Manage Users',
   '/utility':           'Utility',
-  '/notifications':     'Notifications',
   '/system-variables':  'System Variables',
 };
 

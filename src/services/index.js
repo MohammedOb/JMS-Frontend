@@ -278,15 +278,6 @@ export const fmbFeedbackService = {
   getSummary:     (menuId)       => api.get(`/fmb-menu/${menuId}/feedback/summary`),
 };
 
-// ── Notifications ─────────────────────────────────────────────────────────────
-export const notificationService = {
-  getAll:      ()          => api.get('/notifications'),
-  create:      (data)      => api.post('/notifications', data),
-  update:      (id, data)  => api.put(`/notifications/${id}`, data),
-  markRead:    (id)        => api.patch(`/notifications/${id}/read`),
-  markAllRead: ()          => api.patch('/notifications/read-all'),
-  delete:      (id)        => api.delete(`/notifications/${id}`),
-};
 
 // ── Utility ──────────────────────────────────────────────────────────────────
 export const utilityService = {
@@ -375,14 +366,6 @@ export const whatsappService = {
   clearSession:    ()     => api.post('/WhatsAppClearSession'),
   sendReceipt:     (data) => api.post('/SendReceiptWhatsApp',    data),
   sendDueReminder: (data) => api.post('/SendDueReminderWhatsApp', data),
-};
-
-// ── WhatsApp Bulk Messaging ───────────────────────────────────────────────────
-export const waBulkService = {
-  members:    (filters)            => api.post('/LoadMuminDetails', filters),
-  sectors:    ()                   => api.get('/WaBulk/sectors'),
-  subsectors: (sector)             => api.get('/WaBulk/subsectors', { params: { Sector: sector } }),
-  mohallahs:  (sector, subsector)  => api.get('/WaBulk/mohallahs', { params: { Sector: sector, SubSector: subsector } }),
 };
 
 // ── WhatsApp Queue ────────────────────────────────────────────────────────────

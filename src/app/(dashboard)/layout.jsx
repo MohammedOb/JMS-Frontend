@@ -18,7 +18,6 @@ const ROUTE_PERMISSIONS = {
   '/daily-report':         'daily_report.view',
   '/mumin-search':         'members.view',
   '/takhmeen-not-done':    'takhmeen.report_view',
-  '/notifications':        'notifications.view',
   '/mumin-details':        'members.view',
   '/mumin-takhmeen':       'takhmeen.report_view',
   '/due-details':          'due.view',

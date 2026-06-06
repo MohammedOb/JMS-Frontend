@@ -19,7 +19,6 @@ export const MODULE_COLOR = {
   member_search:  'bg-sky-200 text-sky-900 border border-sky-300',
   receipt_quick:  'bg-emerald-200 text-emerald-900 border border-emerald-300',
   utility:        'bg-lime-200 text-lime-900 border border-lime-300',
-  notifications:  'bg-orange-200 text-orange-900 border border-orange-300',
   mohallah:       'bg-red-200 text-stone-900 border border-stone-300',
   distribution:   'bg-sky-200 text-sky-900 border border-sky-300',
   musaida:        'bg-teal-200 text-teal-900 border border-teal-300',
