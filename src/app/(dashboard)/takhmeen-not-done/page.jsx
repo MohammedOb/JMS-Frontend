@@ -7,7 +7,10 @@ import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import { takhmeenService, memberService, lookupService } from '@/services';
 import { useAuth } from '@/context/AuthContext';
-import { SearchIcon, XIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon } from '@/components/shared/Icons';
+import { SearchIcon, XIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon, SendIcon } from '@/components/shared/Icons';
+import WAReminderModal from './components/WAReminderModal';
+import WABulkModal     from './components/WABulkModal';
+import WAQueuePanel    from './components/WAQueuePanel';
 
 const INIT_FILTERS = {
   forYear:      '',
@@ -150,6 +153,12 @@ export default function TakhmeenNotDonePage() {
   const [pageSize,     setPageSize]     = useState(100);
   const [currentPage,  setCurrentPage]  = useState(1);
 
+  // ── WhatsApp reminder state ───────────────────────────────────────────────
+  const [selectedAccnos, setSelectedAccnos] = useState(new Set());
+  const [waReminderRow,  setWaReminderRow]  = useState(null);
+  const [waBulkRows,     setWaBulkRows]     = useState([]);
+  const [waBulkOpen,     setWaBulkOpen]     = useState(false);
+
   const setF = useCallback((k, v) => setFilters(p => ({ ...p, [k]: v })), []);
 
   // Load lookup data once for dropdown options
@@ -284,6 +293,25 @@ export default function TakhmeenNotDonePage() {
   const listLabel   = listType === 'notDone' ? 'Takhmeen Not Done' : 'Not Contributed';
   const exportLabel = `${allRows.length} records`;
 
+  // ── Checkbox helpers ──────────────────────────────────────────────────────
+  const isAllSelected = allRows.length > 0 && allRows.every(r => selectedAccnos.has(r.accno));
+
+  const toggleRow = useCallback((accno) => {
+    setSelectedAccnos(prev => {
+      const next = new Set(prev);
+      next.has(accno) ? next.delete(accno) : next.add(accno);
+      return next;
+    });
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    setSelectedAccnos(prev => {
+      const allSelected = allRows.every(r => prev.has(r.accno));
+      if (allSelected) return new Set();
+      return new Set(allRows.map(r => r.accno));
+    });
+  }, [allRows]);
+
   const toggleExport = () => {
     if (!showExport && exportBtnRef.current) {
       const rect = exportBtnRef.current.getBoundingClientRect();
@@ -374,7 +402,7 @@ export default function TakhmeenNotDonePage() {
           ].map(({ value, label }) => (
             <button
               key={value}
-              onClick={() => { setListType(value); setFilters(INIT_FILTERS); }}
+              onClick={() => { setListType(value); setFilters(INIT_FILTERS); setSelectedAccnos(new Set()); }}
               className={`px-4 py-1.5 text-[12.5px] font-medium rounded-md transition-all ${
                 listType === value
                   ? 'bg-navy-800 text-white shadow-sm'
@@ -516,24 +544,90 @@ export default function TakhmeenNotDonePage() {
         document.body
       )}
 
+      {/* WhatsApp queue status panel */}
+      <WAQueuePanel />
+
+      {/* WhatsApp bulk action bar */}
+      {allRows.length > 0 && (
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <span className="text-[11.5px] text-gray-500">
+            {selectedAccnos.size > 0
+              ? `${selectedAccnos.size} selected`
+              : 'Select rows for bulk reminder'}
+          </span>
+          <button
+            className="btn btn-sm bg-green-600 text-white border-green-600 hover:bg-green-700"
+            disabled={selectedAccnos.size === 0}
+            onClick={() => {
+              setWaBulkRows(allRows.filter(r => selectedAccnos.has(r.accno)));
+              setWaBulkOpen(true);
+            }}
+          >
+            <SendIcon className="w-3.5 h-3.5 mr-1.5" />
+            Send Selected ({selectedAccnos.size})
+          </button>
+          <button
+            className="btn btn-sm bg-green-700 text-white border-green-700 hover:bg-green-800"
+            onClick={() => {
+              setWaBulkRows(allRows);
+              setWaBulkOpen(true);
+            }}
+          >
+            <SendIcon className="w-3.5 h-3.5 mr-1.5" />
+            Send All ({allRows.length})
+          </button>
+          {selectedAccnos.size > 0 && (
+            <button
+              className="btn btn-sm btn-secondary"
+              onClick={() => setSelectedAccnos(new Set())}
+            >
+              <XIcon className="w-3 h-3 mr-1" />Clear
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Table */}
       <div className="card">
         <div className="overflow-auto">
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
               <tr>
+                <th className="th-navy px-2 w-8">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={toggleAll}
+                    className="cursor-pointer"
+                    title={isAllSelected ? 'Deselect all' : 'Select all'}
+                  />
+                </th>
                 {['S No','Acc No','Full Name','Mobile','Mobile 1','Sector','Subsector','Sabeel Type','Staying In','FMB Status'].map(h => (
                   <th key={h} className="th-navy">{h}</th>
                 ))}
+                <th className="th-navy px-2 w-8" title="Send WhatsApp reminder">WA</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} className="text-center py-16 text-gray-400">Loading…</td></tr>
+                <tr><td colSpan={12} className="text-center py-16 text-gray-400">Loading…</td></tr>
               ) : allRows.length === 0 ? (
-                <tr><td colSpan={10} className="text-center py-16 text-gray-400">No records found</td></tr>
+                <tr><td colSpan={12} className="text-center py-16 text-gray-400">No records found</td></tr>
               ) : pagedRows.map((r, i) => (
-                <tr key={rowOffset + i} className="hover:bg-blue-500/[0.025]">
+                <tr
+                  key={rowOffset + i}
+                  className={selectedAccnos.has(r.accno)
+                    ? 'bg-green-50 hover:bg-green-100'
+                    : 'hover:bg-blue-500/[0.025]'}
+                >
+                  <td className="px-2 py-2.5 border-t border-border text-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedAccnos.has(r.accno)}
+                      onChange={() => toggleRow(r.accno)}
+                      className="cursor-pointer"
+                    />
+                  </td>
                   <td className="px-3 py-2.5 border-t border-border text-gray-400">{rowOffset + i + 1}</td>
                   <td className="px-3 py-2.5 border-t border-border text-blue-500 font-semibold cursor-pointer"
                     onClick={() => router.push(`/mumin-details?accno=${r.accno}`)}>{r.accno || '—'}</td>
@@ -545,6 +639,15 @@ export default function TakhmeenNotDonePage() {
                   <td className="px-3 py-2.5 border-t border-border">{r.sabeelType       || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border">{r.stayingIn        || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border">{r.thaaliStatus     || '—'}</td>
+                  <td className="px-2 py-2.5 border-t border-border text-center">
+                    <button
+                      title={`Send reminder to ${r.fullName}`}
+                      onClick={() => setWaReminderRow(r)}
+                      className="inline-flex items-center justify-center w-6 h-6 rounded text-green-600 hover:bg-green-100 transition-colors"
+                    >
+                      <SendIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -567,6 +670,19 @@ export default function TakhmeenNotDonePage() {
           </div>
         )}
       </div>
+
+      {/* ── WhatsApp reminder modals ─────────────────────────────────────── */}
+      <WAReminderModal
+        open={!!waReminderRow}
+        onClose={() => setWaReminderRow(null)}
+        row={waReminderRow}
+      />
+      <WABulkModal
+        open={waBulkOpen}
+        onClose={() => setWaBulkOpen(false)}
+        rows={waBulkRows}
+        batchLabel={listLabel}
+      />
     </div>
   );
 }

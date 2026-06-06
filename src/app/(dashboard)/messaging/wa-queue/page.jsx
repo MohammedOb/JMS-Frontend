@@ -9,13 +9,27 @@ import {
 import toast from 'react-hot-toast';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const fmtDate = (dt) => dt
-  ? new Date(dt).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-  : '—';
 
-const fmtTime = (dt) => dt
-  ? new Date(dt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  : '—';
+// MySQL returns DATETIME as a raw string ("2026-06-06 16:03:00") with no timezone.
+// Parsing via new Date(str) can misinterpret it as UTC and shift by the local offset.
+// Use the Date(y,m,d,h,m,s) constructor so the value is always treated as local time.
+function parseLocalDt(str) {
+  if (!str) return null;
+  const [date, time = ''] = String(str).split(/[T ]/);
+  const [y, mo, d]        = date.split('-').map(Number);
+  const [h = 0, mi = 0, s = 0] = time.split(':').map(Number);
+  return new Date(y, mo - 1, d, h, mi, s);
+}
+
+const fmtDate = (dt) => {
+  const d = parseLocalDt(dt);
+  return d ? d.toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+};
+
+const fmtTime = (dt) => {
+  const d = parseLocalDt(dt);
+  return d ? d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—';
+};
 
 function etaStr(pending) {
   if (!pending || pending <= 0) return null;
@@ -366,7 +380,10 @@ export default function WAQueueAdminPage() {
 
   // ── Derived stats ──────────────────────────────────────────────────────────
   const today = new Date().toDateString();
-  const todayBatches = batches.filter(b => new Date(b.created_at).toDateString() === today);
+  const todayBatches = batches.filter(b => {
+    const d = parseLocalDt(b.created_at);
+    return d && d.toDateString() === today;
+  });
   const stats = {
     activeBatches:  batches.filter(b => b.status === 'active').length,
     pausedBatches:  batches.filter(b => b.status === 'paused').length,

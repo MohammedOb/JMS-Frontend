@@ -82,9 +82,11 @@ export default function WaBulkExcelPage() {
   const [nameCol,   setNameCol]   = useState('');  // optional
 
   // ── Step 3: Compose ───────────────────────────────────────────────────────
-  const [templates,  setTemplates]  = useState([]);
-  const [tplKey,     setTplKey]     = useState('');
-  const [msgTpl,     setMsgTpl]     = useState('');
+  const [templates,      setTemplates]      = useState([]);
+  const [tplKey,         setTplKey]         = useState('');
+  const [msgTpl,         setMsgTpl]         = useState('');
+  const [sampleVars,     setSampleVars]     = useState({});   // system vars from DB (OrgName, Venue…)
+  const [fixedVarValues, setFixedVarValues] = useState({});   // user-editable fixed values per placeholder
   const textareaRef = useRef(null);
 
   // ── Step 4: Review & queue ────────────────────────────────────────────────
@@ -109,15 +111,17 @@ export default function WaBulkExcelPage() {
     setNameCol(guessName);
   }, [columns]);
 
-  // Load templates
+  // Load templates + system vars
   useEffect(() => {
-    waTemplateService.getAll()
-      .then(r => {
-        const list = (r.data?.data || []).filter(t => t.is_active);
-        setTemplates(list);
-        if (list.length) { setTplKey(list[0].template_key); setMsgTpl(list[0].body); }
-      })
-      .catch(() => {});
+    Promise.all([
+      waTemplateService.getAll(),
+      waTemplateService.getMeta(),
+    ]).then(([tplRes, metaRes]) => {
+      const list = (tplRes.data?.data || []).filter(t => t.is_active);
+      setTemplates(list);
+      if (list.length) { setTplKey(list[0].template_key); setMsgTpl(list[0].body); }
+      setSampleVars(metaRes.data?.data?.sampleVars || {});
+    }).catch(() => {});
   }, []);
 
   // Auto-select all valid rows when mobileCol changes
@@ -200,13 +204,38 @@ export default function WaBulkExcelPage() {
   const dupSkipped     = selectedArr.length - effectiveIdxs.length;
   const willSend       = effectiveIdxs.length - noMobileCount;
 
+  // Placeholders in the template that are NOT covered by Excel columns → need fixed values
+  const fixedVarKeys = useMemo(() => {
+    if (!msgTpl) return [];
+    const hits    = [...msgTpl.matchAll(/\{(\w+)\}/g)].map(m => m[1]);
+    const covered = new Set(columns);
+    return [...new Set(hits)].filter(k => !covered.has(k));
+  }, [msgTpl, columns]);
+
+  // Auto-fill fixed vars from system sampleVars when new keys are detected
+  useEffect(() => {
+    setFixedVarValues(prev => {
+      const next = { ...prev };
+      for (const k of fixedVarKeys) {
+        if (!(k in next) && sampleVars[k] != null) next[k] = String(sampleVars[k]);
+      }
+      return next;
+    });
+  }, [fixedVarKeys, sampleVars]);
+
+  // Merged base vars: system vars → user fixed → row vars (row highest priority)
+  const mergedBase = useMemo(
+    () => ({ ...sampleVars, ...fixedVarValues }),
+    [sampleVars, fixedVarValues]
+  );
+
   // Preview
-  const previewIdx     = selectedArr[0] ?? 0;
-  const previewMsg     = useMemo(
+  const previewIdx = selectedArr[0] ?? 0;
+  const previewMsg = useMemo(
     () => rows[previewIdx] && msgTpl
-      ? interpolate(msgTpl, excelRowVars(rows[previewIdx]))
+      ? interpolate(msgTpl, { ...mergedBase, ...excelRowVars(rows[previewIdx]) })
       : '',
-    [rows, previewIdx, msgTpl]
+    [rows, previewIdx, msgTpl, mergedBase]
   );
 
   // Template sync
@@ -239,7 +268,7 @@ export default function WaBulkExcelPage() {
         accno:    null,
         fullName: nameCol ? String(r[nameCol] || '').trim() || null : null,
         mobile:   rowMeta[i].mobile || null,
-        message:  interpolate(msgTpl, excelRowVars(r)),
+        message:  interpolate(msgTpl, { ...mergedBase, ...excelRowVars(r) }),
       };
     });
 
@@ -484,6 +513,39 @@ export default function WaBulkExcelPage() {
                 </div>
               </div>
 
+              {/* Fixed Variables — placeholders not covered by Excel columns */}
+              {fixedVarKeys.length > 0 && (
+                <div>
+                  <div className="text-[10px] font-semibold text-gray-500 uppercase mb-1.5">
+                    Fixed Variables
+                    <span className="ml-1.5 font-normal text-gray-400 normal-case">— same value for every row</span>
+                  </div>
+                  <div className="space-y-1.5 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                    {fixedVarKeys.map(k => {
+                      const isAuto = sampleVars[k] != null && fixedVarValues[k] === String(sampleVars[k]);
+                      return (
+                        <div key={k} className="flex items-center gap-2">
+                          <span className="text-[11px] font-mono text-blue-700 bg-white border border-blue-200 px-2 py-0.5 rounded shrink-0 min-w-[100px] text-center">
+                            {`{${k}}`}
+                          </span>
+                          <input
+                            className="form-input text-[11px] flex-1 py-1"
+                            value={fixedVarValues[k] ?? ''}
+                            onChange={e => setFixedVarValues(prev => ({ ...prev, [k]: e.target.value }))}
+                            placeholder={`Value for {${k}}…`}
+                          />
+                          {isAuto && (
+                            <span className="text-[9px] bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded shrink-0">
+                              auto
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Textarea */}
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 uppercase mb-1">Message Template</label>
@@ -520,7 +582,7 @@ export default function WaBulkExcelPage() {
                   <div className="text-[10px] text-gray-400">Other rows preview:</div>
                   {rows.slice(1, 3).map((r, i) => (
                     <div key={i} className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-[10px] text-gray-500 font-mono whitespace-pre-wrap max-h-16 overflow-hidden relative">
-                      {interpolate(msgTpl, excelRowVars(r))}
+                      {interpolate(msgTpl, { ...mergedBase, ...excelRowVars(r) })}
                       <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-gray-50" />
                     </div>
                   ))}

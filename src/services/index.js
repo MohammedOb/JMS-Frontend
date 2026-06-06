@@ -405,6 +405,8 @@ export const waTemplateService = {
   getAll:         ()            => api.get('/WaTemplates'),
   getByKey:       (key)         => api.get(`/WaTemplates/${key}`),
   save:           (key, data)   => api.post(`/WaTemplates/${key}`, data),
+  create:         (data)        => api.post('/WaTemplates', data),
+  delete:         (key)         => api.delete(`/WaTemplates/${key}`),
   resetToDefault: (key)         => api.post(`/WaTemplates/${key}/reset`),
 };
 
