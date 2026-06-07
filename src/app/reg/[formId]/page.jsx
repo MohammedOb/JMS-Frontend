@@ -173,8 +173,16 @@ export default function PublicFormPage({ params }) {
   const handleAnnounceNext = async () => {
     const m     = memberData;
     const accNo = m ? String(m.AccNo || '').trim() || null : null;
-    const itsNo = m ? String(m.ITSNo || m.ITS_ID || '').trim() || null : null;
-    await proceedToForm(m, accNo, itsNo, true);
+    // If member found use their ITS; if not found but user entered an ITS number,
+    // still pass it so the dup-check can find a previous manual submission.
+    const itsNo = m
+      ? String(m.ITSNo || m.ITS_ID || '').trim() || null
+      : lookupVal.trim() || null;
+    if (m && Number(form?.AllowFamilyRegistration) === 1) {
+      await proceedToFamily(m, itsNo);
+    } else {
+      await proceedToForm(m, accNo, itsNo, true);
+    }
   };
 
   // ── Proceed to form (individual) ───────────────────────────────────────────
@@ -189,19 +197,29 @@ export default function PublicFormPage({ params }) {
       if (errors.length) { setVerifyError(errors.join(' ')); return; }
     }
 
-    const dupRes = await regFormPublic.checkDup({ FormID: form.ID, AccNo: accNo || null, ITSNo: itsNo || null });
-    const dup    = dupRes?.data?.data;
-    let prefill  = {};
-    if (dup?.duplicate) {
-      setExistingResponseId(dup.ResponseID);
-      try {
-        const editRes = await regFormPublic.loadForEdit({ FormID: form.ID, AccNo: accNo || null, ITSNo: itsNo || null });
-        (editRes?.data?.data ?? []).forEach(row => { if (row.QuestionID) prefill[row.QuestionID] = row.AnswerText ?? ''; });
-      } catch {}
+    let prefill = {};
+
+    // Only check for duplicates when we have an identity to match on
+    if (accNo || itsNo) {
+      const dupRes = await regFormPublic.checkDup({ FormToken: formId, AccNo: accNo || null, ITSNo: itsNo || null });
+      const dup    = dupRes?.data?.data;
+      if (dup?.duplicate) {
+        setExistingResponseId(dup.ResponseID);
+        try {
+          const editRes = await regFormPublic.loadForEdit({ FormToken: formId, AccNo: accNo || null, ITSNo: itsNo || null });
+          (editRes?.data?.data ?? []).forEach(row => {
+            if (row.QuestionID) prefill[row.QuestionID] = row.AnswerText ?? '';
+          });
+        } catch {}
+      }
     }
 
-    const memberPrefill = buildPrefill(allQuestions, m, lookupMode, lookupVal.trim());
-    Object.entries(memberPrefill).forEach(([qId, val]) => { if (!prefill[qId]) prefill[qId] = val; });
+    // Member prefill from ITS lookup — overrides blank or zero stored values
+    // (zero values can appear when a previous submission had missing/corrupt data)
+    const memberPrefill = buildPrefill(allQuestions, m, 'itsno', lookupVal.trim());
+    Object.entries(memberPrefill).forEach(([qId, val]) => {
+      if (val && (!prefill[qId] || prefill[qId] === '0')) prefill[qId] = val;
+    });
 
     setAnswers(prefill);
     setSectionIdx(0);
@@ -241,7 +259,7 @@ export default function PublicFormPage({ params }) {
 
       if (accNo) {
         try {
-          const allRes = await regFormPublic.loadFamilyResponses({ FormID: form.ID, AccNo: accNo });
+          const allRes = await regFormPublic.loadFamilyResponses({ FormToken: formId, AccNo: accNo });
           const rows   = allRes?.data?.data ?? [];
 
           // Group rows by ResponseID
@@ -410,7 +428,7 @@ export default function PublicFormPage({ params }) {
           updated++;
         } else {
           await regFormPublic.submit({
-            FormID: form.ID,
+            FormToken: formId,
             AccNo:  m.AccNo || null,
             ITSNo:  String(m.ITS_ID || m.ITSNo || '').trim() || null,
             RespondentName: m.Full_Name || m.FullName || '',
@@ -430,7 +448,7 @@ export default function PublicFormPage({ params }) {
         } else {
           // Brand-new outside member — store under the family AccNo so they appear in future edits
           await regFormPublic.submit({
-            FormID: form.ID,
+            FormToken: formId,
             AccNo:  familyAccNo,
             ITSNo:  om.ITSNo?.trim() || null,
             RespondentName: om.Name.trim(),
@@ -554,26 +572,32 @@ export default function PublicFormPage({ params }) {
       const allAnswersArr = allQuestions.map(q => ({ QuestionID: q.ID, AnswerText: answers[q.ID] ?? '' }));
 
       let accNo          = m ? (String(m.AccNo || '').trim() || null) : null;
-      let itsNo          = m ? (String(m.ITSNo || m.ITS_ID || '').trim() || null) : null;
-      let respondentName = m ? (m.FullName || m.Full_Name || '') : '';
+      // For outside members (m=null), seed itsNo from the ITS field the user typed
+      let itsNo          = m ? (String(m.ITSNo || m.ITS_ID || '').trim() || null) : (lookupVal.trim() || null);
+      // Always scan answers for name first — user may have edited it; fall back to ITS data
+      let respondentName = '';
 
-      // When no member data, pull identity fields out of the form answers
-      if (!m) {
-        allQuestions.forEach(q => {
-          const t   = q.QuestionText.toLowerCase().replace(/[^a-z0-9 ]/g, '');
-          const val = String(answers[q.ID] ?? '').trim();
-          if (!respondentName && /\b(full\s?name|name)\b/.test(t))                               respondentName = val;
-          if (!itsNo          && /\b(its|itsno|its\s?no|its\s?number)\b/.test(t))               itsNo = val || null;
-          if (!accNo          && /\b(acc\s?no|accno|account\s?no|account\s?number|sabeel)\b/.test(t)) accNo = val || null;
-        });
-      }
+      allQuestions.forEach(q => {
+        const t   = q.QuestionText.toLowerCase().replace(/[^a-z0-9 ]/g, '');
+        const val = String(answers[q.ID] ?? '').trim();
+        if (!respondentName && /\b(full\s?name|name)\b/.test(t))                                    respondentName = val;
+        if (!m && !itsNo    && /\b(its|itsno|its\s?no|its\s?number)\b/.test(t))                    itsNo = val || null;
+        if (!m && !accNo    && /\b(acc\s?no|accno|account\s?no|account\s?number|sabeel)\b/.test(t)) accNo = val || null;
+      });
+
+      if (!respondentName) respondentName = m ? (m.FullName || m.Full_Name || '') : '';
 
       if (existingResponseId) {
-        const { regFormService: s } = await import('@/services');
-        await s.updateResponse({ ResponseID: existingResponseId, answers: allAnswersArr });
+        await regFormPublic.updateResponse({
+          ResponseID: existingResponseId,
+          answers: allAnswersArr,
+          RespondentName: respondentName || null,
+          AccNo: accNo || null,
+          ITSNo: itsNo || null,
+        });
       } else {
         await regFormPublic.submit({
-          FormID: form.ID, AccNo: accNo, ITSNo: itsNo,
+          FormToken: formId, AccNo: accNo, ITSNo: itsNo,
           RespondentName: respondentName,
           answers: allAnswersArr,
         });
@@ -685,7 +709,7 @@ export default function PublicFormPage({ params }) {
             selectedCount={selectedCount}
             onSubmit={submitFamilyDirect}
             submitting={submitting}
-            onBack={() => setStep('verify')}
+            onBack={() => setStep(Number(form?.RequireVerification ?? 1) === 0 ? 'announce' : 'verify')}
           />
         )}
 

@@ -89,3 +89,21 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// ── Public API — for unauthenticated pages (e.g. public reg forms) ──────────
+// No auth token attached, no login redirect on 401.
+export const publicApi = axios.create({
+  baseURL: resolveApiBaseUrl(),
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 60000,
+});
+
+publicApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 429) {
+      toast.error('Too many requests. Please wait a moment.');
+    }
+    return Promise.reject(error);
+  }
+);

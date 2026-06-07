@@ -1,7 +1,7 @@
 // src/services/index.js
 // All API calls. Each function maps to a backend endpoint / stored procedure.
 
-import api from '@/lib/api';
+import api, { publicApi } from '@/lib/api';
 import * as cache from '@/lib/cache';
 
 const TTL = {
@@ -427,19 +427,20 @@ export const itsService = {
 };
 
 // Public — no auth (members filling the form)
+// Uses publicApi: no token attached, no redirect to /login on errors.
 export const regFormPublic = {
-  getFormByToken:  (token) => api.get(`/reg-form/token/${token}`),
-  getForm:         (d) => api.post('/GetRegFormById/public',    d),
-  getQuestions:    (d) => api.post('/LoadFormQuestions/public', d),
-  getSections:     (d) => api.post('/LoadFormSections/public',  d),
-  checkDup:        (d) => api.post('/CheckRegDuplicate',        d),
-  submit:          (d) => api.post('/SubmitRegForm',             d),
-  submitFamily:    (d) => api.post('/SubmitFamilyRegistration', d),
-  loadForEdit:         (d) => api.post('/LoadRegResponseForEdit',          d),
-  loadFamilyResponses: (d) => api.post('/LoadAllFamilyResponses/public',  d),
-  updateResponse:      (d) => api.post('/UpdateRegResponse/public',        d),
-  deleteResponse:      (d) => api.delete('/DeleteRegResponse/public', { data: d }),
+  getFormByToken:  (token) => publicApi.get(`/reg-form/token/${token}`),
+  getForm:         (d) => publicApi.post('/GetRegFormById/public',    d),
+  getQuestions:    (d) => publicApi.post('/LoadFormQuestions/public', d),
+  getSections:     (d) => publicApi.post('/LoadFormSections/public',  d),
+  checkDup:        (d) => publicApi.post('/CheckRegDuplicate',        d),
+  submit:          (d) => publicApi.post('/SubmitRegForm',             d),
+  submitFamily:    (d) => publicApi.post('/SubmitFamilyRegistration', d),
+  loadForEdit:         (d) => publicApi.post('/LoadRegResponseForEdit',          d),
+  loadFamilyResponses: (d) => publicApi.post('/LoadAllFamilyResponses/public',  d),
+  updateResponse:      (d) => publicApi.post('/UpdateRegResponse/public',        d),
+  deleteResponse:      (d) => publicApi.delete('/DeleteRegResponse/public', { data: d }),
   // Public member lookup — no auth required
-  lookupByITS:   (d) => api.post('/reg-form/member/its',   d),
-  lookupByAccNo: (d) => api.post('/reg-form/member/accno', d),
+  lookupByITS:   (d) => publicApi.post('/reg-form/member/its',   d),
+  lookupByAccNo: (d) => publicApi.post('/reg-form/member/accno', d),
 };
