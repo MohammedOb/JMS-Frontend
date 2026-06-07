@@ -155,7 +155,7 @@ export default function PublicFormPage({ params }) {
 
   const doItsLookup = async () => {
     const val = lookupVal.trim();
-    if (!val) return;
+    if (!val) return null;
     setLooking(true);
     setVerifyError('');
     setMemberData(null);
@@ -164,17 +164,21 @@ export default function PublicFormPage({ params }) {
       const res  = await regFormPublic.lookupByITS({ ITS_ID: val });
       const list = res?.data?.data ?? res?.data;
       const m    = Array.isArray(list) ? list[0] : list;
-      if (!m) { setVerifyError('ITS not found in the system.'); setNotFoundMode(true); return; }
+      if (!m) { setVerifyError('ITS not found in the system.'); setNotFoundMode(true); return null; }
       setMemberData(m);
-    } catch { setVerifyError('Lookup failed. Please try again.'); }
+      return m;
+    } catch { setVerifyError('Lookup failed. Please try again.'); return null; }
     finally { setLooking(false); }
   };
 
-  const handleAnnounceNext = async () => {
-    const m     = memberData;
+  // Single Continue handler for the announce step — does lookup if ITS typed, then proceeds.
+  const handleAnnounceContinue = async () => {
+    let m = memberData;
+    if (!m && lookupVal.trim()) {
+      m = await doItsLookup();
+      // If ITS not found, m is null — proceed without autofill
+    }
     const accNo = m ? String(m.AccNo || '').trim() || null : null;
-    // If member found use their ITS; if not found but user entered an ITS number,
-    // still pass it so the dup-check can find a previous manual submission.
     const itsNo = m
       ? String(m.ITSNo || m.ITS_ID || '').trim() || null
       : lookupVal.trim() || null;
@@ -653,7 +657,7 @@ export default function PublicFormPage({ params }) {
           <AnnounceStep
             form={form}
             onNext={Number(form?.RequireVerification ?? 1) === 0
-              ? handleAnnounceNext
+              ? handleAnnounceContinue
               : () => setStep('verify')
             }
             itsLookup={Number(form?.RequireVerification ?? 1) === 0 ? {
@@ -661,8 +665,6 @@ export default function PublicFormPage({ params }) {
               setLookupVal,
               memberData,
               looking,
-              error: notFoundMode ? verifyError : '',
-              doLookup: doItsLookup,
               clearState: () => { setVerifyError(''); setNotFoundMode(false); setMemberData(null); },
             } : null}
           />
