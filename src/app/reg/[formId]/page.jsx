@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, use } from 'react';
-import { regFormPublic, memberService } from '@/services';
+import { regFormPublic } from '@/services';
 import { ELIGIBILITY_CONFIG } from '@/utils/eligibilityConfig';
 import toast from 'react-hot-toast';
 
@@ -131,11 +131,11 @@ export default function PublicFormPage({ params }) {
     try {
       let m = null;
       if (lookupMode === 'accno') {
-        const res  = await memberService.loadMuminDetails({ AccNo: val });
+        const res  = await regFormPublic.lookupByAccNo({ AccNo: val });
         const list = res?.data?.data ?? res?.data;
         m = Array.isArray(list) ? list[0] : list;
       } else {
-        const res  = await memberService.loadFamilyMembersDetails({ ITS_ID: val });
+        const res  = await regFormPublic.lookupByITS({ ITS_ID: val });
         const list = res?.data?.data ?? res?.data;
         m = Array.isArray(list) ? list[0] : list;
       }
@@ -161,7 +161,7 @@ export default function PublicFormPage({ params }) {
     setMemberData(null);
     setNotFoundMode(false);
     try {
-      const res  = await memberService.loadFamilyMembersDetails({ ITS_ID: val });
+      const res  = await regFormPublic.lookupByITS({ ITS_ID: val });
       const list = res?.data?.data ?? res?.data;
       const m    = Array.isArray(list) ? list[0] : list;
       if (!m) { setVerifyError('ITS not found in the system.'); setNotFoundMode(true); return; }
@@ -219,7 +219,7 @@ export default function PublicFormPage({ params }) {
     try {
       // 1. Load family members from ITS Org
       const hofHOFID = m.HOF_ID || m.LocalHOFITSNo || itsNo || String(m.ITS_ID || m.ITSNo || '').trim();
-      const res      = await memberService.loadFamilyMembersDetails({ HOF_ID: hofHOFID });
+      const res      = await regFormPublic.lookupByITS({ HOF_ID: hofHOFID });
       const members  = Array.isArray(res?.data?.data ?? res?.data) ? (res?.data?.data ?? res?.data) : [];
       setFamilyMembers(members);
 

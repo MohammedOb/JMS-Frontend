@@ -439,4 +439,7 @@ export const regFormPublic = {
   loadFamilyResponses: (d) => api.post('/LoadAllFamilyResponses/public',  d),
   updateResponse:      (d) => api.post('/UpdateRegResponse/public',        d),
   deleteResponse:      (d) => api.delete('/DeleteRegResponse/public', { data: d }),
+  // Public member lookup — no auth required
+  lookupByITS:   (d) => api.post('/reg-form/member/its',   d),
+  lookupByAccNo: (d) => api.post('/reg-form/member/accno', d),
 };
