@@ -19,9 +19,12 @@ module.exports = {
           400: '#3b82f6',
           300: '#60a5fa',
         },
-        surface: '#f0f4f9',
+        // Semantic theme aliases — driven by CSS variables in globals.css :root
+        primary:   'var(--color-primary)',   // bg-primary, text-primary, border-primary
+        shell:     'var(--color-bg-header)', // bg-shell → sidebar, topbar, table headers
+        surface:   'var(--color-bg-page)',   // bg-surface → page background
         'surface-2': '#e8eef7',
-        border: '#dce4ef',
+        border:    'var(--color-border)',    // border-border
       },
       fontFamily: {
         sans: ['DM Sans', 'system-ui', 'sans-serif'],

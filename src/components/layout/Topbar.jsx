@@ -32,6 +32,7 @@ const PAGE_TITLES = {
   '/manage-users':     'Manage Users',
   '/utility':           'Utility',
   '/system-variables':  'System Variables',
+  '/theme-settings':    'Theme Settings',
 };
 
 const WA_STATUS_META = {

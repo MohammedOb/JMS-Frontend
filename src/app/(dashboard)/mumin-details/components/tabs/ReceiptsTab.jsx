@@ -195,7 +195,7 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
               const rowClass = isCancelled
                 ? 'bg-red-600 text-white'
                 : isCashMemo
-                  ? 'bg-amber-50 hover:bg-amber-100'
+                  ? 'bg-amber-200 hover:bg-amber-300'
                   : 'hover:bg-blue-500/[0.025]';
               return (
                 <tr key={i} className={rowClass}>

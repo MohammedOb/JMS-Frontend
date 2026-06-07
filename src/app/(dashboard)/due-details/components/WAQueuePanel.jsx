@@ -281,7 +281,7 @@ export default function WAQueuePanel() {
     <div className="mb-4 border border-border rounded-lg overflow-hidden shadow-sm">
       {/* Panel header */}
       <button
-        className="w-full flex items-center justify-between px-3 py-2 bg-navy-900 text-white hover:bg-navy-800 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 bg-shell text-white hover:bg-navy-900 transition-colors"
         onClick={() => setCollapsed(c => !c)}
       >
         <div className="flex items-center gap-2">

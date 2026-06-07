@@ -84,4 +84,5 @@ export const blankForm = () => ({
   EligibilityRules: null,
   AllowOutsideRegistration: 1,
   AllowFamilyRegistration: 0,
+  RequireVerification: 1,
 });

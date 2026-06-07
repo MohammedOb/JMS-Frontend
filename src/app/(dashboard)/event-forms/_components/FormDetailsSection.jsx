@@ -86,6 +86,23 @@ export default function FormDetailsSection({ form, sf, sfn }) {
           )}
         </div>
 
+        <div>
+          <label className="form-label">Identity Verification</label>
+          <select
+            value={Number(form.RequireVerification ?? 1)}
+            onChange={e => sf('RequireVerification', Number(e.target.value))}
+            className="form-select"
+          >
+            <option value={1}>Required — member must verify before filling form</option>
+            <option value={0}>Not required — form opens directly, ITS autofill optional</option>
+          </select>
+          {Number(form.RequireVerification ?? 1) === 0 && (
+            <p className="text-[10px] text-amber-600 mt-1">
+              Respondents can optionally enter their ITS No to autofill details. No identity check is performed.
+            </p>
+          )}
+        </div>
+
       </div>
     </div>
   );

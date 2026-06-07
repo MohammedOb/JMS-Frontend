@@ -14,7 +14,7 @@ import {
   MapPinIcon, CalendarIcon, ListIcon, MailIcon,
   UtensilsIcon, UserCogIcon, SettingsIcon, LogoutIcon, LayersIcon, TableIcon,
   MessageIcon, SmartphoneIcon, ZapIcon, InboxIcon, ChevronDownIcon, SendIcon,
-  DatabaseIcon,
+  DatabaseIcon, PaletteIcon,
 } from '@/components/shared/Icons';
 
 // ── Nav config ─────────────────────────────────────────────────────────────
@@ -97,6 +97,7 @@ const NAV_SECTIONS = [
       { label: 'FMB Daily Menu',    href: '/fmb-daily-menu',    icon: UtensilsIcon, permission: 'fmb_menu.view' },
       { label: 'Access Control',    href: '/access-control',    icon: UserCogIcon,  permission: 'users.view' },
       { label: 'System Variables',  href: '/system-variables',  icon: SettingsIcon, permission: 'utility.view' },
+      { label: 'Theme Settings',    href: '/theme-settings',    icon: PaletteIcon,  permission: 'utility.view' },
       { label: 'Utility',           href: '/utility',           icon: SettingsIcon, permission: 'utility.view' },
     ],
   },
@@ -263,7 +264,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
       )}
 
       <aside className={clsx(
-        'fixed left-0 top-0 bottom-0 w-[228px] bg-navy-800 flex flex-col z-50',
+        'fixed left-0 top-0 bottom-0 w-[228px] bg-shell flex flex-col z-50',
         'shadow-[4px_0_24px_rgba(6,15,30,0.3)]',
         'border-r border-blue-500/20',
         'transition-transform duration-300 ease-in-out',
@@ -291,7 +292,7 @@ export default function Sidebar({ isOpen, setIsOpen }) {
         {/* User / Logout footer */}
         <div className="border-t border-white/[0.06] px-3 py-3 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-navy-700 border border-white/10
+            <div className="w-8 h-8 rounded-full bg-navy-800/70 border border-white/10
                             flex items-center justify-center text-blue-300 text-xs
                             font-semibold font-display flex-shrink-0">
               {initials}

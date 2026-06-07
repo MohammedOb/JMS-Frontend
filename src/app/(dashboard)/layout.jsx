@@ -38,6 +38,7 @@ const ROUTE_PERMISSIONS = {
   '/fmb-daily-menu':       'fmb_menu.view',
   '/access-control':       'users.view',
   '/system-variables':     'utility.view',
+  '/theme-settings':       'utility.view',
   '/utility':              'utility.view',
   '/whatsapp-status':               'utility.view',
   '/whatsapp-templates':            'utility.view',

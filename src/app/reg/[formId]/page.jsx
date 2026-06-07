@@ -151,10 +151,36 @@ export default function PublicFormPage({ params }) {
     finally { setLooking(false); }
   };
 
+  // ── ITS lookup for no-verify announce step ────────────────────────────────
+
+  const doItsLookup = async () => {
+    const val = lookupVal.trim();
+    if (!val) return;
+    setLooking(true);
+    setVerifyError('');
+    setMemberData(null);
+    setNotFoundMode(false);
+    try {
+      const res  = await memberService.loadFamilyMembersDetails({ ITS_ID: val });
+      const list = res?.data?.data ?? res?.data;
+      const m    = Array.isArray(list) ? list[0] : list;
+      if (!m) { setVerifyError('ITS not found in the system.'); setNotFoundMode(true); return; }
+      setMemberData(m);
+    } catch { setVerifyError('Lookup failed. Please try again.'); }
+    finally { setLooking(false); }
+  };
+
+  const handleAnnounceNext = async () => {
+    const m     = memberData;
+    const accNo = m ? String(m.AccNo || '').trim() || null : null;
+    const itsNo = m ? String(m.ITSNo || m.ITS_ID || '').trim() || null : null;
+    await proceedToForm(m, accNo, itsNo, true);
+  };
+
   // ── Proceed to form (individual) ───────────────────────────────────────────
 
-  const proceedToForm = async (m, accNo, itsNo) => {
-    if (m) {
+  const proceedToForm = async (m, accNo, itsNo, skipEligibility = false) => {
+    if (m && !skipEligibility) {
       const errors = [];
       ELIGIBILITY_CONFIG.forEach(field => {
         const msg = field.validate(parseJson(form.EligibilityRules, null) ?? {}, m, form);
@@ -163,13 +189,13 @@ export default function PublicFormPage({ params }) {
       if (errors.length) { setVerifyError(errors.join(' ')); return; }
     }
 
-    const dupRes = await regFormPublic.checkDup({ FormID: formId, AccNo: accNo || null, ITSNo: itsNo || null });
+    const dupRes = await regFormPublic.checkDup({ FormID: form.ID, AccNo: accNo || null, ITSNo: itsNo || null });
     const dup    = dupRes?.data?.data;
     let prefill  = {};
     if (dup?.duplicate) {
       setExistingResponseId(dup.ResponseID);
       try {
-        const editRes = await regFormPublic.loadForEdit({ FormID: formId, AccNo: accNo || null, ITSNo: itsNo || null });
+        const editRes = await regFormPublic.loadForEdit({ FormID: form.ID, AccNo: accNo || null, ITSNo: itsNo || null });
         (editRes?.data?.data ?? []).forEach(row => { if (row.QuestionID) prefill[row.QuestionID] = row.AnswerText ?? ''; });
       } catch {}
     }
@@ -215,7 +241,7 @@ export default function PublicFormPage({ params }) {
 
       if (accNo) {
         try {
-          const allRes = await regFormPublic.loadFamilyResponses({ FormID: formId, AccNo: accNo });
+          const allRes = await regFormPublic.loadFamilyResponses({ FormID: form.ID, AccNo: accNo });
           const rows   = allRes?.data?.data ?? [];
 
           // Group rows by ResponseID
@@ -384,7 +410,7 @@ export default function PublicFormPage({ params }) {
           updated++;
         } else {
           await regFormPublic.submit({
-            FormID: formId,
+            FormID: form.ID,
             AccNo:  m.AccNo || null,
             ITSNo:  String(m.ITS_ID || m.ITSNo || '').trim() || null,
             RespondentName: m.Full_Name || m.FullName || '',
@@ -404,7 +430,7 @@ export default function PublicFormPage({ params }) {
         } else {
           // Brand-new outside member — store under the family AccNo so they appear in future edits
           await regFormPublic.submit({
-            FormID: formId,
+            FormID: form.ID,
             AccNo:  familyAccNo,
             ITSNo:  om.ITSNo?.trim() || null,
             RespondentName: om.Name.trim(),
@@ -475,8 +501,12 @@ export default function PublicFormPage({ params }) {
       setSectionHistory(h => h.slice(0, -1));
       setSectionIdx(prev);
       window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (Number(form?.AllowFamilyRegistration) === 1 && familyMembers.length) {
+      setStep('family');
+    } else if (Number(form?.RequireVerification ?? 1) === 0) {
+      setStep('announce');
     } else {
-      setStep(Number(form?.AllowFamilyRegistration) === 1 && familyMembers.length ? 'family' : 'verify');
+      setStep('verify');
     }
   };
 
@@ -485,7 +515,7 @@ export default function PublicFormPage({ params }) {
   // ── New Registration — reset all state back to verify step ─────────────────
 
   const startNewRegistration = () => {
-    setStep('verify');
+    setStep(Number(form?.RequireVerification ?? 1) === 0 ? 'announce' : 'verify');
     setLookupVal('');
     setVerifyCode('');
     setMemberData(null);
@@ -521,16 +551,30 @@ export default function PublicFormPage({ params }) {
     setSubmitting(true);
     try {
       const m     = memberData;
-      const accNo = m ? (String(m.AccNo || '').trim() || null) : null;
-      const itsNo = m ? (String(m.ITSNo || m.ITS_ID || '').trim() || null) : null;
       const allAnswersArr = allQuestions.map(q => ({ QuestionID: q.ID, AnswerText: answers[q.ID] ?? '' }));
+
+      let accNo          = m ? (String(m.AccNo || '').trim() || null) : null;
+      let itsNo          = m ? (String(m.ITSNo || m.ITS_ID || '').trim() || null) : null;
+      let respondentName = m ? (m.FullName || m.Full_Name || '') : '';
+
+      // When no member data, pull identity fields out of the form answers
+      if (!m) {
+        allQuestions.forEach(q => {
+          const t   = q.QuestionText.toLowerCase().replace(/[^a-z0-9 ]/g, '');
+          const val = String(answers[q.ID] ?? '').trim();
+          if (!respondentName && /\b(full\s?name|name)\b/.test(t))                               respondentName = val;
+          if (!itsNo          && /\b(its|itsno|its\s?no|its\s?number)\b/.test(t))               itsNo = val || null;
+          if (!accNo          && /\b(acc\s?no|accno|account\s?no|account\s?number|sabeel)\b/.test(t)) accNo = val || null;
+        });
+      }
+
       if (existingResponseId) {
         const { regFormService: s } = await import('@/services');
         await s.updateResponse({ ResponseID: existingResponseId, answers: allAnswersArr });
       } else {
         await regFormPublic.submit({
-          FormID: formId, AccNo: accNo, ITSNo: itsNo,
-          RespondentName: m?.FullName || m?.Full_Name || '',
+          FormID: form.ID, AccNo: accNo, ITSNo: itsNo,
+          RespondentName: respondentName,
           answers: allAnswersArr,
         });
       }
@@ -582,7 +626,22 @@ export default function PublicFormPage({ params }) {
         )}
 
         {step === 'announce' && (
-          <AnnounceStep form={form} onNext={() => setStep('verify')} />
+          <AnnounceStep
+            form={form}
+            onNext={Number(form?.RequireVerification ?? 1) === 0
+              ? handleAnnounceNext
+              : () => setStep('verify')
+            }
+            itsLookup={Number(form?.RequireVerification ?? 1) === 0 ? {
+              lookupVal,
+              setLookupVal,
+              memberData,
+              looking,
+              error: notFoundMode ? verifyError : '',
+              doLookup: doItsLookup,
+              clearState: () => { setVerifyError(''); setNotFoundMode(false); setMemberData(null); },
+            } : null}
+          />
         )}
 
         {step === 'verify' && (
