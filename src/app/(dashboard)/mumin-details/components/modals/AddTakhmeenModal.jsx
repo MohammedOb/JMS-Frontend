@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Modal from '@/components/shared/Modal';
 import { SaveIcon } from '@/components/shared/Icons';
-import { fmt, SUB_HEADS, ComboBox, normalizeArray } from '../../utils';
+import { fmt, fmtDate, SUB_HEADS, ComboBox, normalizeArray } from '../../utils';
 import { takhmeenService } from '@/services';
 import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
@@ -16,12 +16,14 @@ export default function TakhmeenModal({
   onSave,
 }) {
   const { user } = useAuth();
-  const [headOptions, setHeadOptions] = useState([]);
+  const [headOptions,  setHeadOptions]  = useState([]);
   const [gradeOptions, setGradeOptions] = useState([]);
+  const [history,      setHistory]      = useState([]);
+  const [histLoading,  setHistLoading]  = useState(false);
 
-  // Load HubMainHead / HubSubHead options from API, fall back to static SUB_HEADS
+  // Load all HubSubHead options from API, fall back to static SUB_HEADS
   useEffect(() => {
-    if (!open) { setHeadOptions([]); setGradeOptions([]); return; }
+    if (!open) { setHeadOptions([]); setGradeOptions([]); setHistory([]); return; }
     takhmeenService.loadHubHeadDetails({ IsActive: 1 })
       .then(res => {
         const rows = normalizeArray(res?.data);
@@ -41,6 +43,15 @@ export default function TakhmeenModal({
         setHeadOptions(Object.entries(SUB_HEADS).flatMap(([mh, subs]) => subs.map(sh => ({ mainHead: mh, subHead: sh }))));
       });
   }, [open]);
+
+  // When subHead changes, auto-resolve mainHead silently
+  useEffect(() => {
+    if (!row?.subHead || !headOptions.length) return;
+    const match = headOptions.find(o => o.subHead === row.subHead);
+    if (match && match.mainHead !== row.mainHead) {
+      setRow(p => ({ ...p, mainHead: match.mainHead }));
+    }
+  }, [row?.subHead, headOptions]);
 
   // Load Grade suggestions from API
   useEffect(() => {
@@ -64,7 +75,26 @@ export default function TakhmeenModal({
     return () => clearTimeout(t);
   }, [row?.mainHead, row?.subHead, row?.grade]);
 
-  const mainHeadRef = useRef(null);
+  // Load history for this mumin + subHead
+  useEffect(() => {
+    if (!open || !member?.accno || !row?.subHead) { setHistory([]); return; }
+    setHistLoading(true);
+    takhmeenService.loadDetails({ AccNo: member.accno, HubSubHead: row.subHead })
+      .then(res => {
+        const rows = normalizeArray(res?.data);
+        const norm = rows.map(r => ({
+          forYear:  r.ForYear      || r.forYear   || '',
+          takhmeen: r.Takhmeen     || r.takhmeen  || 0,
+          grade:    r.Grade        || r.grade     || '',
+          date:     r.TakhmeenDate || r.date      || '',
+        }));
+        norm.sort((a, b) => String(b.forYear).localeCompare(String(a.forYear)));
+        setHistory(norm.slice(0, 5));
+      })
+      .catch(() => setHistory([]))
+      .finally(() => setHistLoading(false));
+  }, [open, member?.accno, row?.subHead]);
+
   const subHeadRef  = useRef(null);
   const forYearRef  = useRef(null);
   const takhmeenRef = useRef(null);
@@ -78,12 +108,11 @@ export default function TakhmeenModal({
   const isVajebaat = row.mainHead === 'Vajebaat';
   const isEdit     = mode === 'edit';
 
-  const mainHeadOpts = [...new Set(headOptions.map(o => o.mainHead).filter(Boolean))];
-  const subHeadOpts  = [...new Set(headOptions.filter(o => o.mainHead === row.mainHead).map(o => o.subHead).filter(Boolean))];
+  // All sub heads from API (no main head filter needed in UI)
+  const subHeadOpts = [...new Set(headOptions.map(o => o.subHead).filter(Boolean))];
 
   const handleSave = () => {
     const checks = [
-      { test: !row.mainHead,                                   ref: mainHeadRef, label: 'Hub Main Head' },
       { test: !row.subHead,                                    ref: subHeadRef,  label: 'Hub Sub Head' },
       { test: !row.forYear,                                    ref: forYearRef,  label: 'For Year' },
       { test: row.takhmeen === '' || row.takhmeen == null,     ref: takhmeenRef, label: 'Takhmeen amount' },
@@ -121,38 +150,61 @@ export default function TakhmeenModal({
           Member: <strong>{member?.name}</strong> · Acc# <strong>{member?.accno}</strong>
         </div>
 
-        {/* Hub Main Head + Hub Sub Head */}
+        {/* Hub Sub Head + For Year */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="form-label">Hub Main Head *</label>
-            <ComboBox
-              inputRef={mainHeadRef}
-              value={row.mainHead || ''}
-              options={mainHeadOpts}
-              placeholder="Type or select..."
-              onChange={(v) => { set('mainHead', v); set('subHead', ''); set('grade', ''); setGradeOptions([]); }}
-            />
-          </div>
-          <div>
-            <label className="form-label">Hub Sub Head</label>
+            <label className="form-label">Hub Sub Head *</label>
             <ComboBox
               inputRef={subHeadRef}
               value={row.subHead || ''}
               options={subHeadOpts}
-              placeholder={row.mainHead ? 'Type or select...' : 'Select Main Head first'}
-              disabled={!row.mainHead}
+              placeholder="Type or select..."
               onChange={(v) => { set('subHead', v); set('grade', ''); setGradeOptions([]); }}
             />
           </div>
-        </div>
-
-        {/* For Year + Grade */}
-        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="form-label">For Year</label>
             <input ref={forYearRef} className="form-input" placeholder={user?.ForYearAll} value={row.forYear || ''}
               onChange={e => set('forYear', e.target.value)} />
           </div>
+        </div>
+
+        {/* History grid — shows when subHead selected */}
+        {row.subHead && (
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="bg-navy-900 text-white text-[10px] font-semibold px-3 py-1.5 uppercase tracking-wider">
+              Last entries — {row.subHead}
+            </div>
+            {histLoading ? (
+              <div className="text-[11px] text-gray-400 px-3 py-2">Loading history…</div>
+            ) : history.length === 0 ? (
+              <div className="text-[11px] text-gray-400 px-3 py-2">No history found</div>
+            ) : (
+              <table className="w-full text-[11px]">
+                <thead>
+                  <tr>
+                    {['Year','Takhmeen','Grade','Date'].map(h => (
+                      <th key={h} className="th-navy text-[10px] py-1 px-2">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map((h, i) => (
+                    <tr key={i} className="hover:bg-blue-50/40">
+                      <td className="px-2 py-1 border-t border-border">{h.forYear}</td>
+                      <td className="px-2 py-1 border-t border-border">{fmt(h.takhmeen)}</td>
+                      <td className="px-2 py-1 border-t border-border">{h.grade || '—'}</td>
+                      <td className="px-2 py-1 border-t border-border">{fmtDate(h.date) || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
+
+        {/* Grade */}
+        <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="form-label">Grade</label>
             <ComboBox
@@ -190,7 +242,7 @@ export default function TakhmeenModal({
               onChange={e => set('date', e.target.value)} />
           </div>
           <div>
-            <label className="form-label">Remark TakhmeenModal.jsx</label>
+            <label className="form-label">Remark</label>
             <input className="form-input" placeholder="Optional remark" value={row.remark || ''}
               onChange={e => set('remark', e.target.value)} />
           </div>

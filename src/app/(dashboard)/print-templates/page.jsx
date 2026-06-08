@@ -1,0 +1,839 @@
+'use client';
+
+import { useState, useRef, useCallback, useEffect } from 'react';
+import toast from 'react-hot-toast';
+
+// ── Page Sizes ────────────────────────────────────────────────────────────────
+const PAGE_SIZES = {
+  'A4-portrait':  { w: 794,  h: 1123, label: 'A4 Portrait'  },
+  'A4-landscape': { w: 1123, h: 794,  label: 'A4 Landscape' },
+  'A5-portrait':  { w: 559,  h: 794,  label: 'A5 Portrait'  },
+  'A5-landscape': { w: 794,  h: 559,  label: 'A5 Landscape' },
+};
+const DEFAULT_PAGE        = 'A4-portrait';
+const DEFAULT_MARGIN      = { top: 20, right: 20, bottom: 20, left: 20 };
+const DEFAULT_MARGIN_UNIT = 'mm';
+
+const MARGIN_UNIT_FACTOR = { mm: 3.7795, cm: 37.795, in: 96 };
+function pxToUnit(px, unit) { return Math.round((px / MARGIN_UNIT_FACTOR[unit]) * 10) / 10; }
+function unitToPx(val, unit) { return Math.round(val * MARGIN_UNIT_FACTOR[unit]); }
+
+// ── Mumin Fields (all from normalizeMember) ────────────────────────────────────
+const MUMIN_FIELDS = [
+  // Identity
+  { field: 'name',          label: 'Full Name',       group: 'Identity' },
+  { field: 'accno',         label: 'Acc No',          group: 'Identity' },
+  { field: 'itsNo',         label: 'ITS No',          group: 'Identity' },
+  { field: 'mobile',        label: 'Mobile',          group: 'Identity' },
+  { field: 'mobile1',       label: 'Mobile (Alt)',    group: 'Identity' },
+  { field: 'hofName',       label: 'HOF Name',        group: 'Identity' },
+  { field: 'hofIts',        label: 'HOF ITS',         group: 'Identity' },
+  // Location
+  { field: 'sector',        label: 'Sector',          group: 'Location' },
+  { field: 'subsector',     label: 'Sub Sector Code', group: 'Location' },
+  { field: 'subsectorName', label: 'Mohallah Name',   group: 'Location' },
+  { field: 'mohallah',      label: 'Mohallah',        group: 'Location' },
+  { field: 'address',       label: 'Address',         group: 'Location' },
+  { field: 'stayingIn',     label: 'Staying In',      group: 'Location' },
+  { field: 'mouze',         label: 'Mouze',           group: 'Location' },
+  // Status
+  { field: 'sabeelType',    label: 'Sabeel Type',     group: 'Status' },
+  { field: 'workStatus',    label: 'Work Status',     group: 'Status' },
+  { field: 'grade',         label: 'Grade',           group: 'Status' },
+  { field: 'status',        label: 'Account Status',  group: 'Status' },
+  { field: 'thaaliStatus',  label: 'Thaali Status',   group: 'Status' },
+  { field: 'thaaliSize',    label: 'Thaali Size',     group: 'Status' },
+  // Finance
+  { field: 'sabeelAmount',  label: 'Sabeel Amount',   group: 'Finance' },
+  { field: 'sabeelRemark',  label: 'Sabeel Remark',   group: 'Finance' },
+  // FMB & Misc
+  { field: 'distributor',   label: 'Distributor',     group: 'FMB & Misc' },
+  { field: 'tokenNo',       label: 'Token No',        group: 'FMB & Misc' },
+  { field: 'fmbRemark',     label: 'FMB Remark',      group: 'FMB & Misc' },
+  // Dates
+  { field: 'createdDate',   label: 'Account Created', group: 'Dates' },
+  { field: 'closeYear',     label: 'Close Year',      group: 'Dates' },
+  { field: 'tempFrom',      label: 'Temp From',       group: 'Dates' },
+  { field: 'tempTo',        label: 'Temp To',         group: 'Dates' },
+];
+const MUMIN_GROUPS = [...new Set(MUMIN_FIELDS.map(f => f.group))];
+
+const HISTORY_COLS = [
+  { key: 'forYear',   label: 'Year'      },
+  { key: 'takhmeen',  label: 'Takhmeen'  },
+  { key: 'received',  label: 'Received'  },
+  { key: 'grade',     label: 'Grade'     },
+  { key: 'date',      label: 'Date'      },
+  { key: 'remark',    label: 'Remark'    },
+  { key: 'remaining', label: 'Remaining' },
+];
+const DEFAULT_COLS = ['forYear', 'takhmeen', 'grade', 'received'];
+
+const STORAGE_KEY = 'takhmeen_form_templates';
+
+const FONT_LIST = [
+  'Arial', 'Arial Narrow', 'Calibri', 'Cambria', 'Comic Sans MS',
+  'Courier New', 'Georgia', 'Helvetica', 'Impact',
+  'Noto Naskh Arabic', 'Noto Sans', 'Noto Serif',
+  'Palatino Linotype', 'Tahoma', 'Times New Roman', 'Trebuchet MS',
+  'Verdana', 'Al-KANZ',
+];
+
+// Display name for each element type (shown as "control name" in properties)
+const EL_NAME = {
+  muminField:   el => MUMIN_FIELDS.find(f => f.field === el?.field)?.label || 'Mumin Field',
+  subHead:      ()  => 'Hub Sub Head',
+  forYear:      ()  => 'For Year',
+  currentDate:  ()  => 'Current Date',
+  historyGrid:  ()  => 'History Grid',
+  label:        ()  => 'Static Label',
+  inputLine:    ()  => 'Input Line',
+  image:        ()  => 'Background Image',
+};
+
+// ── Storage ────────────────────────────────────────────────────────────────────
+function newId()    { return `e_${Date.now()}_${Math.random().toString(36).slice(2,7)}`; }
+function tplId()    { return `tpl_${Date.now()}`; }
+function loadTpls() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    // Migrate old bgImage string → image element
+    return raw.map(t => {
+      if (t.bgImage && !(t.elements || []).find(e => e.type === 'image')) {
+        const ps = PAGE_SIZES[t.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
+        const imgEl = { id: `img_${t.id}`, type: 'image', src: t.bgImage, x: 0, y: 0, w: ps.w, h: ps.h };
+        return { ...t, bgImage: '', elements: [imgEl, ...(t.elements || [])] };
+      }
+      return t;
+    });
+  } catch { return []; }
+}
+function saveTpls(t){ localStorage.setItem(STORAGE_KEY, JSON.stringify(t)); }
+
+// ── Element defaults ────────────────────────────────────────────────────────────
+function mkEl(type, field) {
+  const base = {
+    id: newId(), x: 80, y: 80, w: 240, h: 32,
+    fontSize: 13, fontFamily: 'Arial', fontColor: '#111827', bold: false, italic: false,
+    bgColor: '', align: 'left',
+  };
+  switch (type) {
+    case 'muminField':  return { ...base, type, field, label: (MUMIN_FIELDS.find(f => f.field === field)?.label || '') + ':' };
+    case 'subHead':     return { ...base, type, label: 'Sub Head:' };
+    case 'forYear':     return { ...base, type, label: 'Year:' };
+    case 'currentDate': return { ...base, type, label: 'Date:' };
+    case 'historyGrid': return { ...base, type, columns: [...DEFAULT_COLS], w: 560, h: 220, rowCount: 5, fontSize: 11, bgColor: '#ffffff' };
+    case 'label':       return { ...base, type, text: 'Label Text', fontSize: 20, bold: true, w: 360, h: 44 };
+    case 'inputLine':   return { ...base, type, label: 'Amount:', w: 280, h: 32 };
+    default:            return { ...base, type };
+  }
+}
+
+// ── Resize math ─────────────────────────────────────────────────────────────────
+const MIN_SZ = 30;
+function applyResize(orig, handle, dx, dy) {
+  let { x, y, w, h } = { x: orig.x, y: orig.y, w: orig.w || 200, h: orig.h || 32 };
+  if (handle.includes('n')) { y += dy; h -= dy; }
+  if (handle.includes('s')) { h += dy; }
+  if (handle.includes('w')) { x += dx; w -= dx; }
+  if (handle.includes('e')) { w += dx; }
+  if (w < MIN_SZ) { if (handle.includes('w')) x = orig.x + (orig.w || 200) - MIN_SZ; w = MIN_SZ; }
+  if (h < MIN_SZ) { if (handle.includes('n')) y = orig.y + (orig.h || 32) - MIN_SZ; h = MIN_SZ; }
+  return { x: Math.round(x), y: Math.round(y), w: Math.round(w), h: Math.round(h) };
+}
+
+// ── Resize handles ─────────────────────────────────────────────────────────────
+const HANDLE_DEFS = [
+  { id: 'nw', cursor: 'nw-resize', style: { top: -5,    left: -5   } },
+  { id: 'n',  cursor: 'n-resize',  style: { top: -5,    left: '50%', transform: 'translateX(-50%)' } },
+  { id: 'ne', cursor: 'ne-resize', style: { top: -5,    right: -5  } },
+  { id: 'w',  cursor: 'w-resize',  style: { top: '50%', left: -5,   transform: 'translateY(-50%)' } },
+  { id: 'e',  cursor: 'e-resize',  style: { top: '50%', right: -5,  transform: 'translateY(-50%)' } },
+  { id: 'sw', cursor: 'sw-resize', style: { bottom: -5, left: -5   } },
+  { id: 's',  cursor: 's-resize',  style: { bottom: -5, left: '50%', transform: 'translateX(-50%)' } },
+  { id: 'se', cursor: 'se-resize', style: { bottom: -5, right: -5  } },
+];
+
+function ResizeHandles({ onHandleDown }) {
+  return (
+    <>
+      {HANDLE_DEFS.map(h => (
+        <div
+          key={h.id}
+          onMouseDown={e => { e.preventDefault(); e.stopPropagation(); onHandleDown(e, h.id); }}
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            width: 9, height: 9,
+            background: '#3b82f6',
+            border: '2px solid #ffffff',
+            borderRadius: 2,
+            boxShadow: '0 0 0 1px #1d4ed8',
+            cursor: h.cursor,
+            zIndex: 30,
+            ...h.style,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+// ── Canvas element renderer ────────────────────────────────────────────────────
+function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart }) {
+  const ts = {
+    fontSize:   el.fontSize  || 13,
+    fontFamily: el.fontFamily || 'Arial',
+    color:      el.fontColor || '#111827',
+    fontWeight: el.bold   ? 700 : 400,
+    fontStyle:  el.italic ? 'italic' : 'normal',
+    textAlign:  el.align  || 'left',
+    lineHeight: 1.3,
+  };
+
+  return (
+    <div
+      style={{
+        position:   'absolute',
+        left:       el.x,
+        top:        el.y,
+        width:      el.w || 'auto',
+        height:     el.h || 'auto',
+        background: el.type === 'image' ? 'transparent' : (el.bgColor || 'transparent'),
+        outline:    selected ? '2px solid #3b82f6' : (el.type === 'image' ? '1px dashed rgba(59,130,246,0.25)' : '1px dashed rgba(130,130,130,0.4)'),
+        cursor:     'move',
+        userSelect: 'none',
+        overflow:   'hidden',
+        zIndex:     selected ? 10 : (el.type === 'image' ? 0 : 2),
+        padding:    el.type === 'image' ? 0 : '2px 4px',
+        boxSizing:  'border-box',
+      }}
+      onMouseDown={e => { e.stopPropagation(); onSelect(el.id); onMoveStart(e, el.id); }}
+      onClick={e => e.stopPropagation()}
+      onContextMenu={e => { e.preventDefault(); onSelect(el.id); }}
+    >
+      {/* Image element */}
+      {el.type === 'image' && (
+        <img src={el.src} alt="" draggable={false}
+          style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', pointerEvents: 'none' }} />
+      )}
+
+      {/* Field-bound elements */}
+      {(el.type === 'muminField' || el.type === 'subHead' || el.type === 'forYear') && (
+        <span style={ts}>
+          <span style={{ fontWeight: el.bold ? 700 : 600 }}>{el.label}&nbsp;</span>
+          <span style={{ color: '#3b82f6', fontStyle: 'normal' }}>___</span>
+        </span>
+      )}
+
+      {el.type === 'currentDate' && (
+        <span style={ts}>
+          <span style={{ fontWeight: el.bold ? 700 : 600 }}>{el.label}&nbsp;</span>
+          <span>{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+        </span>
+      )}
+
+      {/* Static label */}
+      {el.type === 'label' && <span style={ts}>{el.text}</span>}
+
+      {/* Input line */}
+      {el.type === 'inputLine' && (
+        <div style={{ ...ts, display: 'flex', alignItems: 'flex-end', height: '100%', paddingBottom: 2 }}>
+          <span style={{ flexShrink: 0, whiteSpace: 'nowrap' }}>{el.label}&nbsp;</span>
+          <span style={{ flex: 1, borderBottom: `1.5px solid ${el.fontColor || '#111'}`, display: 'block', minWidth: 30 }} />
+        </div>
+      )}
+
+      {/* History grid */}
+      {el.type === 'historyGrid' && (
+        <div style={{ width: '100%', height: '100%', overflow: 'hidden', background: el.bgColor || '#fff' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontFamily: el.fontFamily || 'Arial' }}>
+            <thead>
+              <tr>
+                {(el.columns || DEFAULT_COLS).map(c => (
+                  <th key={c} style={{ border: '1px solid #d1d5db', padding: '2px 4px', background: '#f0f4fa', fontSize: Math.max((el.fontSize || 11) - 1, 9), fontWeight: 600, textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                    {HISTORY_COLS.find(h => h.key === c)?.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: el.rowCount || 5 }).map((_, i) => (
+                <tr key={i}>
+                  {(el.columns || DEFAULT_COLS).map(c => (
+                    <td key={c} style={{ border: '1px solid #e5e7eb', padding: '2px 4px', height: 20 }} />
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {selected && (
+        <ResizeHandles onHandleDown={(e, handle) => onResizeStart(e, el.id, handle)} />
+      )}
+    </div>
+  );
+}
+
+// ── Properties Panel ───────────────────────────────────────────────────────────
+function PropertiesPanel({ el, onChange, onDelete }) {
+  if (!el) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-5 gap-2">
+        <div className="text-3xl text-gray-200">⊹</div>
+        <p className="text-[11px] text-gray-400 text-center leading-relaxed">
+          Click any element on the canvas to edit its properties
+        </p>
+      </div>
+    );
+  }
+
+  const displayName = EL_NAME[el.type]?.(el) || el.type;
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Control name header */}
+      <div className="flex-shrink-0 bg-navy-900 text-white px-3 py-2.5 flex items-center justify-between">
+        <div>
+          <div className="text-[9px] text-white/40 uppercase tracking-widest leading-tight">Control</div>
+          <div className="text-[14px] font-semibold leading-tight">{displayName}</div>
+        </div>
+        <button onClick={onDelete}
+          className="text-[10px] bg-red-500/20 text-red-400 hover:bg-red-500/40 border border-red-500/30 rounded px-2 py-1 transition-colors">
+          ✕ Delete
+        </button>
+      </div>
+
+      {/* Properties */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-4 text-[12px]">
+
+        {/* Position & Size */}
+        <div>
+          <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Position & Size</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {[['X', 'x'], ['Y', 'y'], ['W', 'w'], ['H', 'h']].map(([lbl, key]) => (
+              <label key={key}>
+                <span className="form-label text-[10px]">{lbl} (px)</span>
+                <input type="number" className="form-input text-[11px] py-1"
+                  value={el[key] ?? 0}
+                  onChange={e => onChange({ ...el, [key]: Number(e.target.value) })} />
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Typography — hidden for image elements */}
+        {el.type !== 'image' && <div>
+          <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Typography</div>
+          <div className="space-y-2.5">
+            {/* Font family */}
+            <label>
+              <span className="form-label text-[10px]">Font</span>
+              <select className="form-input text-[11px] py-1"
+                value={el.fontFamily || 'Arial'}
+                style={{ fontFamily: el.fontFamily || 'Arial' }}
+                onChange={e => onChange({ ...el, fontFamily: e.target.value })}>
+                {FONT_LIST.map(f => (
+                  <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
+                ))}
+              </select>
+            </label>
+
+            {/* Font size slider */}
+            <label>
+              <span className="form-label text-[10px]">Font Size — {el.fontSize || 13}px</span>
+              <input type="range" min={8} max={48} value={el.fontSize || 13}
+                onChange={e => onChange({ ...el, fontSize: Number(e.target.value) })}
+                className="w-full accent-blue-500" />
+            </label>
+
+            {/* Font color */}
+            <div className="flex items-center gap-2">
+              <span className="form-label text-[10px] w-14 flex-shrink-0">Color</span>
+              <input type="color" value={el.fontColor || '#111827'}
+                onChange={e => onChange({ ...el, fontColor: e.target.value })}
+                className="h-7 w-10 rounded cursor-pointer border border-border flex-shrink-0" />
+              <span className="text-[10px] text-gray-500 font-mono">{el.fontColor || '#111827'}</span>
+            </div>
+
+            {/* Bold / Italic / Align */}
+            <div className="flex gap-1.5 flex-wrap">
+              <button onClick={() => onChange({ ...el, bold: !el.bold })}
+                className={`h-7 w-8 text-[13px] font-bold rounded border transition-colors ${el.bold ? 'bg-blue-500 text-white border-blue-600' : 'bg-white text-gray-600 border-border hover:bg-gray-50'}`}>
+                B
+              </button>
+              <button onClick={() => onChange({ ...el, italic: !el.italic })}
+                className={`h-7 w-8 text-[13px] italic rounded border transition-colors ${el.italic ? 'bg-blue-500 text-white border-blue-600' : 'bg-white text-gray-600 border-border hover:bg-gray-50'}`}>
+                I
+              </button>
+              <div className="w-px bg-border" />
+              {[['L','left'],['C','center'],['R','right']].map(([lbl,a]) => (
+                <button key={a} onClick={() => onChange({ ...el, align: a })}
+                  className={`h-7 w-8 text-[11px] rounded border transition-colors ${(el.align||'left') === a ? 'bg-blue-500 text-white border-blue-600' : 'bg-white text-gray-500 border-border hover:bg-gray-50'}`}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>}
+
+        {/* Background — hidden for image elements */}
+        {el.type !== 'image' && <div>
+          <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Background</div>
+          <div className="flex items-center gap-2">
+            <input type="color" value={el.bgColor || '#ffffff'}
+              onChange={e => onChange({ ...el, bgColor: e.target.value })}
+              className="h-7 w-10 rounded cursor-pointer border border-border flex-shrink-0" />
+            <span className="text-[10px] text-gray-500 font-mono flex-1">{el.bgColor || 'none'}</span>
+            <button onClick={() => onChange({ ...el, bgColor: '' })}
+              className="text-[10px] text-gray-500 hover:text-red-600 border border-border rounded px-2 py-1 flex-shrink-0 transition-colors">
+              Clear
+            </button>
+          </div>
+        </div>}
+
+        {/* Element-specific: prefix label */}
+        {(el.type === 'muminField' || el.type === 'subHead' || el.type === 'forYear' || el.type === 'inputLine') && (
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Prefix Label</div>
+            <input className="form-input text-[11px]" value={el.label || ''}
+              onChange={e => onChange({ ...el, label: e.target.value })} />
+          </div>
+        )}
+
+        {/* Static label text */}
+        {el.type === 'label' && (
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Text Content</div>
+            <textarea className="form-input text-[11px] resize-y" rows={3} value={el.text || ''}
+              onChange={e => onChange({ ...el, text: e.target.value })} />
+          </div>
+        )}
+
+        {/* History grid options */}
+        {el.type === 'historyGrid' && (
+          <div className="space-y-3">
+            <div>
+              <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Grid Options</div>
+              <label>
+                <span className="form-label text-[10px]">Visible Rows — {el.rowCount || 5}</span>
+                <input type="range" min={1} max={12} value={el.rowCount || 5}
+                  onChange={e => onChange({ ...el, rowCount: Number(e.target.value) })}
+                  className="w-full accent-blue-500" />
+              </label>
+            </div>
+            <div>
+              <span className="form-label text-[10px]">Visible Columns</span>
+              <div className="mt-1 space-y-1">
+                {HISTORY_COLS.map(c => (
+                  <label key={c.key} className="flex items-center gap-2 cursor-pointer select-none text-[11px]">
+                    <input type="checkbox" className="accent-blue-500"
+                      checked={(el.columns || DEFAULT_COLS).includes(c.key)}
+                      onChange={ev => {
+                        const cols = (el.columns || DEFAULT_COLS).filter(x => x !== c.key);
+                        if (ev.target.checked) cols.push(c.key);
+                        onChange({ ...el, columns: cols });
+                      }} />
+                    {c.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Page ──────────────────────────────────────────────────────────────────
+export default function PrintTemplatesPage() {
+  const [templates,    setTemplates]    = useState(() => loadTpls());
+  const [activeId,     setActiveId]     = useState(() => loadTpls()[0]?.id || null);
+  const [selectedEl,   setSelectedEl]   = useState(null);
+  const [groupOpen,    setGroupOpen]    = useState({});
+  const canvasRef = useRef(null);
+  const dragRef   = useRef(null);
+  const fileRef   = useRef(null);
+  // Keep a ref to latest templates + activeId for use inside drag closures
+  const stateRef  = useRef({ templates, activeId });
+  useEffect(() => { stateRef.current = { templates, activeId }; }, [templates, activeId]);
+
+  const activeTemplate = templates.find(t => t.id === activeId) || null;
+  const pageKey  = activeTemplate?.pageSize || DEFAULT_PAGE;
+  const pageSize = PAGE_SIZES[pageKey] || PAGE_SIZES[DEFAULT_PAGE];
+  const margin   = { ...DEFAULT_MARGIN, ...(activeTemplate?.margin || {}) };
+
+  // ── Template CRUD ────────────────────────────────────────────────────────────
+  function createTpl() {
+    const name = prompt('Template name:');
+    if (!name?.trim()) return;
+    const tpl = { id: tplId(), name: name.trim(), bgImage: '', pageSize: DEFAULT_PAGE, margin: DEFAULT_MARGIN, subHead: '', isDefault: false, elements: [] };
+    const next = [...templates, tpl];
+    setTemplates(next); saveTpls(next);
+    setActiveId(tpl.id); setSelectedEl(null);
+  }
+
+  function renameTpl(id) {
+    const old = templates.find(t => t.id === id);
+    const name = prompt('Rename to:', old?.name);
+    if (name?.trim()) patchTpl(id, { name: name.trim() });
+  }
+
+  function deleteTpl(id) {
+    if (!confirm('Delete this template?')) return;
+    const next = templates.filter(t => t.id !== id);
+    setTemplates(next); saveTpls(next);
+    if (activeId === id) { setActiveId(next[0]?.id || null); setSelectedEl(null); }
+  }
+
+  function patchTpl(id, patch) {
+    setTemplates(prev => {
+      const next = prev.map(t => t.id === id ? { ...t, ...patch } : t);
+      saveTpls(next);
+      return next;
+    });
+  }
+
+  // ── Element helpers ──────────────────────────────────────────────────────────
+  function addEl(type, field) {
+    if (!activeTemplate) { toast.error('Create or select a template first'); return; }
+    const el = mkEl(type, field);
+    patchTpl(activeId, { elements: [...(activeTemplate.elements || []), el] });
+    setSelectedEl(el.id);
+  }
+
+  function updateEl(el) {
+    if (!activeTemplate) return;
+    patchTpl(activeId, { elements: activeTemplate.elements.map(e => e.id === el.id ? el : e) });
+  }
+
+  function deleteEl(elId) {
+    if (!activeTemplate) return;
+    patchTpl(activeId, { elements: activeTemplate.elements.filter(e => e.id !== elId) });
+    setSelectedEl(null);
+  }
+
+  // ── Unified drag (move + resize) ─────────────────────────────────────────────
+  const startDrag = useCallback((e, elId, mode, handle = null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect  = canvas.getBoundingClientRect();
+    const { templates: tpls, activeId: aid } = stateRef.current;
+    const ps   = PAGE_SIZES[tpls.find(t => t.id === aid)?.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
+    const scale = ps.w / rect.width;
+    const el   = tpls.find(t => t.id === aid)?.elements.find(x => x.id === elId);
+    if (!el) return;
+
+    dragRef.current = {
+      mode, elId, handle, scale,
+      startX: e.clientX, startY: e.clientY,
+      origX: el.x, origY: el.y, origW: el.w || 200, origH: el.h || 32,
+    };
+
+    const onMove = ev => {
+      const d = dragRef.current;
+      if (!d) return;
+      const { activeId: aid2 } = stateRef.current;
+      const dx = (ev.clientX - d.startX) * d.scale;
+      const dy = (ev.clientY - d.startY) * d.scale;
+      setTemplates(prev => prev.map(t => {
+        if (t.id !== aid2) return t;
+        return {
+          ...t,
+          elements: t.elements.map(e => {
+            if (e.id !== d.elId) return e;
+            if (d.mode === 'move') {
+              return { ...e, x: Math.max(0, Math.round(d.origX + dx)), y: Math.max(0, Math.round(d.origY + dy)) };
+            }
+            return { ...e, ...applyResize({ x: d.origX, y: d.origY, w: d.origW, h: d.origH }, d.handle, dx, dy) };
+          }),
+        };
+      }));
+    };
+
+    const onUp = () => {
+      if (dragRef.current) setTemplates(prev => { saveTpls(prev); return prev; });
+      dragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }, []);
+
+  // ── Image upload ─────────────────────────────────────────────────────────────
+  function handleImage(e) {
+    const file = e.target.files?.[0];
+    if (!file || !activeId) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const src = ev.target.result;
+      const tpl  = templates.find(t => t.id === activeId);
+      const els  = tpl?.elements || [];
+      const existing = els.find(x => x.type === 'image');
+      if (existing) {
+        patchTpl(activeId, { elements: els.map(x => x.type === 'image' ? { ...x, src } : x) });
+      } else {
+        const ps   = PAGE_SIZES[tpl?.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
+        const imgEl = { id: newId(), type: 'image', src, x: 0, y: 0, w: ps.w, h: ps.h };
+        patchTpl(activeId, { elements: [imgEl, ...els] });
+        setSelectedEl(imgEl.id);
+      }
+      toast.success('Image added — drag handles to reposition');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  const selEl = activeTemplate?.elements.find(e => e.id === selectedEl) || null;
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  return (
+    <div style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3 flex-shrink-0">
+        <div>
+          <h1 className="text-title text-navy-900">Print Templates</h1>
+          <p className="text-[12px] text-gray-500 mt-0.5">
+            Design printable takhmeen form layouts — drag to move, drag handles to resize.
+          </p>
+        </div>
+        {activeTemplate && (
+          <button onClick={() => { saveTpls(templates); toast.success('Saved'); }}
+            className="btn btn-primary btn-sm">Save Layout</button>
+        )}
+      </div>
+
+      <div className="flex gap-3 flex-1 min-h-0 overflow-hidden">
+
+        {/* ── Left Panel ── */}
+        <div className="w-52 flex-shrink-0 flex flex-col gap-2.5 overflow-y-auto">
+
+          {/* Templates */}
+          <div className="card flex-shrink-0">
+            <div className="card-header py-2 flex items-center justify-between">
+              <span className="text-[12px] font-semibold">Templates</span>
+              <button onClick={createTpl} className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold">+ New</button>
+            </div>
+            <div className="divide-y divide-border max-h-36 overflow-y-auto">
+              {!templates.length && <div className="px-3 py-2 text-[11px] text-gray-400">No templates yet</div>}
+              {templates.map(t => (
+                <div key={t.id}
+                  onClick={() => { setActiveId(t.id); setSelectedEl(null); }}
+                  className={`flex items-center gap-1 px-3 py-2 cursor-pointer text-[12px] transition-colors ${activeId === t.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50 text-gray-700'}`}>
+                  {t.isDefault && <span title="Default for this SubHead" className="text-yellow-500 text-[10px] flex-shrink-0">★</span>}
+                  <span className="flex-1 truncate">{t.name}</span>
+                  <button onClick={e => { e.stopPropagation(); renameTpl(t.id); }}
+                    title="Rename" className="text-gray-400 hover:text-gray-700 px-0.5">✎</button>
+                  <button onClick={e => { e.stopPropagation(); deleteTpl(t.id); }}
+                    title="Delete" className="text-gray-400 hover:text-red-500 px-0.5">✕</button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Page Settings */}
+          {activeTemplate && (
+            <div className="card flex-shrink-0">
+              <div className="card-header py-2"><span className="text-[12px] font-semibold">Page</span></div>
+              <div className="p-2.5 space-y-2.5">
+                <div>
+                  <label className="form-label text-[10px]">Size & Orientation</label>
+                  <select className="form-input text-[11px]" value={pageKey}
+                    onChange={e => patchTpl(activeId, { pageSize: e.target.value })}>
+                    {Object.entries(PAGE_SIZES).map(([k, v]) =>
+                      <option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="form-label text-[10px]">Margins</label>
+                    <select className="form-input text-[10px] py-0.5 w-14"
+                      value={activeTemplate.marginUnit || DEFAULT_MARGIN_UNIT}
+                      onChange={e => patchTpl(activeId, { marginUnit: e.target.value })}>
+                      <option value="mm">mm</option>
+                      <option value="cm">cm</option>
+                      <option value="in">in</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    {['top','right','bottom','left'].map(side => {
+                      const unit = activeTemplate.marginUnit || DEFAULT_MARGIN_UNIT;
+                      return (
+                        <label key={side}>
+                          <span className="form-label text-[9px] capitalize">{side}</span>
+                          <input type="number" min={0} max={200} step={0.5} className="form-input text-[10px] py-0.5"
+                            value={pxToUnit(margin[side] ?? 20, unit)}
+                            onChange={e => patchTpl(activeId, { margin: { ...margin, [side]: unitToPx(Number(e.target.value), unit) } })} />
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Template Settings */}
+          {activeTemplate && (
+            <div className="card flex-shrink-0">
+              <div className="card-header py-2"><span className="text-[12px] font-semibold">Template Settings</span></div>
+              <div className="p-2.5 space-y-2">
+                <div>
+                  <label className="form-label text-[10px]">Linked SubHead</label>
+                  <input
+                    className="form-input text-[11px]"
+                    placeholder="e.g. Vajebaat"
+                    value={activeTemplate.subHead || ''}
+                    onChange={e => patchTpl(activeId, { subHead: e.target.value })}
+                  />
+                  <p className="text-[9px] text-gray-400 mt-0.5">Used to auto-select this template when opened from the vajebaat tab.</p>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    className="accent-blue-500"
+                    checked={!!activeTemplate.isDefault}
+                    onChange={e => patchTpl(activeId, { isDefault: e.target.checked })}
+                  />
+                  <span className="text-[11px] text-gray-700">Default template for this SubHead</span>
+                  {activeTemplate.isDefault && <span className="text-yellow-500 text-[12px]">★</span>}
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Add Elements */}
+          {activeTemplate && (
+            <div className="card flex-shrink-0">
+              <div className="card-header py-2"><span className="text-[12px] font-semibold">Add Elements</span></div>
+              <div className="p-2 space-y-0.5">
+
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-1 pb-0.5">Form Fields</div>
+                {[['Hub Sub Head','subHead'],['For Year','forYear'],['Current Date','currentDate'],['History Grid','historyGrid']].map(([lbl,type]) => (
+                  <button key={type} onClick={() => addEl(type)}
+                    className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
+                    {lbl}
+                  </button>
+                ))}
+
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Mumin Fields</div>
+                {MUMIN_GROUPS.map(group => (
+                  <div key={group}>
+                    <button
+                      onClick={() => setGroupOpen(p => ({ ...p, [group]: !p[group] }))}
+                      className="w-full flex items-center justify-between text-[11px] px-2 py-0.5 text-gray-500 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors">
+                      <span className="font-medium">{group}</span>
+                      <span className="text-[9px]">{groupOpen[group] ? '▾' : '▸'}</span>
+                    </button>
+                    {groupOpen[group] && (
+                      <div className="ml-3 border-l border-blue-100 pl-1 space-y-0.5">
+                        {MUMIN_FIELDS.filter(f => f.group === group).map(f => (
+                          <button key={f.field} onClick={() => addEl('muminField', f.field)}
+                            className="w-full text-left text-[11px] px-2 py-0.5 rounded hover:bg-blue-50 text-gray-600 hover:text-blue-700">
+                            {f.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Other</div>
+                {[['Static Label','label'],['Input Line (blank)','inputLine']].map(([lbl,type]) => (
+                  <button key={type} onClick={() => addEl(type)}
+                    className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Background Image */}
+          {activeTemplate && (
+            <div className="card flex-shrink-0">
+              <div className="card-header py-2"><span className="text-[12px] font-semibold">Background Image</span></div>
+              <div className="p-2 space-y-1.5">
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
+                <button onClick={() => fileRef.current?.click()} className="btn btn-secondary btn-sm w-full text-[11px]">
+                  Upload Image
+                </button>
+                {(activeTemplate.elements || []).find(e => e.type === 'image') && (
+                  <button onClick={() => {
+                    patchTpl(activeId, { elements: (activeTemplate.elements || []).filter(e => e.type !== 'image') });
+                    setSelectedEl(null);
+                  }}
+                    className="w-full text-[11px] text-red-500 border border-red-200 rounded py-1 hover:bg-red-50 transition-colors">
+                    Clear Image
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Canvas ── */}
+        <div className="flex-1 min-w-0 overflow-auto bg-gray-300 rounded-xl p-6"
+          style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
+          {!activeTemplate ? (
+            <div className="flex items-center justify-center w-full h-64">
+              <p className="text-gray-400 text-[13px]">Create or select a template to start designing</p>
+            </div>
+          ) : (
+            <div
+              ref={canvasRef}
+              onClick={() => setSelectedEl(null)}
+              onContextMenu={e => e.preventDefault()}
+              style={{
+                position:   'relative',
+                width:      pageSize.w,
+                height:     pageSize.h,
+                flexShrink: 0,
+                background: '#ffffff',
+                border:     '1px solid #c9cdd4',
+                boxShadow:  '0 6px 40px rgba(0,0,0,0.18)',
+                overflow:   'hidden',
+              }}
+            >
+              {/* Margin guide lines (designer only) */}
+              <div style={{ position: 'absolute', top: margin.top, left: 0, right: 0, borderTop: '1px dashed rgba(59,130,246,0.3)', pointerEvents: 'none', zIndex: 1 }} />
+              <div style={{ position: 'absolute', bottom: margin.bottom, left: 0, right: 0, borderTop: '1px dashed rgba(59,130,246,0.3)', pointerEvents: 'none', zIndex: 1 }} />
+              <div style={{ position: 'absolute', top: 0, bottom: 0, left: margin.left, borderLeft: '1px dashed rgba(59,130,246,0.3)', pointerEvents: 'none', zIndex: 1 }} />
+              <div style={{ position: 'absolute', top: 0, bottom: 0, right: margin.right, borderRight: '1px dashed rgba(59,130,246,0.3)', pointerEvents: 'none', zIndex: 1 }} />
+
+              {/* Elements */}
+              {(activeTemplate.elements || []).map(el => (
+                <DesignerElement
+                  key={el.id}
+                  el={el}
+                  selected={selectedEl === el.id}
+                  onSelect={setSelectedEl}
+                  onMoveStart={(e, id) => startDrag(e, id, 'move')}
+                  onResizeStart={(e, id, handle) => startDrag(e, id, 'resize', handle)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Properties Panel ── */}
+        <div className="w-56 flex-shrink-0 flex flex-col border border-border rounded-xl overflow-hidden bg-white"
+          style={{ alignSelf: 'stretch' }}>
+          <PropertiesPanel
+            el={selEl}
+            onChange={updateEl}
+            onDelete={() => selEl && deleteEl(selEl.id)}
+          />
+        </div>
+
+      </div>
+    </div>
+  );
+}

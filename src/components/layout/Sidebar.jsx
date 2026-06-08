@@ -14,7 +14,7 @@ import {
   MapPinIcon, CalendarIcon, ListIcon, MailIcon,
   UtensilsIcon, UserCogIcon, SettingsIcon, LogoutIcon, LayersIcon, TableIcon,
   MessageIcon, SmartphoneIcon, ZapIcon, InboxIcon, ChevronDownIcon, SendIcon,
-  DatabaseIcon, PaletteIcon,
+  DatabaseIcon, PaletteIcon, PrintIcon,
 } from '@/components/shared/Icons';
 
 // ── Nav config ─────────────────────────────────────────────────────────────
@@ -34,9 +34,11 @@ const NAV_SECTIONS = [
   {
     label: 'Members',
     items: [
-      { label: 'Mumin Details',  href: '/mumin-details',  icon: UsersIcon,       permission: 'members.view' },
-      { label: 'ITS Data',       href: '/its-data',       icon: DatabaseIcon,    permission: 'members.view' },
-      { label: 'Mumin Takhmeen', href: '/mumin-takhmeen', icon: CoinsIcon,       permission: 'takhmeen.report_view' },
+      { label: 'Mumin Details',    href: '/mumin-details',    icon: UsersIcon,    permission: 'members.view' },
+      { label: 'ITS Data',         href: '/its-data',         icon: DatabaseIcon, permission: 'members.view' },
+      { label: 'Mumin Takhmeen',   href: '/mumin-takhmeen',   icon: CoinsIcon,    permission: 'takhmeen.report_view' },
+      { label: 'Takhmeen Form',    href: '/takhmeen-form',    icon: FileTextIcon, permission: 'takhmeen.report_view' },
+      { label: 'Print Templates',  href: '/print-templates',  icon: PrintIcon,    permission: 'takhmeen.report_view' },
     ],
   },
   {

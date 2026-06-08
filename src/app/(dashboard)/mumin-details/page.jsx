@@ -920,7 +920,7 @@ function MuminDetailsInner() {
                 member={member}
                 showEdit={FEATURES.editFMB}
                 showPrint={FEATURES.printFMB}
-                onPrint={() => openModal('fmbPrint')}
+                onPrint={() => window.open(`/takhmeen-form?accno=${member?.accno}&subhead=FMB`, '_blank')}
                 onEdit={() => {
                   setFmbForm({
                     ThaaliStatus:    member.thaaliStatus  || '',
@@ -1101,14 +1101,14 @@ function MuminDetailsInner() {
                     setTakForm({ mainHead: 'Vajebaat', subHead: 'HIM', forYear: '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
                     openModal('addTakhmeen');
                   }}
-                  onHimForm={() => openModal('takPreview')}
+                  onHimForm={() => window.open(`/takhmeen-form?accno=${member?.accno}&subhead=HIM`, '_blank')}
                   onEditHim={(row) => { setEditTakRow(row); openModal('editTakhmeen'); }}
                   onDeleteHim={deleteTakhmeen}
                   onAddSniyaz={() => {
                     setTakForm({ mainHead: 'Vajebaat', subHead: 'Shehrullah Niyaz', forYear: '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
                     openModal('addTakhmeen');
                   }}
-                  onSniyazForm={() => openModal('takPreview')}
+                  onSniyazForm={() => window.open(`/takhmeen-form?accno=${member?.accno}&subhead=Shehrullah+Niyaz`, '_blank')}
                   onEditSniyaz={(row) => { setEditTakRow(row); openModal('editTakhmeen'); }}
                   onDeleteSniyaz={deleteTakhmeen}
                   onAddReceipt={() => openModal('addReceipt')}
@@ -1116,10 +1116,11 @@ function MuminDetailsInner() {
                     setTakForm({ mainHead: 'Vajebaat', subHead: 'Vajebaat', forYear: '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
                     openModal('addTakhmeen');
                   }}
-                  onVajForm={() => openModal('takPreview')}
+                  onVajForm={() => window.open(`/takhmeen-form?accno=${member?.accno}&subhead=Vajebaat`, '_blank')}
                   onEditVaj={(row) => { setEditTakRow(row); openModal('editTakhmeen'); }}
                   onDeleteVaj={deleteTakhmeen}
-                  onPrintVaj={(row) => { setEditTakRow(row); openModal('printReceipt'); }}
+                  onPrintVaj={(row) => window.open(`/takhmeen-form?accno=${member?.accno}&subhead=Vajebaat`, '_blank')}
+                  onSfForm={() => window.open(`/takhmeen-form?accno=${member?.accno}&subhead=Sila+Fitra`, '_blank')}
                   onAddSf={saveSilaFitraRecord}
                   onUpdateSf={updateSilaFitraRecord}
                   onDeleteSf={deleteSilaFitraRecord}

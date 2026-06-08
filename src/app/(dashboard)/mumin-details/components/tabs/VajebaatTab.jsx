@@ -25,7 +25,7 @@ export default function VajebaatTab({
   onSaveVajebaat, onAddHim, onHimForm, onEditHim, onDeleteHim, onAddSniyaz, onSniyazForm, onEditSniyaz, onDeleteSniyaz, onAddReceipt,
   onAddVaj, onVajForm, onEditVaj, onDeleteVaj, onPrintVaj,
   onEditVajInfo,
-  onAddSf, onUpdateSf, onDeleteSf,
+  onAddSf, onUpdateSf, onDeleteSf, onSfForm,
 }) {
   const { can } = useAuth();
 
@@ -106,6 +106,7 @@ export default function VajebaatTab({
               onAdd={onAddSf}
               onUpdate={onUpdateSf}
               onDelete={onDeleteSf}
+              onSfForm={onSfForm}
             />
           </div>
         </>

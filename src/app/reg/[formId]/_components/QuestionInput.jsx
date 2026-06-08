@@ -109,7 +109,7 @@ export default function QuestionInput({ question, value, onChange }) {
                   const next = checked.includes(opt)
                     ? checked.filter(v => v !== opt)
                     : [...checked, opt];
-                  onChange(next.join('|'));
+                  onChange(next.join(','));
                 }}
               />
               {opt}
