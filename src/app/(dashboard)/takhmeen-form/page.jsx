@@ -15,8 +15,6 @@ const PAGE_SIZES = {
 };
 const DEFAULT_PAGE = 'A4-portrait';
 
-const STORAGE_KEY = 'takhmeen_form_templates';
-
 // ── All mumin fields the designer can use ──────────────────────────────────────
 const MUMIN_FIELD_MAP = {
   name:          m => m?.name          || '',
@@ -128,8 +126,20 @@ function cellValue(row, key) {
   return v || '';
 }
 
-function loadTemplates() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+function dbRowToTpl(row) {
+  let config = {};
+  try { config = JSON.parse(row.TemplateJson || '{}'); } catch {}
+  return {
+    id:         row.ID,
+    name:       row.Name,
+    subHead:    row.SubHead  || '',
+    isDefault:  Boolean(row.IsDefault),
+    pageSize:   config.pageSize  || DEFAULT_PAGE,
+    margin:     config.margin    || {},
+    marginUnit: config.marginUnit || 'mm',
+    bgImage:    config.bgImage   || '',
+    elements:   config.elements  || [],
+  };
 }
 
 // ── Live canvas element ────────────────────────────────────────────────────────
@@ -294,27 +304,39 @@ export default function TakhmeenFormPage() {
   const [history,     setHistory]     = useState([]);
   const [histLoading, setHistLoading] = useState(false);
 
-  // Load templates from localStorage + auto-select by subhead param
+  // Load templates from DB + auto-select by templateId or subhead param
   useEffect(() => {
-    const tpls = loadTemplates();
-    setTemplates(tpls);
-    if (!tpls.length) return;
-    const sh = searchParams.get('subhead')?.toLowerCase();
-    if (sh) {
-      const bySubHead  = tpls.filter(t => { const tsh = t.subHead?.toLowerCase() || ''; return tsh && (tsh === sh || tsh.includes(sh) || sh.includes(tsh)); });
-      const defaultOne = bySubHead.find(t => t.isDefault) || bySubHead[0];
-      const nameMatch  = tpls.find(t => t.name.toLowerCase().includes(sh));
-      setActiveId((defaultOne || nameMatch || tpls[0]).id);
-    } else {
-      setActiveId(tpls[0].id);
-    }
-  }, []);
+    takhmeenService.loadFormTemplates()
+      .then(res => {
+        const rows = res?.data?.data || [];
+        const tpls = rows.map(dbRowToTpl);
+        setTemplates(tpls);
+        if (!tpls.length) return;
+        const templateIdParam = searchParams.get('templateId');
+        if (templateIdParam) {
+          const direct = tpls.find(t => String(t.id) === String(templateIdParam));
+          if (direct) { setActiveId(direct.id); return; }
+        }
+        const sh = searchParams.get('subhead')?.toLowerCase();
+        if (sh) {
+          const bySubHead  = tpls.filter(t => { const tsh = t.subHead?.toLowerCase() || ''; return tsh && (tsh === sh || tsh.includes(sh) || sh.includes(tsh)); });
+          const defaultOne = bySubHead.find(t => t.isDefault) || bySubHead[0];
+          const nameMatch  = tpls.find(t => t.name.toLowerCase().includes(sh));
+          setActiveId((defaultOne || nameMatch || tpls[0]).id);
+        } else {
+          setActiveId(tpls[0].id);
+        }
+      })
+      .catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-fill from URL params (accno + subhead) — runs once on mount
   useEffect(() => {
     const accno = searchParams.get('accno');
     const sh    = searchParams.get('subhead');
+    const fy    = searchParams.get('forYear');
     if (sh)    setSubHead(sh);
+    if (fy)    setForYear(fy);
     if (accno) { setAccNoInput(accno); searchMember(accno); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

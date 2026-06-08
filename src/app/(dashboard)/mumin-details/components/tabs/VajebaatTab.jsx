@@ -7,6 +7,7 @@ import HimTakhmeenSection      from './vajebaat/HimTakhmeenSection';
 import ShehrullahNiyazSection  from './vajebaat/ShehrullahNiyazSection';
 import SilaFitraSection        from './vajebaat/SilaFitraSection';
 import { useAuth }             from '@/context/AuthContext';
+import PrintConfigButton       from '@/components/shared/PrintConfigButton';
 
 // ── Section visibility — set false to hide any section ───────────────────────
 const VAJ_SECTIONS = {
@@ -28,6 +29,7 @@ export default function VajebaatTab({
   onAddSf, onUpdateSf, onDeleteSf, onSfForm,
 }) {
   const { can } = useAuth();
+  const accno = member?.accno;
 
   return (
     <div className="p-4 flex flex-col gap-6">
@@ -62,6 +64,22 @@ export default function VajebaatTab({
               onEditVaj={onEditVaj}
               onDeleteVaj={onDeleteVaj}
               onPrintVaj={onPrintVaj}
+              vajFormButton={
+                <PrintConfigButton buttonId="vajebaat-print" accno={accno} defaultSubhead="Vajebaat"
+                  label="Vajebaat Takhmeen Form" className="btn btn-secondary btn-sm" />
+              }
+              printVajButton={
+                <PrintConfigButton buttonId="vajebaat-row-print" accno={accno} defaultSubhead="Vajebaat"
+                  label="" className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 transition-colors"
+                  icon={
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 6 2 18 2 18 9"/>
+                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                      <rect x="6" y="14" width="12" height="8"/>
+                    </svg>
+                  }
+                />
+              }
             />
           </div>
         </>
@@ -77,6 +95,10 @@ export default function VajebaatTab({
               onHimForm={onHimForm}
               onEditHim={onEditHim}
               onDeleteHim={onDeleteHim}
+              himFormButton={
+                <PrintConfigButton buttonId="him-print" accno={accno} defaultSubhead="HIM"
+                  label="HIM Takhmeen Form" className="btn btn-secondary btn-sm" />
+              }
             />
           </div>
         </>
@@ -92,6 +114,10 @@ export default function VajebaatTab({
               onSniyazForm={onSniyazForm}
               onEditSniyaz={onEditSniyaz}
               onDeleteSniyaz={onDeleteSniyaz}
+              sniyazFormButton={
+                <PrintConfigButton buttonId="sniyaz-print" accno={accno} defaultSubhead="Shehrullah Niyaz"
+                  label="S. Niyaz Takhmeen Form" className="btn btn-secondary btn-sm" />
+              }
             />
           </div>
         </>
@@ -107,6 +133,10 @@ export default function VajebaatTab({
               onUpdate={onUpdateSf}
               onDelete={onDeleteSf}
               onSfForm={onSfForm}
+              sfFormButton={
+                <PrintConfigButton buttonId="sila-fitra-print" accno={accno} defaultSubhead="Sila Fitra"
+                  label="Sila Fitra Form" className="btn btn-secondary btn-sm" />
+              }
             />
           </div>
         </>

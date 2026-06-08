@@ -7,7 +7,7 @@ import { fmt, toInputDate } from '../../../utils';
 const byYearDesc = (a, b) => (parseInt(b.forYear) || 0) - (parseInt(a.forYear) || 0);
 
 export default function VajebaatTakhmeenSection({
-  vajebaat, onAddVaj, onVajForm, onEditVaj, onDeleteVaj, onPrintVaj,
+  vajebaat, onAddVaj, onVajForm, onEditVaj, onDeleteVaj, onPrintVaj, vajFormButton, printVajButton,
 }) {
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
@@ -39,9 +39,9 @@ export default function VajebaatTakhmeenSection({
             <option value={50}>50</option>
             <option value="all">All</option>
           </select>
-          {onVajForm && (
+          {vajFormButton != null ? vajFormButton : (onVajForm && (
             <button className="btn btn-secondary btn-sm" onClick={onVajForm}>Vajebaat Takhmeen Form</button>
-          )}
+          ))}
           {onAddVaj && (
             <button className="btn btn-primary btn-sm" onClick={onAddVaj}>+ Add Vajebaat</button>
           )}
@@ -63,7 +63,7 @@ export default function VajebaatTakhmeenSection({
               <tr key={i} className="hover:bg-blue-500/[0.025]">
                 <td className="px-3 py-2 border-t border-border whitespace-nowrap">
                   <div className="flex items-center gap-1">
-                    {onPrintVaj && (
+                    {printVajButton != null ? printVajButton : (onPrintVaj && (
                       <button
                         title="Print"
                         className="inline-flex items-center justify-center w-7 h-7 rounded-md bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 transition-colors"
@@ -75,7 +75,7 @@ export default function VajebaatTakhmeenSection({
                           <rect x="6" y="14" width="12" height="8"/>
                         </svg>
                       </button>
-                    )}
+                    ))}
                     {onEditVaj && (
                       <button
                         title="Edit"

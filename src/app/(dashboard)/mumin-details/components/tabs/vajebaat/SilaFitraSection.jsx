@@ -50,7 +50,7 @@ function DeleteIcon() {
   );
 }
 
-export default function SilaFitraSection({ silaFitra, onAdd, onUpdate, onDelete, onSfForm }) {
+export default function SilaFitraSection({ silaFitra, onAdd, onUpdate, onDelete, onSfForm, sfFormButton }) {
   const [editId,  setEditId]  = useState(null);
   const [editRow, setEditRow] = useState(null);
   const [adding,  setAdding]  = useState(false);
@@ -94,9 +94,9 @@ export default function SilaFitraSection({ silaFitra, onAdd, onUpdate, onDelete,
           <span>Sila Fitra Details</span>
           <div className="flex-1 h-px bg-border" />
         </div>
-        {onSfForm && (
+        {sfFormButton != null ? sfFormButton : (onSfForm && (
           <button className="btn btn-secondary btn-sm" onClick={onSfForm}>Sila Fitra Form</button>
-        )}
+        ))}
       </div>
       <div className="overflow-x-auto rounded-lg border border-border mb-2">
         <table className="w-full border-collapse text-[12px] min-w-[560px]">

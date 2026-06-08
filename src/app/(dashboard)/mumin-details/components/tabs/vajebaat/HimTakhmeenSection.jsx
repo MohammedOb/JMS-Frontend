@@ -6,7 +6,7 @@ import { fmt, toInputDate } from '../../../utils';
 
 const byYearDesc = (a, b) => (parseInt(b.forYear) || 0) - (parseInt(a.forYear) || 0);
 
-export default function HimTakhmeenSection({ himList, onAddHim, onHimForm, onEditHim, onDeleteHim }) {
+export default function HimTakhmeenSection({ himList, onAddHim, onHimForm, onEditHim, onDeleteHim, himFormButton }) {
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
 
@@ -37,9 +37,9 @@ export default function HimTakhmeenSection({ himList, onAddHim, onHimForm, onEdi
             <option value={50}>50</option>
             <option value="all">All</option>
           </select>
-          {onHimForm && (
+          {himFormButton != null ? himFormButton : (onHimForm && (
             <button className="btn btn-secondary btn-sm" onClick={onHimForm}>HIM Takhmeen Form</button>
-          )}
+          ))}
           <button className="btn btn-primary btn-sm" onClick={onAddHim}>+ Add HIM Entry</button>
         </div>
       </div>

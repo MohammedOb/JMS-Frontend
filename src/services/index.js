@@ -94,6 +94,16 @@ export const takhmeenService = {
   loadGradeDetails:        cache.cached((data) => api.post('/LoadGradeDetails',        data), (d) => cache.makeKey('takhmeen:grades',        d), TTL.ref),
   loadHubHeadDetails:      cache.cached((data) => api.post('/LoadHubHeadDetails',      data), (d) => cache.makeKey('hub-head',               d), TTL.ref),
   updateTakhmeenReceived:  cache.mutates((data) => api.post('/UpdateTakhmeenReceived', data), 'takhmeen'),
+
+  // Form template CRUD (DB-backed, replaces localStorage)
+  loadFormTemplates:   ()     => api.post('/LoadTakhmeenFormTemplates', {}),
+  addFormTemplate:     (data) => api.post('/AddTakhmeenFormTemplate',    data),
+  updateFormTemplate:  (data) => api.post('/UpdateTakhmeenFormTemplate', data),
+  deleteFormTemplate:  (id)   => api.post('/DeleteTakhmeenFormTemplate', { ID: id }),
+
+  // Print button configs (DB-backed, replaces localStorage)
+  loadPrintButtonConfig: (buttonId) => api.post('/LoadPrintButtonConfig', { ButtonId: buttonId }),
+  savePrintButtonConfig: (data)     => api.post('/SavePrintButtonConfig', data),
 };
 
 // ── Vajebaat ─────────────────────────────────────────────────────────────────

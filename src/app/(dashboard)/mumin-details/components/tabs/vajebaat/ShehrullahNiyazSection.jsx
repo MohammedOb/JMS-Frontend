@@ -6,7 +6,7 @@ import { fmt, toInputDate } from '../../../utils';
 
 const byYearDesc = (a, b) => (parseInt(b.forYear) || 0) - (parseInt(a.forYear) || 0);
 
-export default function ShehrullahNiyazSection({ sniyazList, onAddSniyaz, onSniyazForm, onEditSniyaz, onDeleteSniyaz }) {
+export default function ShehrullahNiyazSection({ sniyazList, onAddSniyaz, onSniyazForm, onEditSniyaz, onDeleteSniyaz, sniyazFormButton }) {
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
 
@@ -37,9 +37,9 @@ export default function ShehrullahNiyazSection({ sniyazList, onAddSniyaz, onSniy
             <option value={50}>50</option>
             <option value="all">All</option>
           </select>
-          {onSniyazForm && (
+          {sniyazFormButton != null ? sniyazFormButton : (onSniyazForm && (
             <button className="btn btn-secondary btn-sm" onClick={onSniyazForm}>S. Niyaz Takhmeen Form</button>
-          )}
+          ))}
           <button className="btn btn-primary btn-sm" onClick={onAddSniyaz}>+ Add S. Niyaz</button>
         </div>
       </div>

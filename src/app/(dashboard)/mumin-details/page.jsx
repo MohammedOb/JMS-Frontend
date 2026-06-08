@@ -50,7 +50,9 @@ function distributeItems(items, splitRows) {
 // Layout components
 import MuminSearchBar   from './components/MuminSearchBar';
 import MuminProfileCard from './components/MuminProfileCard';
-import FmbDetailsCard   from './components/FmbDetailsCard';
+import FmbDetailsCard        from './components/FmbDetailsCard';
+import PrintConfigButton     from '@/components/shared/PrintConfigButton';
+import { PrintIcon }         from '@/components/shared/Icons';
 import VajebaatInfoCard from './components/VajebaatInfoCard';
 import DueSummaryCards  from './components/DueSummaryCards';
 import AlertBanners     from './components/AlertBanners';
@@ -921,6 +923,16 @@ function MuminDetailsInner() {
                 showEdit={FEATURES.editFMB}
                 showPrint={FEATURES.printFMB}
                 onPrint={() => window.open(`/takhmeen-form?accno=${member?.accno}&subhead=FMB`, '_blank')}
+                printButtonNode={FEATURES.printFMB ? (
+                  <PrintConfigButton
+                    buttonId="fmb-print"
+                    accno={member?.accno}
+                    defaultSubhead="FMB"
+                    label="Print"
+                    className="btn btn-secondary btn-sm flex-1 justify-center"
+                    icon={<PrintIcon className="w-3.5 h-3.5 mr-1.5" />}
+                  />
+                ) : null}
                 onEdit={() => {
                   setFmbForm({
                     ThaaliStatus:    member.thaaliStatus  || '',

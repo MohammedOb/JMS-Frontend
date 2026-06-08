@@ -3,7 +3,7 @@
 import { EditIcon, PrintIcon } from '@/components/shared/Icons';
 import { fmtDate } from '../utils';
 
-export default function FmbDetailsCard({ member, onEdit, onPrint, showEdit, showPrint }) {
+export default function FmbDetailsCard({ member, onEdit, onPrint, showEdit, showPrint, printButtonNode }) {
   return (
     <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
       <div className="bg-surface border-b border-border px-3.5 py-2.5 text-[11px] font-bold text-navy-900 uppercase tracking-[.5px]">
@@ -33,11 +33,11 @@ export default function FmbDetailsCard({ member, onEdit, onPrint, showEdit, show
               <EditIcon className="w-3.5 h-3.5 mr-1.5" />Edit FMB
             </button>
           )}
-          {showPrint && (
+          {printButtonNode != null ? printButtonNode : (showPrint && (
             <button className="btn btn-secondary btn-sm flex-1 justify-center" onClick={onPrint}>
               <PrintIcon className="w-3.5 h-3.5 mr-1.5" />Print
             </button>
-          )}
+          ))}
         </div>
       )}
     </div>

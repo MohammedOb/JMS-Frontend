@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { takhmeenService } from '@/services';
 
 // ── Page Sizes ────────────────────────────────────────────────────────────────
 const PAGE_SIZES = {
@@ -69,7 +70,41 @@ const HISTORY_COLS = [
 ];
 const DEFAULT_COLS = ['forYear', 'takhmeen', 'grade', 'received'];
 
-const STORAGE_KEY = 'takhmeen_form_templates';
+// Legacy localStorage key — used only for one-time migration
+const LEGACY_STORAGE_KEY = 'takhmeen_form_templates';
+
+// ── DB ↔ Frontend conversion ────────────────────────────────────────────────
+function dbRowToTpl(row) {
+  let config = {};
+  try { config = JSON.parse(row.TemplateJson || '{}'); } catch {}
+  return {
+    id:         row.ID,
+    name:       row.Name,
+    subHead:    row.SubHead  || '',
+    isDefault:  Boolean(row.IsDefault),
+    pageSize:   config.pageSize   || DEFAULT_PAGE,
+    margin:     config.margin     || DEFAULT_MARGIN,
+    marginUnit: config.marginUnit || DEFAULT_MARGIN_UNIT,
+    bgImage:    config.bgImage    || '',
+    elements:   config.elements   || [],
+  };
+}
+
+function tplToDbPayload(tpl) {
+  return {
+    ID:          tpl.id,
+    Name:        tpl.name,
+    SubHead:     tpl.subHead || null,
+    IsDefault:   tpl.isDefault ? 1 : 0,
+    TemplateJson: JSON.stringify({
+      pageSize:   tpl.pageSize   || DEFAULT_PAGE,
+      margin:     tpl.margin     || DEFAULT_MARGIN,
+      marginUnit: tpl.marginUnit || DEFAULT_MARGIN_UNIT,
+      bgImage:    tpl.bgImage    || '',
+      elements:   tpl.elements   || [],
+    }),
+  };
+}
 
 const FONT_LIST = [
   'Arial', 'Arial Narrow', 'Calibri', 'Cambria', 'Comic Sans MS',
@@ -91,24 +126,18 @@ const EL_NAME = {
   image:        ()  => 'Background Image',
 };
 
-// ── Storage ────────────────────────────────────────────────────────────────────
-function newId()    { return `e_${Date.now()}_${Math.random().toString(36).slice(2,7)}`; }
-function tplId()    { return `tpl_${Date.now()}`; }
-function loadTpls() {
-  try {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    // Migrate old bgImage string → image element
-    return raw.map(t => {
-      if (t.bgImage && !(t.elements || []).find(e => e.type === 'image')) {
-        const ps = PAGE_SIZES[t.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
-        const imgEl = { id: `img_${t.id}`, type: 'image', src: t.bgImage, x: 0, y: 0, w: ps.w, h: ps.h };
-        return { ...t, bgImage: '', elements: [imgEl, ...(t.elements || [])] };
-      }
-      return t;
-    });
-  } catch { return []; }
+// ── Element ID helper ──────────────────────────────────────────────────────────
+function newId() { return `e_${Date.now()}_${Math.random().toString(36).slice(2,7)}`; }
+
+// Migrate old bgImage string → image element (used during localStorage → DB migration)
+function migrateBgImage(t) {
+  if (t.bgImage && !(t.elements || []).find(e => e.type === 'image')) {
+    const ps = PAGE_SIZES[t.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
+    const imgEl = { id: `img_${t.id}`, type: 'image', src: t.bgImage, x: 0, y: 0, w: ps.w, h: ps.h };
+    return { ...t, bgImage: '', elements: [imgEl, ...(t.elements || [])] };
+  }
+  return t;
 }
-function saveTpls(t){ localStorage.setItem(STORAGE_KEY, JSON.stringify(t)); }
 
 // ── Element defaults ────────────────────────────────────────────────────────────
 function mkEl(type, field) {
@@ -450,16 +479,70 @@ function PropertiesPanel({ el, onChange, onDelete }) {
 
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function PrintTemplatesPage() {
-  const [templates,    setTemplates]    = useState(() => loadTpls());
-  const [activeId,     setActiveId]     = useState(() => loadTpls()[0]?.id || null);
+  const [templates,    setTemplates]    = useState([]);
+  const [activeId,     setActiveId]     = useState(null);
   const [selectedEl,   setSelectedEl]   = useState(null);
   const [groupOpen,    setGroupOpen]    = useState({});
+  const [loading,      setLoading]      = useState(true);
   const canvasRef = useRef(null);
   const dragRef   = useRef(null);
   const fileRef   = useRef(null);
   // Keep a ref to latest templates + activeId for use inside drag closures
-  const stateRef  = useRef({ templates, activeId });
-  useEffect(() => { stateRef.current = { templates, activeId }; }, [templates, activeId]);
+  const stateRef    = useRef({ templates, activeId, selectedEl });
+  useEffect(() => { stateRef.current = { templates, activeId, selectedEl }; }, [templates, activeId, selectedEl]);
+
+  // ── Load templates from DB on mount ─────────────────────────────────────────
+  useEffect(() => {
+    setLoading(true);
+    takhmeenService.loadFormTemplates()
+      .then(res => {
+        const rows = res?.data?.data || [];
+        if (rows.length) {
+          const tpls = rows.map(dbRowToTpl);
+          setTemplates(tpls);
+          setActiveId(tpls[0].id);
+          // Clear stale localStorage now that DB is authoritative
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
+        } else {
+          // One-time migration: if DB is empty but localStorage has templates, import them
+          try {
+            const legacy = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY) || '[]');
+            if (legacy.length) {
+              migrateFromLocalStorage(legacy);
+            }
+          } catch {}
+        }
+      })
+      .catch(() => toast.error('Failed to load templates'))
+      .finally(() => setLoading(false));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function migrateFromLocalStorage(legacy) {
+    toast.loading('Migrating templates to database…', { id: 'migrate' });
+    try {
+      const migrated = [];
+      for (const t of legacy) {
+        const clean = migrateBgImage(t);
+        const payload = {
+          Name:        clean.name,
+          SubHead:     clean.subHead || null,
+          IsDefault:   clean.isDefault ? 1 : 0,
+          TemplateJson: JSON.stringify({
+            pageSize: clean.pageSize, margin: clean.margin, marginUnit: clean.marginUnit,
+            bgImage: clean.bgImage || '', elements: clean.elements || [],
+          }),
+        };
+        const res = await takhmeenService.addFormTemplate(payload);
+        migrated.push({ ...clean, id: res?.data?.insertId || res?.insertId });
+      }
+      setTemplates(migrated);
+      setActiveId(migrated[0]?.id || null);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      toast.success(`Migrated ${migrated.length} template(s) to database`, { id: 'migrate' });
+    } catch {
+      toast.error('Migration failed — templates may need to be recreated', { id: 'migrate' });
+    }
+  }
 
   const activeTemplate = templates.find(t => t.id === activeId) || null;
   const pageKey  = activeTemplate?.pageSize || DEFAULT_PAGE;
@@ -467,35 +550,46 @@ export default function PrintTemplatesPage() {
   const margin   = { ...DEFAULT_MARGIN, ...(activeTemplate?.margin || {}) };
 
   // ── Template CRUD ────────────────────────────────────────────────────────────
-  function createTpl() {
+  async function createTpl() {
     const name = prompt('Template name:');
     if (!name?.trim()) return;
-    const tpl = { id: tplId(), name: name.trim(), bgImage: '', pageSize: DEFAULT_PAGE, margin: DEFAULT_MARGIN, subHead: '', isDefault: false, elements: [] };
-    const next = [...templates, tpl];
-    setTemplates(next); saveTpls(next);
-    setActiveId(tpl.id); setSelectedEl(null);
+    try {
+      const res = await takhmeenService.addFormTemplate({
+        Name: name.trim(), SubHead: null, IsDefault: 0,
+        TemplateJson: JSON.stringify({ pageSize: DEFAULT_PAGE, margin: DEFAULT_MARGIN, marginUnit: DEFAULT_MARGIN_UNIT, bgImage: '', elements: [] }),
+      });
+      const newId = res?.data?.insertId ?? res?.insertId;
+      if (!newId) throw new Error('No ID returned');
+      const tpl = { id: newId, name: name.trim(), subHead: '', isDefault: false, pageSize: DEFAULT_PAGE, margin: DEFAULT_MARGIN, marginUnit: DEFAULT_MARGIN_UNIT, bgImage: '', elements: [] };
+      setTemplates(prev => [...prev, tpl]);
+      setActiveId(newId); setSelectedEl(null);
+    } catch { toast.error('Failed to create template'); }
   }
 
-  function renameTpl(id) {
+  async function renameTpl(id) {
     const old = templates.find(t => t.id === id);
     const name = prompt('Rename to:', old?.name);
-    if (name?.trim()) patchTpl(id, { name: name.trim() });
+    if (!name?.trim()) return;
+    patchTpl(id, { name: name.trim() });
+    try { await takhmeenService.updateFormTemplate({ ID: id, Name: name.trim() }); }
+    catch { toast.error('Failed to rename'); }
   }
 
-  function deleteTpl(id) {
+  async function deleteTpl(id) {
     if (!confirm('Delete this template?')) return;
-    const next = templates.filter(t => t.id !== id);
-    setTemplates(next); saveTpls(next);
-    if (activeId === id) { setActiveId(next[0]?.id || null); setSelectedEl(null); }
+    setTemplates(prev => {
+      const next = prev.filter(t => t.id !== id);
+      if (activeId === id) { setActiveId(next[0]?.id || null); setSelectedEl(null); }
+      return next;
+    });
+    try { await takhmeenService.deleteFormTemplate(id); }
+    catch { toast.error('Failed to delete'); }
   }
 
   function patchTpl(id, patch) {
-    setTemplates(prev => {
-      const next = prev.map(t => t.id === id ? { ...t, ...patch } : t);
-      saveTpls(next);
-      return next;
-    });
+    setTemplates(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t));
   }
+
 
   // ── Element helpers ──────────────────────────────────────────────────────────
   function addEl(type, field) {
@@ -557,7 +651,6 @@ export default function PrintTemplatesPage() {
     };
 
     const onUp = () => {
-      if (dragRef.current) setTemplates(prev => { saveTpls(prev); return prev; });
       dragRef.current = null;
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
@@ -565,6 +658,27 @@ export default function PrintTemplatesPage() {
 
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
+  }, []);
+
+  // ── Keyboard arrow-key movement ───────────────────────────────────────────────
+  useEffect(() => {
+    const ARROWS = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+    function onKeyDown(e) {
+      if (!ARROWS[e.key]) return;
+      const { selectedEl: selId, activeId: aid } = stateRef.current;
+      if (!selId || !aid) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      e.preventDefault();
+      const step = e.shiftKey ? 10 : 1;
+      const [dx, dy] = ARROWS[e.key].map(v => v * step);
+      setTemplates(prev => prev.map(t => {
+        if (t.id !== aid) return t;
+        return { ...t, elements: t.elements.map(el => el.id !== selId ? el : { ...el, x: Math.max(0, el.x + dx), y: Math.max(0, el.y + dy) }) };
+      }));
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   // ── Image upload ─────────────────────────────────────────────────────────────
@@ -605,8 +719,10 @@ export default function PrintTemplatesPage() {
           </p>
         </div>
         {activeTemplate && (
-          <button onClick={() => { saveTpls(templates); toast.success('Saved'); }}
-            className="btn btn-primary btn-sm">Save Layout</button>
+          <button onClick={async () => {
+            try { await takhmeenService.updateFormTemplate(tplToDbPayload(activeTemplate)); toast.success('Saved'); }
+            catch { toast.error('Save failed'); }
+          }} className="btn btn-primary btn-sm">Save Layout</button>
         )}
       </div>
 
@@ -782,7 +898,11 @@ export default function PrintTemplatesPage() {
         {/* ── Canvas ── */}
         <div className="flex-1 min-w-0 overflow-auto bg-gray-300 rounded-xl p-6"
           style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
-          {!activeTemplate ? (
+          {loading ? (
+            <div className="flex items-center justify-center w-full h-64">
+              <p className="text-gray-400 text-[13px]">Loading templates…</p>
+            </div>
+          ) : !activeTemplate ? (
             <div className="flex items-center justify-center w-full h-64">
               <p className="text-gray-400 text-[13px]">Create or select a template to start designing</p>
             </div>
