@@ -134,7 +134,7 @@ function PrintConfigModal({ open, onClose, buttonId, defaultSubhead, savedConfig
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function PrintConfigButton({ buttonId, accno, defaultSubhead, label, className, icon }) {
   const { can } = useAuth();
-  const showGear = can('members.edit_fmb');
+  const showGear = can('takhmeen.edit');
   const [open,   setOpen]   = useState(false);
   const [config, setConfig] = useState(null);
 

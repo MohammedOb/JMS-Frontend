@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { memberService, takhmeenService } from '@/services';
+import { useAuth } from '@/context/AuthContext';
 import ComboBox from '@/components/shared/ComboBox';
 import toast from 'react-hot-toast';
 
@@ -293,6 +294,10 @@ function LiveCanvas({ template, member, subHead, forYear, history, histLoading }
 // ── Page ───────────────────────────────────────────────────────────────────────
 export default function TakhmeenFormPage() {
   const searchParams  = useSearchParams();
+  const { can }       = useAuth();
+  const isAdmin       = can('takhmeen.edit');
+  const autoPrinted   = useRef(false);
+
   const [templates,   setTemplates]   = useState([]);
   const [activeId,    setActiveId]    = useState('');
   const [accNoInput,  setAccNoInput]  = useState('');
@@ -401,6 +406,20 @@ export default function TakhmeenFormPage() {
 
   const activeTemplate = templates.find(t => t.id === activeId) || null;
 
+  // Non-admin: auto-print once template + member data are ready, then close on afterprint
+  useEffect(() => {
+    if (isAdmin) return;
+    const close = () => window.close();
+    window.addEventListener('afterprint', close);
+    return () => window.removeEventListener('afterprint', close);
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin || autoPrinted.current || !activeTemplate) return;
+    const t = setTimeout(() => { autoPrinted.current = true; window.print(); }, 600);
+    return () => clearTimeout(t);
+  }, [isAdmin, activeTemplate, member]);
+
   function handlePrint() {
     if (!activeTemplate) { toast.error('Select a template first'); return; }
     window.print();
@@ -455,11 +474,11 @@ export default function TakhmeenFormPage() {
               Search a mumin, select SubHead and year, then print.
             </p>
           </div>
-          <button onClick={handlePrint} className="btn btn-primary">Print Form</button>
+          {isAdmin && <button onClick={handlePrint} className="btn btn-primary">Print Form</button>}
         </div>
 
-        {/* Controls bar */}
-        <div className="card mb-4 flex-shrink-0" style={{ overflow: 'visible' }}>
+        {/* Controls bar — admin only */}
+        {isAdmin && <div className="card mb-4 flex-shrink-0" style={{ overflow: 'visible' }}>
           <div className="card-body py-3" style={{ overflow: 'visible' }}>
             <div className="flex flex-wrap gap-3 items-end">
 
@@ -512,7 +531,7 @@ export default function TakhmeenFormPage() {
               </div>
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* Canvas */}
         <div className="flex-1 min-h-0 overflow-auto bg-gray-200 rounded-xl p-6"

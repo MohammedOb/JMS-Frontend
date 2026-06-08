@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 import { useState } from 'react';
 import PageHeader from '@/components/shared/PageHeader';
 import FormsList from './_components/FormsList';
@@ -13,6 +14,7 @@ export default function EventFormsPage() {
   const [tab, setTab] = useState('forms');
 
   return (
+    <PermissionGuard permission="eventform.view">
     <div>
       <PageHeader title="Event Registration Forms" subtitle="Create event forms, manage questions, view responses" />
 
@@ -36,5 +38,6 @@ export default function EventFormsPage() {
       <div className={tab !== 'forms' ? 'hidden' : ''}><FormsList /></div>
       <div className={tab !== 'bank'  ? 'hidden' : ''}><QuestionBankTab /></div>
     </div>
+  </PermissionGuard>
   );
 }

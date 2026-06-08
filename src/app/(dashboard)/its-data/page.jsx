@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
@@ -399,6 +400,7 @@ export default function ITSDataPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
+    <PermissionGuard permission="members.view">
     <div>
       <PageHeader title="ITS Data" subtitle="Search & manage ITS organisation records" />
 
@@ -847,5 +849,6 @@ export default function ITSDataPage() {
         batchLabel="ITS Data"
       />
     </div>
+  </PermissionGuard>
   );
 }

@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -586,6 +587,7 @@ export default function MohallahPage() {
   const hasSelection = Boolean(selectedSubsector);
 
   return (
+    <PermissionGuard permission="mohallah.view">
     <div>
       <PageHeader
         title="Mohallah Details"
@@ -692,5 +694,6 @@ export default function MohallahPage() {
         subsectorOptions={getSubsectorOptions(mohallahForm.Sector)}
       />
     </div>
+  </PermissionGuard>
   );
 }

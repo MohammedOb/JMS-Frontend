@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 
 import { useState, useEffect, useCallback } from 'react';
 import toast                                  from 'react-hot-toast';
@@ -220,6 +221,7 @@ export default function DistributionPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
+    <PermissionGuard permission="distribution.view">
     <div>
       <PageHeader title="Distribution" subtitle="Manage distributors and view member thaali assignments" />
 
@@ -337,5 +339,6 @@ export default function DistributionPage() {
         </div>
       )}
     </div>
+  </PermissionGuard>
   );
 }

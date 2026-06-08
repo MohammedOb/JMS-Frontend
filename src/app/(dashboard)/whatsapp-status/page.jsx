@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 
 import { useState, useEffect, useRef } from 'react';
 import { whatsappService } from '@/services';
@@ -44,12 +45,14 @@ function fmtLogTime(iso) {
 function StageProgress({ initStage }) {
   const current = stageIndex(initStage);
   return (
+    <PermissionGuard permission="utility.view">
     <div className="space-y-1 pt-1">
       {INIT_STAGES.map((s, i) => {
         const done    = current > i;
         const active  = current === i;
         const pending = current < i;
         return (
+    <PermissionGuard permission="utility.view">
           <div key={s.key} className="flex items-center gap-2 text-[12px]">
             <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold
               ${done    ? 'bg-green-500 text-white'
@@ -79,6 +82,7 @@ function LogViewer({ logs }) {
 
   if (!logs?.length) return null;
   return (
+    <PermissionGuard permission="utility.view">
     <div className="border border-gray-200 rounded-lg overflow-hidden">
       <button
         className="w-full flex items-center justify-between px-3 py-2 text-[12px] font-medium text-gray-600 bg-gray-50 hover:bg-gray-100"
@@ -210,6 +214,7 @@ export default function WhatsAppStatusPage() {
   const showForce      = isStuckStarting || s === 'reconnecting';
 
   return (
+    <PermissionGuard permission="utility.view">
     <div>
       <PageHeader
         title="WhatsApp Connection"
@@ -403,5 +408,6 @@ export default function WhatsAppStatusPage() {
 
       </div>
     </div>
+  </PermissionGuard>
   );
 }

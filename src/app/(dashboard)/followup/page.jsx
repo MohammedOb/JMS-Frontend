@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 
 import { useState, useEffect, useCallback } from 'react';
 import { followupService } from '@/services';
@@ -49,6 +50,7 @@ export default function FollowupPage() {
   };
 
   return (
+    <PermissionGuard permission="followup.view">
     <div>
       <PageHeader title="Follow Up List" subtitle="Members scheduled for payment follow-up">
         <button className="btn btn-primary btn-sm" onClick={openAdd}>+ Add Follow-up</button>
@@ -130,5 +132,6 @@ export default function FollowupPage() {
         </div>
       </Modal>
     </div>
+  </PermissionGuard>
   );
 }

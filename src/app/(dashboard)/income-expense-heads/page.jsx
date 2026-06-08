@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 
 import { useState, useEffect, useCallback } from 'react';
 import clsx              from 'clsx';
@@ -77,6 +78,7 @@ export default function IncomeExpenseHeadsPage() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
+    <PermissionGuard permission="expenses.view">
     <div>
       <PageHeader
         title="Income & Expense Heads"
@@ -159,5 +161,6 @@ export default function IncomeExpenseHeadsPage() {
         existingRows={expenseRows}
       />
     </div>
+  </PermissionGuard>
   );
 }

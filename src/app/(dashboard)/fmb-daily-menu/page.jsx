@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { fmbMenuService } from '@/services';
@@ -134,6 +135,7 @@ export default function FMBDailyMenuPage() {
   };
 
   return (
+    <PermissionGuard permission="fmb_menu.view">
     <div>
       <PageHeader title="FMB Daily Menu" subtitle="Daily meal plan and food items management">
         <button className="btn btn-primary btn-sm" onClick={openAdd}>+ Add Menu</button>
@@ -189,5 +191,6 @@ export default function FMBDailyMenuPage() {
         onClose={() => setModal(false)}
       />
     </div>
+  </PermissionGuard>
   );
 }

@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import toast from 'react-hot-toast';
@@ -185,6 +186,7 @@ const HANDLE_DEFS = [
 
 function ResizeHandles({ onHandleDown }) {
   return (
+    <PermissionGuard permission="takhmeen.edit">
     <>
       {HANDLE_DEFS.map(h => (
         <div
@@ -221,6 +223,7 @@ function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart })
   };
 
   return (
+    <PermissionGuard permission="takhmeen.edit">
     <div
       style={{
         position:   'absolute',
@@ -310,6 +313,7 @@ function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart })
 function PropertiesPanel({ el, onChange, onDelete }) {
   if (!el) {
     return (
+    <PermissionGuard permission="takhmeen.edit">
       <div className="h-full flex flex-col items-center justify-center p-5 gap-2">
         <div className="text-3xl text-gray-200">⊹</div>
         <p className="text-[11px] text-gray-400 text-center leading-relaxed">
@@ -322,6 +326,7 @@ function PropertiesPanel({ el, onChange, onDelete }) {
   const displayName = EL_NAME[el.type]?.(el) || el.type;
 
   return (
+    <PermissionGuard permission="takhmeen.edit">
     <div className="flex flex-col h-full overflow-hidden">
       {/* Control name header */}
       <div className="flex-shrink-0 bg-navy-900 text-white px-3 py-2.5 flex items-center justify-between">
@@ -709,6 +714,7 @@ export default function PrintTemplatesPage() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
+    <PermissionGuard permission="takhmeen.edit">
     <div style={{ height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
@@ -782,6 +788,7 @@ export default function PrintTemplatesPage() {
                     {['top','right','bottom','left'].map(side => {
                       const unit = activeTemplate.marginUnit || DEFAULT_MARGIN_UNIT;
                       return (
+    <PermissionGuard permission="takhmeen.edit">
                         <label key={side}>
                           <span className="form-label text-[9px] capitalize">{side}</span>
                           <input type="number" min={0} max={200} step={0.5} className="form-input text-[10px] py-0.5"
@@ -955,5 +962,6 @@ export default function PrintTemplatesPage() {
 
       </div>
     </div>
+  </PermissionGuard>
   );
 }

@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 import { useState } from 'react';
 import PageHeader from '@/components/shared/PageHeader';
 import { TabBar } from './_components/ui';
@@ -15,6 +16,7 @@ const TABS = [
 export default function MajlisPage() {
   const [tab, setTab] = useState('register');
   return (
+    <PermissionGuard permission="majlis.view">
     <div>
       <PageHeader title="Majlis Management" subtitle="Registration · Sadar-wise Assignment & Reports" />
       <TabBar tabs={TABS} active={tab} onChange={setTab} />
@@ -23,5 +25,6 @@ export default function MajlisPage() {
       <div className={tab !== 'list'     ? 'hidden' : ''}><ListTab /></div>
       <div className={tab !== 'done'     ? 'hidden' : ''}><ListDoneTab /></div>
     </div>
+  </PermissionGuard>
   );
 }

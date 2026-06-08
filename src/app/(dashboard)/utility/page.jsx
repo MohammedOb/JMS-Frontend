@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 
 import { useState } from 'react';
 import toast      from 'react-hot-toast';
@@ -78,6 +79,7 @@ export default function UtilityPage() {
   ];
 
   return (
+    <PermissionGuard permission="utility.view">
     <div>
       <PageHeader title="Utility" subtitle="System maintenance tools and SP operations" />
 
@@ -165,5 +167,6 @@ export default function UtilityPage() {
         </div>
       </div>
     </div>
+  </PermissionGuard>
   );
 }

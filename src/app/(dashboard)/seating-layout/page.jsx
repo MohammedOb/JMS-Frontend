@@ -1,4 +1,5 @@
 'use client';
+import PermissionGuard from '@/components/shared/PermissionGuard';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
@@ -551,6 +552,7 @@ export default function SeatingLayoutPage() {
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
+    <PermissionGuard permission="seating.view">
     <div className="min-h-screen bg-surface p-4">
 
       {/* Page Header */}
@@ -692,5 +694,6 @@ export default function SeatingLayoutPage() {
         onSaved={() => { if (activeSec && String(activeSec.ID) === String(voidModal.section?.ID)) loadGrid(); }}
       />
     </div>
+  </PermissionGuard>
   );
 }
