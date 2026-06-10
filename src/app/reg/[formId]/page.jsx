@@ -727,6 +727,7 @@ export default function PublicFormPage({ params }) {
             setAnswers={setAnswers}
             submitting={submitting}
             isLastSection={isLastSection}
+            memberData={memberData}
             goNext={goNext}
             goBack={goBack}
             submit={submit}

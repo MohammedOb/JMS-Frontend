@@ -1,4 +1,5 @@
 'use client';
+import { useEffect } from 'react';
 import { parseJson } from './helpers';
 
 // Min-widths tuned per question type to keep columns as narrow as possible
@@ -31,17 +32,50 @@ const parseAnswer = (v, fallback) => {
   try { return JSON.parse(v); } catch { return fallback; }
 };
 
-export default function MemberCellInput({ question, value, onChange }) {
+export default function MemberCellInput({ question, value, onChange, memberData }) {
   const opts = parseJson(question.Options, []);
   const minW = MIN_W[question.QuestionType] ?? MIN_W.default;
   const cls  = `${BASE} ${minW}`;
 
+  // Filter options by per-option profile rules stored in ConditionalLogic.optionFilters
+  const optionFilters = question.ConditionalLogic?.optionFilters ?? {};
+  const hasAnyFilter  = Object.keys(optionFilters).length > 0;
+  // Family members come from orgdata; their Sector may be null while the HOF's sector
+  // is returned as mSector — fall back so sector-based filters work correctly.
+  const getMemberField = (md, field) => {
+    if (!md) return undefined;
+    if (field === 'Sector') return md.Sector || md.mSector;
+    return md[field];
+  };
+  const visibleOpts = opts.filter(opt => {
+    if (!hasAnyFilter) return true;           // no filters on question → show all options
+    if (!memberData)   return true;           // no member profile (outside member) → show all
+    const rule = optionFilters[opt];
+    if (!rule || !rule.values?.length) return false;  // question has filters but this opt has none → hide
+    return rule.values.includes(getMemberField(memberData, rule.field) ?? '');
+  });
+
+  // Auto-select when exactly one option is visible
+  useEffect(() => {
+    if (visibleOpts.length === 1 && value !== visibleOpts[0]) {
+      onChange(visibleOpts[0]);
+    }
+  }, [visibleOpts.length, visibleOpts[0] ?? '']); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Dropdown / radio → <select> ─────────────────────────────────────────────
   if (question.QuestionType === 'select' || question.QuestionType === 'radio') {
+    if (visibleOpts.length === 1) {
+      return (
+        <span className={`${minW} inline-flex items-center gap-1 bg-blue-50 border border-blue-200 rounded-md px-1.5 py-1 text-[11px] text-blue-800 whitespace-nowrap`}>
+          <span className="text-[9px] bg-blue-200 text-blue-700 rounded px-1 font-bold shrink-0">Auto</span>
+          {visibleOpts[0]}
+        </span>
+      );
+    }
     return (
       <select value={value || ''} onChange={e => onChange(e.target.value)} className={cls}>
         <option value="">—</option>
-        {opts.filter(Boolean).map(o => <option key={o} value={o}>{o}</option>)}
+        {visibleOpts.filter(Boolean).map(o => <option key={o} value={o}>{o}</option>)}
       </select>
     );
   }

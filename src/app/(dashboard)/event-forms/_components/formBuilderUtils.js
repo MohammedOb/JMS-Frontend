@@ -46,6 +46,18 @@ export const defaultOptions = (type) => {
   }
 };
 
+/**
+ * Member profile fields available for option-level visibility filtering.
+ * `valuesSource: 'dynamic'` means values come from the sectorOptions prop at runtime.
+ */
+export const OPTION_FILTER_FIELDS = [
+  { key: 'Sector',        label: 'Sector',         memberProp: 'Sector',         valuesSource: 'dynamic' },
+  { key: 'Gender',        label: 'Gender',          memberProp: 'Gender',         values: ['Male', 'Female'] },
+  { key: 'Misaq',         label: 'Misaq',           memberProp: 'Misaq',          values: ['Done', 'Not Done'] },
+  { key: 'MaritalStatus', label: 'Marital Status',  memberProp: 'Marital_Status', values: ['Single', 'Engaged', 'Married', 'Widowed', 'Divorced'] },
+  { key: 'SabeelType',    label: 'Sabeel Type',     memberProp: 'SabeelType',     values: ['Sabeel Regular', 'Sabeel Mutaveteen'] },
+];
+
 export const toLocalDateStr = (v) => {
   if (!v) return '';
   const d = new Date(v);

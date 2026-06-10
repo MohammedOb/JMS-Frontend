@@ -132,11 +132,14 @@ function PrintConfigModal({ open, onClose, buttonId, defaultSubhead, savedConfig
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────────
-export default function PrintConfigButton({ buttonId, accno, defaultSubhead, label, className, icon }) {
+export default function PrintConfigButton({ buttonId, accno, serialNo, defaultSubhead, label, className, icon }) {
   const { can } = useAuth();
   const showGear = can('takhmeen.edit');
   const [open,   setOpen]   = useState(false);
   const [config, setConfig] = useState(null);
+
+  // Remove stale localStorage key left over from old implementation
+  useEffect(() => { localStorage.removeItem('print_button_configs'); }, []);
 
   // Load saved config from DB on mount so handlePrint uses the correct settings
   useEffect(() => {
@@ -160,7 +163,8 @@ export default function PrintConfigButton({ buttonId, accno, defaultSubhead, lab
     params.set('subhead', cfg?.subhead || defaultSubhead || '');
     if (cfg?.templateId) params.set('templateId', cfg.templateId);
     if (cfg?.forYear)    params.set('forYear',    cfg.forYear);
-    window.open(`/takhmeen-form?${params}`, '_blank');
+    if (serialNo)        params.set('serialNo',   serialNo);
+    window.open(`/view-template?${params}`, '_blank');
   }
 
   return (

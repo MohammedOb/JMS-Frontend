@@ -1,8 +1,9 @@
 'use client';
 import { useState } from 'react';
 import LogicEditor from './LogicEditor';
+import MultiComboBox from './MultiComboBox';
 import {
-  QUESTION_TYPES, BRANCHING_TYPES,
+  QUESTION_TYPES, BRANCHING_TYPES, OPTION_FILTER_FIELDS,
   needsOptions, needsGridOptions, defaultOptions,
 } from './formBuilderUtils';
 
@@ -15,12 +16,43 @@ const asObj = (opts, fallback) => {
 };
 
 export default function QuestionRow({
-  question, sectionLocalId, allSections,
+  question, sectionLocalId, allSections, sectorOptions = [],
   onUpdate, onRemove, onMoveUp, onMoveDown, isFirst, isLast,
 }) {
-  const [showLogic, setShowLogic] = useState(false);
+  const [showLogic,   setShowLogic]   = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   const isBranching = BRANCHING_TYPES.includes(question.QuestionType);
   const update      = (key, val) => onUpdate({ ...question, [key]: val });
+
+  // ── Option filter helpers ────────────────────────────────────────────────────
+  const cl            = question.ConditionalLogic || {};
+  const optionFilters = cl.optionFilters || {};
+  const filterCount   = Object.keys(optionFilters).length;
+
+  const getFieldKeyForOpt = (opt) => {
+    const rule = optionFilters[opt];
+    if (!rule) return '';
+    return OPTION_FILTER_FIELDS.find(f => f.memberProp === rule.field)?.key || '';
+  };
+
+  const getValuesForField = (fieldKey) => {
+    const def = OPTION_FILTER_FIELDS.find(f => f.key === fieldKey);
+    if (!def) return [];
+    return def.valuesSource === 'dynamic' ? sectorOptions : (def.values || []);
+  };
+
+  const setOptionFilter = (opt, fieldKey, values) => {
+    const newFilters = { ...optionFilters };
+    if (fieldKey) {
+      // Keep entry even when values is empty so the field dropdown stays selected
+      const def = OPTION_FILTER_FIELDS.find(f => f.key === fieldKey);
+      newFilters[opt] = { field: def.memberProp, values };
+    } else {
+      delete newFilters[opt];
+    }
+    const hasFilters = Object.keys(newFilters).length > 0;
+    update('ConditionalLogic', { ...cl, optionFilters: hasFilters ? newFilters : undefined });
+  };
 
   // Reset Options to the correct default whenever the type changes
   const handleTypeChange = (newType) => {
@@ -98,6 +130,71 @@ export default function QuestionRow({
             onClick={() => update('Options', [...(Array.isArray(question.Options) ? question.Options : []), ''])}
             className="text-[11px] text-blue-500 hover:text-blue-700 font-medium"
           >+ Add option</button>
+
+          {/* ── Option visibility filters ──────────────────────────────── */}
+          {(Array.isArray(question.Options) ? question.Options : []).filter(Boolean).length > 0 && (
+            <div className="mt-2 pt-2 border-t border-dashed border-gray-200">
+              <button
+                type="button"
+                onClick={() => setShowFilters(v => !v)}
+                className={`text-[11px] font-medium flex items-center gap-1.5 transition-colors ${
+                  filterCount > 0 ? 'text-orange-600 hover:text-orange-800' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                🔒 Restrict visibility by member profile
+                {filterCount > 0 && (
+                  <span className="bg-orange-100 text-orange-700 border border-orange-200 rounded px-1.5 py-0.5 text-[10px]">
+                    {filterCount} rule{filterCount !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </button>
+
+              {showFilters && (
+                <div className="mt-2 space-y-2">
+                  {/* Header explanation */}
+                  <div className="text-[10px] text-orange-700 bg-orange-100 border border-orange-200 rounded-lg px-2.5 py-1.5">
+                    Each row = one answer option. Set which member profile values can see that option. Leave blank = visible to everyone.
+                  </div>
+                  {(Array.isArray(question.Options) ? question.Options : []).filter(Boolean).map((opt) => {
+                    const currentFieldKey = getFieldKeyForOpt(opt);
+                    const currentValues   = optionFilters[opt]?.values ?? [];
+                    const valueOptions    = currentFieldKey ? getValuesForField(currentFieldKey) : [];
+                    const fieldDef        = OPTION_FILTER_FIELDS.find(f => f.key === currentFieldKey);
+                    return (
+                      <div key={opt} className="flex items-start gap-2 bg-orange-50 border border-orange-100 rounded-lg px-2.5 py-2">
+                        <div className="min-w-0 flex-1 pt-1">
+                          <p className="text-[9px] font-bold text-orange-400 uppercase tracking-wider mb-0.5">Show option</p>
+                          <p className="text-[11px] text-gray-800 font-semibold truncate" title={opt}>{opt}</p>
+                          <p className="text-[9px] text-orange-400 mt-0.5">only when member matches →</p>
+                        </div>
+                        <div className="flex flex-col gap-1.5 shrink-0 w-72">
+                          <select
+                            className="form-select h-7 text-[11px]"
+                            value={currentFieldKey}
+                            onChange={e => setOptionFilter(opt, e.target.value, [])}
+                          >
+                            <option value="">Show to all members</option>
+                            {OPTION_FILTER_FIELDS.map(f => (
+                              <option key={f.key} value={f.key}>{f.label}</option>
+                            ))}
+                          </select>
+                          {currentFieldKey && (
+                            <MultiComboBox
+                              value={currentValues}
+                              options={valueOptions}
+                              placeholder={`Select ${fieldDef?.label} values…`}
+                              onChange={vals => setOptionFilter(opt, currentFieldKey, vals)}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-[10px] text-gray-400 pt-0.5">Options with blank field are shown to all members.</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

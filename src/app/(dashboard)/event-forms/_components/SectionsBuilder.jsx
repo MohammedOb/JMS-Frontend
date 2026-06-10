@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import QuestionRow from './QuestionRow';
 import { blankSection, blankQuestion } from './formBuilderUtils';
 
-export default function SectionsBuilder({ sections, setSections, setShowBank }) {
+export default function SectionsBuilder({ sections, setSections, setShowBank, sectorOptions = [] }) {
   const totalQuestions = sections.reduce((n, s) => n + s.questions.length, 0);
 
   // ── Section helpers ────────────────────────────────────────────────────────
@@ -114,6 +114,7 @@ export default function SectionsBuilder({ sections, setSections, setShowBank }) 
                   question={q}
                   sectionLocalId={section.localId}
                   allSections={sections}
+                  sectorOptions={sectorOptions}
                   isFirst={qi === 0}
                   isLast={qi === section.questions.length - 1}
                   onUpdate={(updated) => updateQuestion(section.localId, q._key, updated)}

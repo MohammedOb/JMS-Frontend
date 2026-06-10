@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { useAuth } from '@/context/AuthContext';
-import { safaiService } from '@/services';
+import { safaiService, takhmeenService } from '@/services';
 import Modal from '@/components/shared/Modal';
 import { EditIcon, PrintIcon, TrashIcon, CheckIcon, RefreshIcon } from '@/components/shared/Icons';
+import PrintConfigButton from '@/components/shared/PrintConfigButton';
 import AddSafaiChitthiModal  from '../modals/AddSafaiChitthiModal';
 import EditSafaiChitthiModal from '../modals/EditSafaiChitthiModal';
 
@@ -157,6 +158,23 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
 
   useEffect(() => { load(); }, [load]);
 
+  async function openSafaiPrint(accno, serialNo) {
+    try {
+      const cfgRes = await takhmeenService.loadPrintButtonConfig('safai-chitthi-print');
+      const row    = cfgRes?.data?.data?.[0];
+      const params = new URLSearchParams({ accno: accno || '' });
+      if (row?.SubHead)    params.set('subhead',    row.SubHead);
+      if (row?.TemplateId) params.set('templateId', String(row.TemplateId));
+      if (row?.ForYear)    params.set('forYear',    row.ForYear);
+      if (serialNo)        params.set('serialNo',   String(serialNo));
+      window.open(`/view-template?${params}`, '_blank');
+    } catch {
+      const params = new URLSearchParams({ accno: accno || '' });
+      if (serialNo) params.set('serialNo', String(serialNo));
+      window.open(`/view-template?${params}`, '_blank');
+    }
+  }
+
   // ── Add ────────────────────────────────────────────────────────────────────
   const openAdd = () => {
     setForm({
@@ -176,10 +194,11 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
     if (!form.Razafor)   { toast.error('Raza For is required');   return; }
     setSaving(true);
     try {
-      await safaiService.addRazaDetails({ AccNo: accNo, ...form });
+      const res = await safaiService.addRazaDetails({ AccNo: accNo, ...form });
       toast.success('Raza added');
       setAddModal(false);
       load();
+      openSafaiPrint(accNo, res?.data?.serialNo);
     } catch { toast.error('Failed to add Raza'); }
     finally { setSaving(false); }
   };
@@ -230,6 +249,7 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
       toast.success('Raza updated');
       setEditModal(false);
       load();
+      openSafaiPrint(editTarget.AccNo, editTarget.SerialNo);
     } catch { toast.error('Failed to update Raza'); }
     finally { setSaving(false); }
   };
@@ -365,9 +385,14 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
                       </ActionBtn>
                     )}
                     {can('safai.print') && (
-                      <ActionBtn label="Print">
-                        <PrintIcon className="w-3.5 h-3.5" />
-                      </ActionBtn>
+                      <PrintConfigButton
+                        buttonId="safai-chitthi-print"
+                        accno={r.AccNo}
+                        serialNo={r.SerialNo}
+                        label=""
+                        icon={<PrintIcon className="w-3.5 h-3.5" />}
+                        className="w-7 h-7 rounded border border-border bg-white text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center justify-center text-[12px]"
+                      />
                     )}
                     {can('safai.update_raza') && r.RazaStatus !== 'Raza Done' && r.RazaStatus !== 'Raza Approved' && (
                       <ActionBtn

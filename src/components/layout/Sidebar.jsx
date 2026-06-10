@@ -37,8 +37,8 @@ const NAV_SECTIONS = [
       { label: 'Mumin Details',    href: '/mumin-details',    icon: UsersIcon,    permission: 'members.view' },
       { label: 'ITS Data',         href: '/its-data',         icon: DatabaseIcon, permission: 'members.view' },
       { label: 'Mumin Takhmeen',   href: '/mumin-takhmeen',   icon: CoinsIcon,    permission: 'takhmeen.report_view' },
-      { label: 'Takhmeen Form',    href: '/takhmeen-form',    icon: FileTextIcon, permission: 'takhmeen.edit' },
-      { label: 'Print Templates',  href: '/print-templates',  icon: PrintIcon,    permission: 'takhmeen.edit' },
+      { label: 'View Template',     href: '/view-template',    icon: PrintIcon,    permission: 'takhmeen.edit' },
+      { label: 'Design Templates', href: '/design-templates', icon: FileTextIcon, permission: 'takhmeen.edit' },
     ],
   },
   {

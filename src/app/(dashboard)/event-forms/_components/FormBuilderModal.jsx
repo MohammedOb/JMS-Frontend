@@ -298,6 +298,7 @@ export default function FormBuilderModal({ initialData, onClose, onSaved }) {
               sections={sections}
               setSections={setSections}
               setShowBank={setShowBank}
+              sectorOptions={sectorOptions}
             />
           </>
         )}

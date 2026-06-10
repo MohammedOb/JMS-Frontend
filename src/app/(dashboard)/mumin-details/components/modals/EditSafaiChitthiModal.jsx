@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import Modal from '@/components/shared/Modal';
-import { SaveIcon } from '@/components/shared/Icons';
+import { SaveIcon, PrintIcon } from '@/components/shared/Icons';
+import PrintConfigButton from '@/components/shared/PrintConfigButton';
 
 // ── Hijri conversion (anchor: 15 Jun 2026 = 1 Muharram 1448) ────────────────
 const HIJRI_ANCHOR = { gYear: 2026, gMonth: 6, gDay: 15, hYear: 1448, hMonth: 1, hDay: 1 };
@@ -139,12 +140,22 @@ export default function EditSafaiChitthiModal({
       title={`Edit Safai Chitthi — ${editTarget?.FullName || ''} (Acc# ${editTarget?.AccNo || ''})`}
       size="lg"
       footer={
-        <>
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" onClick={onSave} disabled={saving}>
-            <SaveIcon className="w-3.5 h-3.5 mr-1.5" />{saving ? 'Updating…' : 'Update'}
-          </button>
-        </>
+        <div className="flex items-center justify-between w-full">
+          <PrintConfigButton
+            buttonId="safai-chitthi-print"
+            accno={editTarget?.AccNo}
+            serialNo={editTarget?.SerialNo}
+            label="Print"
+            icon={<PrintIcon className="w-3.5 h-3.5 mr-1.5" />}
+            className="btn btn-secondary btn-sm"
+          />
+          <div className="flex gap-2">
+            <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button className="btn btn-primary" onClick={onSave} disabled={saving}>
+              <SaveIcon className="w-3.5 h-3.5 mr-1.5" />{saving ? 'Updating…' : 'Update'}
+            </button>
+          </div>
+        </div>
       }
     >
       <style>{`@font-face{font-family:'AL-KANZ';src:url('/fonts/AL-KANZ.ttf') format('truetype');font-display:swap}`}</style>

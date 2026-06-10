@@ -1,4 +1,5 @@
 'use client';
+import { useEffect } from 'react';
 import { parseJson } from './helpers';
 
 // Safely read Options as a plain object (linearscale / rating / grid / fileupload)
@@ -16,8 +17,39 @@ const parseAnswer = (v, fallback) => {
   try { return JSON.parse(v); } catch { return fallback; }
 };
 
-export default function QuestionInput({ question, value, onChange }) {
+export default function QuestionInput({ question, value, onChange, memberData }) {
   const opts = parseJson(question.Options, []);   // for flat-choice types
+
+  // Filter options based on per-option profile rules (optionFilters in ConditionalLogic)
+  const optionFilters = question.ConditionalLogic?.optionFilters ?? {};
+  const hasAnyFilter  = Object.keys(optionFilters).length > 0;
+  const getMemberField = (md, field) => {
+    if (!md) return undefined;
+    if (field === 'Sector') return md.Sector || md.mSector;
+    return md[field];
+  };
+  const visibleOpts = opts.filter(opt => {
+    if (!hasAnyFilter) return true;
+    if (!memberData)   return true;
+    const rule = optionFilters[opt];
+    if (!rule || !rule.values?.length) return false;
+    return rule.values.includes(getMemberField(memberData, rule.field) ?? '');
+  });
+
+  // Auto-select when exactly one option is visible
+  useEffect(() => {
+    if (visibleOpts.length === 1 && value !== visibleOpts[0]) {
+      onChange(visibleOpts[0]);
+    }
+  }, [visibleOpts.length, visibleOpts[0] ?? '']); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Readonly badge shown when only one option is possible due to filtering
+  const LockedValue = ({ v }) => (
+    <div className="w-full border border-blue-200 rounded-xl px-3 py-2.5 text-[13px] bg-blue-50 text-blue-800 flex items-center gap-2">
+      <span className="text-[10px] bg-blue-200 text-blue-700 rounded px-1.5 py-0.5 font-bold shrink-0">Auto</span>
+      {v}
+    </div>
+  );
 
   switch (question.QuestionType) {
 
@@ -68,9 +100,10 @@ export default function QuestionInput({ question, value, onChange }) {
 
     // ── Multiple Choice (radio) ───────────────────────────────────────────────
     case 'radio':
+      if (visibleOpts.length === 1) return <LockedValue v={visibleOpts[0]} />;
       return (
         <div className="space-y-2 pt-1">
-          {opts.filter(Boolean).map(opt => (
+          {visibleOpts.filter(Boolean).map(opt => (
             <label key={opt} className="flex items-center gap-2 cursor-pointer text-[13px] text-gray-700 select-none">
               <input
                 type="radio" name={`q_${question.ID}`} value={opt}
@@ -85,22 +118,24 @@ export default function QuestionInput({ question, value, onChange }) {
 
     // ── Dropdown ──────────────────────────────────────────────────────────────
     case 'select':
+      if (visibleOpts.length === 1) return <LockedValue v={visibleOpts[0]} />;
       return (
         <select
           value={value || ''} onChange={e => onChange(e.target.value)}
           className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-[13px] outline-none focus:border-blue-500 bg-white"
         >
           <option value="">Select an option…</option>
-          {opts.filter(Boolean).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          {visibleOpts.filter(Boolean).map(opt => <option key={opt} value={opt}>{opt}</option>)}
         </select>
       );
 
     // ── Checkboxes ────────────────────────────────────────────────────────────
     case 'checkbox': {
+      if (visibleOpts.length === 1) return <LockedValue v={visibleOpts[0]} />;
       const checked = value ? value.split('|') : [];
       return (
         <div className="space-y-2 pt-1">
-          {opts.filter(Boolean).map(opt => (
+          {visibleOpts.filter(Boolean).map(opt => (
             <label key={opt} className="flex items-center gap-2 cursor-pointer text-[13px] text-gray-700 select-none">
               <input
                 type="checkbox" checked={checked.includes(opt)}

@@ -60,6 +60,27 @@ const MUMIN_FIELDS = [
 ];
 const MUMIN_GROUPS = [...new Set(MUMIN_FIELDS.map(f => f.group))];
 
+// ── Raza Fields (from razadetails table) ───────────────────────────────────────
+const RAZA_FIELDS = [
+  { field: 'serialNo',    label: 'Serial No'    },
+  { field: 'requestDate', label: 'Request Date' },
+  { field: 'razafor',     label: 'Raza For'     },
+  { field: 'eventDate',   label: 'Event Date'   },
+  { field: 'hijriDate',   label: 'Hijri Date'   },
+  { field: 'place',       label: 'Place'        },
+  { field: 'eventTime',   label: 'Event Time'   },
+  { field: 'thaal',       label: 'Thaal'        },
+  { field: 'remark',      label: 'Remark'       },
+  { field: 'razaStatus',  label: 'Raza Status'  },
+  { field: 'requestby',   label: 'Requested By' },
+  { field: 'accno',       label: 'Acc No'       },
+  { field: 'fullName',    label: 'Full Name'    },
+  { field: 'mobile',      label: 'Mobile'       },
+  { field: 'mobile1',     label: 'Mobile (alt)' },
+  { field: 'itsNo',       label: 'ITS No'       },
+  { field: 'address',     label: 'Address'      },
+];
+
 const HISTORY_COLS = [
   { key: 'forYear',   label: 'Year'      },
   { key: 'takhmeen',  label: 'Takhmeen'  },
@@ -124,7 +145,10 @@ const EL_NAME = {
   historyGrid:  ()  => 'History Grid',
   label:        ()  => 'Static Label',
   inputLine:    ()  => 'Input Line',
-  image:        ()  => 'Background Image',
+  image:        el  => el?.isBackground ? 'Background Image' : 'Image',
+  razaField:    el => RAZA_FIELDS.find(f => f.field === el?.field)?.label || 'Raza Field',
+  box:          ()  => 'Box / Rectangle',
+  line:         el  => (el?.orientation || 'h') === 'v' ? 'Vertical Line' : 'Horizontal Line',
 };
 
 // ── Element ID helper ──────────────────────────────────────────────────────────
@@ -134,7 +158,7 @@ function newId() { return `e_${Date.now()}_${Math.random().toString(36).slice(2,
 function migrateBgImage(t) {
   if (t.bgImage && !(t.elements || []).find(e => e.type === 'image')) {
     const ps = PAGE_SIZES[t.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
-    const imgEl = { id: `img_${t.id}`, type: 'image', src: t.bgImage, x: 0, y: 0, w: ps.w, h: ps.h };
+    const imgEl = { id: `img_${t.id}`, type: 'image', src: t.bgImage, x: 0, y: 0, w: ps.w, h: ps.h, isBackground: true, locked: false };
     return { ...t, bgImage: '', elements: [imgEl, ...(t.elements || [])] };
   }
   return t;
@@ -149,12 +173,15 @@ function mkEl(type, field) {
   };
   switch (type) {
     case 'muminField':  return { ...base, type, field, label: (MUMIN_FIELDS.find(f => f.field === field)?.label || '') + ':' };
+    case 'razaField':   return { ...base, type, field, label: (RAZA_FIELDS.find(f => f.field === field)?.label || '') + ':' };
     case 'subHead':     return { ...base, type, label: 'Sub Head:' };
     case 'forYear':     return { ...base, type, label: 'Year:' };
     case 'currentDate': return { ...base, type, label: 'Date:' };
     case 'historyGrid': return { ...base, type, columns: [...DEFAULT_COLS], w: 560, h: 220, rowCount: 5, fontSize: 11, bgColor: '#ffffff' };
     case 'label':       return { ...base, type, text: 'Label Text', fontSize: 20, bold: true, w: 360, h: 44 };
     case 'inputLine':   return { ...base, type, label: 'Amount:', w: 280, h: 32 };
+    case 'box':         return { ...base, type, borderColor: '#111827', borderWidth: 1, borderRadius: 0, bgColor: '', w: 200, h: 100 };
+    case 'line':        return { ...base, type, orientation: 'h', lineColor: '#111827', lineWidth: 2, lineStyle: 'solid', w: 200, h: 20 };
     default:            return { ...base, type };
   }
 }
@@ -186,7 +213,6 @@ const HANDLE_DEFS = [
 
 function ResizeHandles({ onHandleDown }) {
   return (
-    <PermissionGuard permission="takhmeen.edit">
     <>
       {HANDLE_DEFS.map(h => (
         <div
@@ -222,8 +248,9 @@ function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart })
     lineHeight: 1.3,
   };
 
+  const locked = Boolean(el.locked);
+
   return (
-    <PermissionGuard permission="takhmeen.edit">
     <div
       style={{
         position:   'absolute',
@@ -231,27 +258,35 @@ function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart })
         top:        el.y,
         width:      el.w || 'auto',
         height:     el.h || 'auto',
-        background: el.type === 'image' ? 'transparent' : (el.bgColor || 'transparent'),
-        outline:    selected ? '2px solid #3b82f6' : (el.type === 'image' ? '1px dashed rgba(59,130,246,0.25)' : '1px dashed rgba(130,130,130,0.4)'),
-        cursor:     'move',
+        background: (el.type === 'image' || el.type === 'line') ? 'transparent' : (el.bgColor || 'transparent'),
+        outline:    locked ? 'none' : (selected ? '2px solid #3b82f6' : (el.type === 'image' && el.isBackground !== false ? '1px dashed rgba(59,130,246,0.15)' : el.type === 'image' ? '1px dashed rgba(59,130,246,0.5)' : '1px dashed rgba(130,130,130,0.4)')),
+        cursor:     locked ? 'default' : 'move',
         userSelect: 'none',
         overflow:   'hidden',
-        zIndex:     selected ? 10 : (el.type === 'image' ? 0 : 2),
+        zIndex:     selected ? 10 : (el.type === 'box' ? 0 : (el.type === 'image' && el.isBackground !== false ? 0 : 2)),
         padding:    el.type === 'image' ? 0 : '2px 4px',
         boxSizing:  'border-box',
+        textAlign:  el.align || 'left',
       }}
-      onMouseDown={e => { e.stopPropagation(); onSelect(el.id); onMoveStart(e, el.id); }}
-      onClick={e => e.stopPropagation()}
-      onContextMenu={e => { e.preventDefault(); onSelect(el.id); }}
+      onMouseDown={e => { if (locked) return; e.stopPropagation(); onSelect(el.id); onMoveStart(e, el.id); }}
+      onClick={e => { if (!locked) e.stopPropagation(); }}
+      onContextMenu={e => { e.preventDefault(); if (!locked) onSelect(el.id); }}
     >
+      {/* Lock badge */}
+      {locked && el.type === 'image' && (
+        <div style={{ position: 'absolute', top: 4, right: 4, zIndex: 5, background: 'rgba(0,0,0,0.45)', borderRadius: 4, padding: '1px 5px', fontSize: 11, color: '#fff', pointerEvents: 'none', lineHeight: 1.6 }}>
+          🔒
+        </div>
+      )}
+
       {/* Image element */}
       {el.type === 'image' && (
         <img src={el.src} alt="" draggable={false}
-          style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block', pointerEvents: 'none' }} />
+          style={{ width: '100%', height: '100%', objectFit: el.isBackground !== false ? 'fill' : 'contain', display: 'block', pointerEvents: 'none' }} />
       )}
 
       {/* Field-bound elements */}
-      {(el.type === 'muminField' || el.type === 'subHead' || el.type === 'forYear') && (
+      {(el.type === 'muminField' || el.type === 'razaField' || el.type === 'subHead' || el.type === 'forYear') && (
         <span style={ts}>
           <span style={{ fontWeight: el.bold ? 700 : 600 }}>{el.label}&nbsp;</span>
           <span style={{ color: '#3b82f6', fontStyle: 'normal' }}>___</span>
@@ -302,7 +337,26 @@ function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart })
         </div>
       )}
 
-      {selected && (
+      {/* Box / Rectangle */}
+      {el.type === 'box' && (
+        <div style={{
+          position: 'absolute', inset: 0, boxSizing: 'border-box', pointerEvents: 'none',
+          border: `${el.borderWidth || 1}px solid ${el.borderColor || '#111827'}`,
+          borderRadius: el.borderRadius || 0,
+        }} />
+      )}
+
+      {/* Line */}
+      {el.type === 'line' && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+          {(el.orientation || 'h') === 'v'
+            ? <div style={{ width: 0, height: '100%', borderLeft: `${el.lineWidth || 2}px ${el.lineStyle || 'solid'} ${el.lineColor || '#111827'}` }} />
+            : <div style={{ width: '100%', height: 0, borderTop: `${el.lineWidth || 2}px ${el.lineStyle || 'solid'} ${el.lineColor || '#111827'}` }} />
+          }
+        </div>
+      )}
+
+      {selected && !locked && (
         <ResizeHandles onHandleDown={(e, handle) => onResizeStart(e, el.id, handle)} />
       )}
     </div>
@@ -310,10 +364,9 @@ function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart })
 }
 
 // ── Properties Panel ───────────────────────────────────────────────────────────
-function PropertiesPanel({ el, onChange, onDelete }) {
+function PropertiesPanel({ el, onChange, onDelete, onCopy }) {
   if (!el) {
     return (
-    <PermissionGuard permission="takhmeen.edit">
       <div className="h-full flex flex-col items-center justify-center p-5 gap-2">
         <div className="text-3xl text-gray-200">⊹</div>
         <p className="text-[11px] text-gray-400 text-center leading-relaxed">
@@ -326,7 +379,6 @@ function PropertiesPanel({ el, onChange, onDelete }) {
   const displayName = EL_NAME[el.type]?.(el) || el.type;
 
   return (
-    <PermissionGuard permission="takhmeen.edit">
     <div className="flex flex-col h-full overflow-hidden">
       {/* Control name header */}
       <div className="flex-shrink-0 bg-navy-900 text-white px-3 py-2.5 flex items-center justify-between">
@@ -334,14 +386,34 @@ function PropertiesPanel({ el, onChange, onDelete }) {
           <div className="text-[9px] text-white/40 uppercase tracking-widest leading-tight">Control</div>
           <div className="text-[14px] font-semibold leading-tight">{displayName}</div>
         </div>
-        <button onClick={onDelete}
-          className="text-[10px] bg-red-500/20 text-red-400 hover:bg-red-500/40 border border-red-500/30 rounded px-2 py-1 transition-colors">
-          ✕ Delete
-        </button>
+        <div className="flex gap-1">
+          <button onClick={onCopy}
+            className="text-[10px] bg-blue-500/20 text-blue-400 hover:bg-blue-500/40 border border-blue-500/30 rounded px-2 py-1 transition-colors">
+            ⎘ Copy
+          </button>
+          <button onClick={onDelete}
+            className="text-[10px] bg-red-500/20 text-red-400 hover:bg-red-500/40 border border-red-500/30 rounded px-2 py-1 transition-colors">
+            ✕ Delete
+          </button>
+        </div>
       </div>
 
       {/* Properties */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4 text-[12px]">
+
+        {/* Lock toggle — images only */}
+        {el.type === 'image' && (
+          <button
+            onClick={() => onChange({ ...el, locked: !el.locked })}
+            className={`w-full text-[11px] py-1.5 rounded border font-medium transition-colors flex items-center justify-center gap-1.5 ${
+              el.locked
+                ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
+                : 'bg-white border-border text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            {el.locked ? '🔒 Locked — click to unlock' : '🔓 Unlocked — click to lock'}
+          </button>
+        )}
 
         {/* Position & Size */}
         <div>
@@ -358,8 +430,8 @@ function PropertiesPanel({ el, onChange, onDelete }) {
           </div>
         </div>
 
-        {/* Typography — hidden for image elements */}
-        {el.type !== 'image' && <div>
+        {/* Typography — hidden for image/shape elements */}
+        {el.type !== 'image' && el.type !== 'box' && el.type !== 'line' && <div>
           <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Typography</div>
           <div className="space-y-2.5">
             {/* Font family */}
@@ -413,8 +485,8 @@ function PropertiesPanel({ el, onChange, onDelete }) {
           </div>
         </div>}
 
-        {/* Background — hidden for image elements */}
-        {el.type !== 'image' && <div>
+        {/* Background — hidden for image/line elements */}
+        {el.type !== 'image' && el.type !== 'line' && <div>
           <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Background</div>
           <div className="flex items-center gap-2">
             <input type="color" value={el.bgColor || '#ffffff'}
@@ -429,11 +501,25 @@ function PropertiesPanel({ el, onChange, onDelete }) {
         </div>}
 
         {/* Element-specific: prefix label */}
-        {(el.type === 'muminField' || el.type === 'subHead' || el.type === 'forYear' || el.type === 'inputLine') && (
+        {(el.type === 'muminField' || el.type === 'razaField' || el.type === 'subHead' || el.type === 'forYear' || el.type === 'inputLine') && (
           <div>
             <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Prefix Label</div>
             <input className="form-input text-[11px]" value={el.label || ''}
               onChange={e => onChange({ ...el, label: e.target.value })} />
+          </div>
+        )}
+
+        {/* Raza field picker */}
+        {el.type === 'razaField' && (
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Bound Field</div>
+            <select className="form-input text-[11px]" value={el.field || ''}
+              onChange={e => {
+                const f = RAZA_FIELDS.find(x => x.field === e.target.value);
+                onChange({ ...el, field: e.target.value, label: f ? f.label + ':' : el.label });
+              }}>
+              {RAZA_FIELDS.map(f => <option key={f.field} value={f.field}>{f.label}</option>)}
+            </select>
           </div>
         )}
 
@@ -443,6 +529,74 @@ function PropertiesPanel({ el, onChange, onDelete }) {
             <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Text Content</div>
             <textarea className="form-input text-[11px] resize-y" rows={3} value={el.text || ''}
               onChange={e => onChange({ ...el, text: e.target.value })} />
+          </div>
+        )}
+
+        {/* Box properties */}
+        {el.type === 'box' && (
+          <div className="space-y-3">
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Box Style</div>
+            <div className="flex items-center gap-2">
+              <span className="form-label text-[10px] w-20 flex-shrink-0">Border Color</span>
+              <input type="color" value={el.borderColor || '#111827'}
+                onChange={e => onChange({ ...el, borderColor: e.target.value })}
+                className="h-7 w-10 rounded cursor-pointer border border-border flex-shrink-0" />
+              <span className="text-[10px] text-gray-500 font-mono">{el.borderColor || '#111827'}</span>
+            </div>
+            <label>
+              <span className="form-label text-[10px]">Border Width — {el.borderWidth ?? 1}px</span>
+              <input type="range" min={0} max={20} value={el.borderWidth ?? 1}
+                onChange={e => onChange({ ...el, borderWidth: Number(e.target.value) })}
+                className="w-full accent-blue-500" />
+            </label>
+            <label>
+              <span className="form-label text-[10px]">Border Radius — {el.borderRadius ?? 0}px</span>
+              <input type="range" min={0} max={100} value={el.borderRadius ?? 0}
+                onChange={e => onChange({ ...el, borderRadius: Number(e.target.value) })}
+                className="w-full accent-blue-500" />
+            </label>
+          </div>
+        )}
+
+        {/* Line properties */}
+        {el.type === 'line' && (
+          <div className="space-y-3">
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Line Style</div>
+            <div>
+              <span className="form-label text-[10px]">Orientation</span>
+              <div className="flex gap-1.5 mt-1">
+                {[['H','h','Horizontal'],['V','v','Vertical']].map(([lbl,val,title]) => (
+                  <button key={val} title={title} onClick={() => onChange({ ...el, orientation: val })}
+                    className={`h-7 px-3 text-[11px] rounded border transition-colors ${(el.orientation || 'h') === val ? 'bg-blue-500 text-white border-blue-600' : 'bg-white text-gray-600 border-border hover:bg-gray-50'}`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="form-label text-[10px] w-14 flex-shrink-0">Color</span>
+              <input type="color" value={el.lineColor || '#111827'}
+                onChange={e => onChange({ ...el, lineColor: e.target.value })}
+                className="h-7 w-10 rounded cursor-pointer border border-border flex-shrink-0" />
+              <span className="text-[10px] text-gray-500 font-mono">{el.lineColor || '#111827'}</span>
+            </div>
+            <div>
+              <span className="form-label text-[10px]">Style</span>
+              <div className="flex gap-1.5 mt-1">
+                {[['Solid','solid'],['Dashed','dashed'],['Dotted','dotted']].map(([lbl,val]) => (
+                  <button key={val} onClick={() => onChange({ ...el, lineStyle: val })}
+                    className={`h-7 flex-1 text-[10px] rounded border transition-colors ${(el.lineStyle || 'solid') === val ? 'bg-blue-500 text-white border-blue-600' : 'bg-white text-gray-600 border-border hover:bg-gray-50'}`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label>
+              <span className="form-label text-[10px]">Thickness — {el.lineWidth ?? 2}px</span>
+              <input type="range" min={1} max={20} value={el.lineWidth ?? 2}
+                onChange={e => onChange({ ...el, lineWidth: Number(e.target.value) })}
+                className="w-full accent-blue-500" />
+            </label>
           </div>
         )}
 
@@ -489,9 +643,11 @@ export default function PrintTemplatesPage() {
   const [selectedEl,   setSelectedEl]   = useState(null);
   const [groupOpen,    setGroupOpen]    = useState({});
   const [loading,      setLoading]      = useState(true);
-  const canvasRef = useRef(null);
-  const dragRef   = useRef(null);
-  const fileRef   = useRef(null);
+  const canvasRef    = useRef(null);
+  const dragRef      = useRef(null);
+  const fileRef      = useRef(null);
+  const fileRefImg   = useRef(null);
+  const copiedElRef  = useRef(null);
   // Keep a ref to latest templates + activeId for use inside drag closures
   const stateRef    = useRef({ templates, activeId, selectedEl });
   useEffect(() => { stateRef.current = { templates, activeId, selectedEl }; }, [templates, activeId, selectedEl]);
@@ -597,9 +753,9 @@ export default function PrintTemplatesPage() {
 
 
   // ── Element helpers ──────────────────────────────────────────────────────────
-  function addEl(type, field) {
+  function addEl(type, field, opts = {}) {
     if (!activeTemplate) { toast.error('Create or select a template first'); return; }
-    const el = mkEl(type, field);
+    const el = { ...mkEl(type, field), ...opts };
     patchTpl(activeId, { elements: [...(activeTemplate.elements || []), el] });
     setSelectedEl(el.id);
   }
@@ -665,46 +821,114 @@ export default function PrintTemplatesPage() {
     window.addEventListener('mouseup', onUp);
   }, []);
 
-  // ── Keyboard arrow-key movement ───────────────────────────────────────────────
+  // ── Ctrl+C / Ctrl+V — fresh closure so selectedEl/templates are never stale ───
+  useEffect(() => {
+    function onCopyPaste(e) {
+      if (!e.ctrlKey && !e.metaKey) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const key = e.key.toLowerCase();
+
+      if (key === 'c') {
+        if (!selectedEl || !activeId) return;
+        const el = templates.find(t => String(t.id) === String(activeId))
+                            ?.elements.find(x => x.id === selectedEl);
+        if (!el) return;
+        e.preventDefault();
+        copiedElRef.current = el;
+        toast.success('Copied', { id: 'cp', duration: 900 });
+      }
+
+      if (key === 'v') {
+        const src = copiedElRef.current;
+        if (!src || !activeId) return;
+        e.preventDefault();
+        const pasted = { ...src, id: newId(), x: (src.x || 0) + 15, y: (src.y || 0) + 15 };
+        setTemplates(prev => prev.map(t =>
+          String(t.id) !== String(activeId) ? t : { ...t, elements: [...t.elements, pasted] }
+        ));
+        setSelectedEl(pasted.id);
+      }
+    }
+    window.addEventListener('keydown', onCopyPaste);
+    return () => window.removeEventListener('keydown', onCopyPaste);
+  }, [templates, activeId, selectedEl]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Arrow keys + Delete (stateRef is fine here — no element lookup needed) ───
   useEffect(() => {
     const ARROWS = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
     function onKeyDown(e) {
-      if (!ARROWS[e.key]) return;
-      const { selectedEl: selId, activeId: aid } = stateRef.current;
-      if (!selId || !aid) return;
       const tag = document.activeElement?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+      const { selectedEl: selId, activeId: aid } = stateRef.current;
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !inInput) {
+        if (!selId || !aid) return;
+        e.preventDefault();
+        setTemplates(prev => prev.map(t =>
+          t.id !== aid ? t : { ...t, elements: t.elements.filter(el => el.id !== selId) }
+        ));
+        setSelectedEl(null);
+        return;
+      }
+
+      if (!ARROWS[e.key] || inInput || !selId || !aid) return;
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;
       const [dx, dy] = ARROWS[e.key].map(v => v * step);
       setTemplates(prev => prev.map(t => {
         if (t.id !== aid) return t;
-        return { ...t, elements: t.elements.map(el => el.id !== selId ? el : { ...el, x: Math.max(0, el.x + dx), y: Math.max(0, el.y + dy) }) };
+        return { ...t, elements: t.elements.map(el =>
+          el.id !== selId ? el : { ...el, x: Math.max(0, el.x + dx), y: Math.max(0, el.y + dy) }
+        )};
       }));
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // ── Image upload ─────────────────────────────────────────────────────────────
+  // ── Background image upload ───────────────────────────────────────────────────
   function handleImage(e) {
     const file = e.target.files?.[0];
     if (!file || !activeId) return;
     const reader = new FileReader();
     reader.onload = ev => {
-      const src = ev.target.result;
+      const src  = ev.target.result;
       const tpl  = templates.find(t => t.id === activeId);
       const els  = tpl?.elements || [];
-      const existing = els.find(x => x.type === 'image');
-      if (existing) {
-        patchTpl(activeId, { elements: els.map(x => x.type === 'image' ? { ...x, src } : x) });
+      const bg   = els.find(x => x.type === 'image' && x.isBackground !== false);
+      if (bg) {
+        patchTpl(activeId, { elements: els.map(x => x.id === bg.id ? { ...x, src } : x) });
       } else {
-        const ps   = PAGE_SIZES[tpl?.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
-        const imgEl = { id: newId(), type: 'image', src, x: 0, y: 0, w: ps.w, h: ps.h };
+        const ps    = PAGE_SIZES[tpl?.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
+        const imgEl = { id: newId(), type: 'image', src, x: 0, y: 0, w: ps.w, h: ps.h, isBackground: true, locked: false };
         patchTpl(activeId, { elements: [imgEl, ...els] });
         setSelectedEl(imgEl.id);
       }
-      toast.success('Image added — drag handles to reposition');
+      toast.success('Background image updated');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }
+
+  // ── Logo / stamp / overlay image upload ──────────────────────────────────────
+  function handleAddImage(e) {
+    const file = e.target.files?.[0];
+    if (!file || !activeId) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const src  = ev.target.result;
+      const tpl  = templates.find(t => t.id === activeId);
+      const ps   = PAGE_SIZES[tpl?.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
+      const imgEl = {
+        id: newId(), type: 'image', src,
+        x: Math.round(ps.w / 2 - 75), y: Math.round(ps.h / 2 - 75),
+        w: 150, h: 150,
+        isBackground: false, locked: false,
+      };
+      patchTpl(activeId, { elements: [...(tpl?.elements || []), imgEl] });
+      setSelectedEl(imgEl.id);
+      toast.success('Image added — drag to position, handles to resize');
     };
     reader.readAsDataURL(file);
     e.target.value = '';
@@ -719,9 +943,9 @@ export default function PrintTemplatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-3 flex-shrink-0">
         <div>
-          <h1 className="text-title text-navy-900">Print Templates</h1>
+          <h1 className="text-title text-navy-900">Design Templates</h1>
           <p className="text-[12px] text-gray-500 mt-0.5">
-            Design printable takhmeen form layouts — drag to move, drag handles to resize.
+            Create and design printable form layouts — drag to move, drag handles to resize.
           </p>
         </div>
         {activeTemplate && (
@@ -788,7 +1012,6 @@ export default function PrintTemplatesPage() {
                     {['top','right','bottom','left'].map(side => {
                       const unit = activeTemplate.marginUnit || DEFAULT_MARGIN_UNIT;
                       return (
-    <PermissionGuard permission="takhmeen.edit">
                         <label key={side}>
                           <span className="form-label text-[9px] capitalize">{side}</span>
                           <input type="number" min={0} max={200} step={0.5} className="form-input text-[10px] py-0.5"
@@ -868,6 +1091,43 @@ export default function PrintTemplatesPage() {
                   </div>
                 ))}
 
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Raza Fields</div>
+                <button
+                  onClick={() => setGroupOpen(p => ({ ...p, __raza__: !p.__raza__ }))}
+                  className="w-full flex items-center justify-between text-[11px] px-2 py-0.5 text-gray-500 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors">
+                  <span className="font-medium">Raza Details</span>
+                  <span className="text-[9px]">{groupOpen.__raza__ ? '▾' : '▸'}</span>
+                </button>
+                {groupOpen.__raza__ && (
+                  <div className="ml-3 border-l border-blue-100 pl-1 space-y-0.5">
+                    {RAZA_FIELDS.map(f => (
+                      <button key={f.field} onClick={() => addEl('razaField', f.field)}
+                        className="w-full text-left text-[11px] px-2 py-0.5 rounded hover:bg-blue-50 text-gray-600 hover:text-blue-700">
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Shapes & Layout</div>
+                <button onClick={() => addEl('box')}
+                  className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
+                  Box / Rectangle
+                </button>
+                <button onClick={() => addEl('line', null, { orientation: 'h', w: 200, h: 20 })}
+                  className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
+                  Horizontal Line
+                </button>
+                <button onClick={() => addEl('line', null, { orientation: 'v', w: 20, h: 200 })}
+                  className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
+                  Vertical Line
+                </button>
+                <input ref={fileRefImg} type="file" accept="image/*" className="hidden" onChange={handleAddImage} />
+                <button onClick={() => fileRefImg.current?.click()}
+                  className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
+                  🖼 Add Image (Logo / Stamp)
+                </button>
+
                 <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Other</div>
                 {[['Static Label','label'],['Input Line (blank)','inputLine']].map(([lbl,type]) => (
                   <button key={type} onClick={() => addEl(type)}
@@ -880,26 +1140,45 @@ export default function PrintTemplatesPage() {
           )}
 
           {/* Background Image */}
-          {activeTemplate && (
-            <div className="card flex-shrink-0">
-              <div className="card-header py-2"><span className="text-[12px] font-semibold">Background Image</span></div>
-              <div className="p-2 space-y-1.5">
-                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
-                <button onClick={() => fileRef.current?.click()} className="btn btn-secondary btn-sm w-full text-[11px]">
-                  Upload Image
-                </button>
-                {(activeTemplate.elements || []).find(e => e.type === 'image') && (
-                  <button onClick={() => {
-                    patchTpl(activeId, { elements: (activeTemplate.elements || []).filter(e => e.type !== 'image') });
-                    setSelectedEl(null);
-                  }}
-                    className="w-full text-[11px] text-red-500 border border-red-200 rounded py-1 hover:bg-red-50 transition-colors">
-                    Clear Image
+          {activeTemplate && (() => {
+            const bgEl = (activeTemplate.elements || []).find(e => e.type === 'image' && e.isBackground !== false);
+            return (
+              <div className="card flex-shrink-0">
+                <div className="card-header py-2"><span className="text-[12px] font-semibold">Background Image</span></div>
+                <div className="p-2 space-y-1.5">
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
+                  <button onClick={() => fileRef.current?.click()} className="btn btn-secondary btn-sm w-full text-[11px]">
+                    {bgEl ? 'Replace Background' : 'Upload Background'}
                   </button>
-                )}
+                  {bgEl && (
+                    <>
+                      <button
+                        onClick={() => patchTpl(activeId, {
+                          elements: (activeTemplate.elements || []).map(x =>
+                            x.id === bgEl.id ? { ...x, locked: !bgEl.locked } : x
+                          )
+                        })}
+                        className={`w-full text-[11px] rounded py-1 border transition-colors flex items-center justify-center gap-1 ${
+                          bgEl.locked
+                            ? 'bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100'
+                            : 'bg-white border-border text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {bgEl.locked ? '🔒 Locked — click to unlock' : '🔓 Unlocked — click to lock'}
+                      </button>
+                      <button onClick={() => {
+                        patchTpl(activeId, { elements: (activeTemplate.elements || []).filter(e => e.id !== bgEl.id) });
+                        setSelectedEl(null);
+                      }}
+                        className="w-full text-[11px] text-red-500 border border-red-200 rounded py-1 hover:bg-red-50 transition-colors">
+                        Clear Background
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* ── Canvas ── */}
@@ -957,6 +1236,7 @@ export default function PrintTemplatesPage() {
             el={selEl}
             onChange={updateEl}
             onDelete={() => selEl && deleteEl(selEl.id)}
+            onCopy={() => selEl && (copiedElRef.current = selEl)}
           />
         </div>
 

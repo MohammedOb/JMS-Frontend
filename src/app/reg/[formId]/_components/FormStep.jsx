@@ -11,6 +11,7 @@ export default function FormStep({
   answers, setAnswers,
   submitting,
   isLastSection,
+  memberData,
   goNext, goBack,
   submit,
 }) {
@@ -67,6 +68,7 @@ export default function FormStep({
             <QuestionInput
               question={q}
               value={answers[q.ID] ?? ''}
+              memberData={memberData}
               onChange={v => setAnswers(p => ({ ...p, [q.ID]: v }))}
             />
           </div>

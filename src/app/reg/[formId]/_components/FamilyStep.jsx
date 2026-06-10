@@ -198,6 +198,7 @@ export default function FamilyStep({
                             <MemberCellInput
                               question={q}
                               value={perMemberAnswers[key]?.[q.ID] ?? ''}
+                              memberData={m}
                               onChange={val => setPerMemberAnswer(key, q.ID, val)}
                             />
                           ) : (
