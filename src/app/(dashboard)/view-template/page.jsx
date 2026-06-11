@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { memberService, takhmeenService, safaiService } from '@/services';
+import { memberService, takhmeenService, safaiService, receiptService } from '@/services';
 import { useAuth } from '@/context/AuthContext';
 import ComboBox from '@/components/shared/ComboBox';
 import toast from 'react-hot-toast';
@@ -83,6 +83,72 @@ const HISTORY_COL_LABELS = {
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const fmt     = n => (n != null && n !== '') ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
 const fmtDate = v => { if (!v) return ''; try { return new Date(v).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); } catch { return String(v); } };
+
+// ── Receipt helpers ────────────────────────────────────────────────────────────
+const FUND_URDU_MAP = {
+  'Sabeel Regular':    'سبیل الخیر والبرکات',
+  'Sabeel Mutaveteen': 'سبیل الخیر والبرکات',
+};
+
+function amountInWordsRcp(num) {
+  if (!num || isNaN(num)) return '';
+  const n = Math.floor(Number(num));
+  const ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
+    'Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
+  const tens = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+  function toWords(x) {
+    if (x === 0) return '';
+    if (x < 20)  return ones[x];
+    if (x < 100) return tens[Math.floor(x / 10)] + (x % 10 ? ' ' + ones[x % 10] : '');
+    if (x < 1000)     return ones[Math.floor(x / 100)]    + ' Hundred'  + (x % 100    ? ' ' + toWords(x % 100)    : '');
+    if (x < 100000)   return toWords(Math.floor(x / 1000))   + ' Thousand' + (x % 1000   ? ' ' + toWords(x % 1000)   : '');
+    if (x < 10000000) return toWords(Math.floor(x / 100000)) + ' Lakh'     + (x % 100000 ? ' ' + toWords(x % 100000) : '');
+    return toWords(Math.floor(x / 10000000)) + ' Crore' + (x % 10000000 ? ' ' + toWords(x % 10000000) : '');
+  }
+  return n === 0 ? 'Rupees Zero Only' : 'Rupees ' + toWords(n) + ' Only';
+}
+
+// ── Receipt field map (transaction row → display value) ────────────────────────
+const RECEIPT_FIELD_MAP = {
+  receiptNo:     r => r?.ReceiptNo     || r?.receiptNo     || '',
+  date:          r => r?.ReceivedDate  ? fmtDate(r.ReceivedDate) : (r?.Date ? fmtDate(r.Date) : ''),
+  mode:          r => (r?.IsCashMemo || r?.isCashMemo) ? 'Cash Memo' : (r?.Mode || r?.mode || ''),
+  refNo:         r => r?.RefNo         || r?.Refno         || r?.refNo  || '',
+  remark:        r => r?.Remark        || r?.remark        || '',
+  amount:        r => r?.Amount        != null ? `₹${Number(r.Amount).toLocaleString('en-IN')}` : '',
+  amountInWords: r => r?.Amount        != null ? amountInWordsRcp(Number(r.Amount)) : '',
+  accno:         r => r?.AccNo         != null ? String(r.AccNo)  : (r?.accno  || ''),
+  status:        r => r?.Status        || r?.status        || '',
+  mainHead:      r => r?.MainHead      || r?.mainHead      || r?.HubMainHead || '',
+  subHead:       r => r?.SubHead       || r?.subHead       || r?.HubSubHead  || '',
+  fundLabel:     r => {
+    if (r?.IsCashMemo || r?.isCashMemo) return '';
+    const ct = (r?.ContributionType || '').toLowerCase();
+    const sh = r?.SubHead || r?.subHead || r?.HubSubHead || '';
+    const shL = sh.toLowerCase();
+
+    // Sabeel: ContributionType OR SubHead (income head may not have ContributionType set)
+    if (ct.includes('sabeel') || shL.includes('sabeel'))
+      return 'سبل الجيروالبركات  فند ما وصول تهيا ؛';
+
+    // Corpus: ContributionType OR SubHead
+    if (ct.includes('corpus') || shL.includes('corpus'))
+      return 'ما وصول تهيا ؛ "CORPUS FUND"';
+
+    // Named SubHead map (e.g. 'Sabeel Regular' already caught above, kept for others)
+    if (FUND_URDU_MAP[sh]) return FUND_URDU_MAP[sh];
+
+    // Voluntary: ContributionType OR MainHead (last resort)
+    const mh = (r?.MainHead || r?.mainHead || r?.HubMainHead || '').toLowerCase();
+    if (ct.includes('voluntary') || mh.includes('voluntary'))
+      return 'طريقسس وصول تهيا ؛ "VOLUNTARY CONTRIBUTION"';
+
+    return sh;
+  },
+  cashMemoLabel:  r => (r?.IsCashMemo || r?.isCashMemo) ? 'CASH MEMO' : '',
+  receivedFrom:   r => r?.ReceivedFrom || '',
+  createdBy:      r => r?.Createdby    || '',
+};
 
 function normalizeArray(v) {
   if (!v) return [];
@@ -243,7 +309,7 @@ function AutoFit({ label, value, style, containerW, containerH, multiLine = fals
 }
 
 // ── Live canvas element ────────────────────────────────────────────────────────
-function LiveElement({ el, member, subHead, forYear, history, histLoading, razaData }) {
+function LiveElement({ el, member, subHead, forYear, history, histLoading, razaData, receiptData, receiptItems }) {
   const ts = {
     fontSize:   el.fontSize  || 13,
     fontFamily: el.fontFamily || 'Arial',
@@ -365,6 +431,65 @@ function LiveElement({ el, member, subHead, forYear, history, histLoading, razaD
     );
   }
 
+  // Receipt field
+  if (el.type === 'receiptField') {
+    const value = RECEIPT_FIELD_MAP[el.field]?.(receiptData) || '';
+    // Don't render placeholder when both label and value are empty (e.g. cashMemoLabel on non-cash-memo)
+    if (!value && !el.label) return <div style={{ ...containerStyle, overflow: 'hidden' }} />;
+    const multiLine = el.field === 'remark' || el.field === 'amountInWords' || el.field === 'fundLabel';
+    return (
+      <div style={containerStyle}>
+        <AutoFit label={el.label} value={value} style={ts} containerW={el.w} containerH={el.h} multiLine={multiLine} />
+      </div>
+    );
+  }
+
+  // Receipt items grid (annexure table)
+  if (el.type === 'receiptItemsGrid') {
+    const items = receiptItems || [];
+    const totalAmt = items.reduce((s, it) => s + Number(it.Amount || it.amount || 0), 0);
+    const fs  = el.fontSize  || 11;
+    const fsh = Math.max(fs - 1, 9);
+    const thStyle = (align = 'left') => ({ border: '1px solid #d1d5db', padding: '2px 5px', background: '#e8e8e8', fontWeight: 600, fontSize: fsh, textAlign: align });
+    const tdStyle = (align = 'left') => ({ border: '1px solid #e5e7eb', padding: '2px 5px', fontSize: fs });
+    return (
+      <div style={{ ...containerStyle, background: el.bgColor || '#fff' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: fs, fontFamily: el.fontFamily || 'Arial' }}>
+          <thead>
+            <tr>
+              <th style={{ ...thStyle('center'), width: '36px' }}>#</th>
+              <th style={thStyle('left')}>Sub Head</th>
+              <th style={{ ...thStyle('center'), width: '70px' }}>Year</th>
+              <th style={{ ...thStyle('right'), width: '100px' }}>Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.length === 0 ? (
+              <tr><td colSpan={4} style={{ padding: 8, textAlign: 'center', fontSize: fsh, color: '#9ca3af' }}>No items</td></tr>
+            ) : items.map((it, i) => (
+              <tr key={i} style={{ background: i % 2 === 1 ? '#fafafa' : '#fff' }}>
+                <td style={{ ...tdStyle('center') }}>{i + 1}</td>
+                <td style={tdStyle('left')}>{it.SubHead || it.HubSubHead || it.subHead || it.hubSubHead || '—'}</td>
+                <td style={{ ...tdStyle('center') }}>{it.ForYear || it.forYear || '—'}</td>
+                <td style={{ ...tdStyle('right') }}>₹{Number(it.Amount || it.amount || 0).toLocaleString('en-IN')}</td>
+              </tr>
+            ))}
+            {items.length > 0 && (
+              <tr style={{ background: '#e8e8e8', fontWeight: 'bold' }}>
+                <td colSpan={3} style={{ border: '1px solid #ccc', padding: '4px 8px', fontStyle: 'italic', fontWeight: 'normal', fontSize: fsh, color: '#555' }}>
+                  {amountInWordsRcp(totalAmt)}
+                </td>
+                <td style={{ border: '1px solid #ccc', padding: '4px 8px', textAlign: 'right' }}>
+                  ₹{totalAmt.toLocaleString('en-IN')}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
   // Field elements
   let value = '';
   if (el.type === 'muminField')   value = MUMIN_FIELD_MAP[el.field]?.(member) || '';
@@ -381,7 +506,7 @@ function LiveElement({ el, member, subHead, forYear, history, histLoading, razaD
 }
 
 // ── Live Canvas ────────────────────────────────────────────────────────────────
-function LiveCanvas({ template, member, subHead, forYear, history, histLoading, razaData }) {
+function LiveCanvas({ template, member, subHead, forYear, history, histLoading, razaData, receiptData, receiptItems }) {
   if (!template) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-400 text-[13px] flex-col gap-2">
@@ -417,6 +542,8 @@ function LiveCanvas({ template, member, subHead, forYear, history, histLoading, 
           history={history}
           histLoading={histLoading}
           razaData={razaData}
+          receiptData={receiptData}
+          receiptItems={receiptItems}
         />
       ))}
     </div>
@@ -443,6 +570,10 @@ export default function TakhmeenFormPage() {
   const [razaData,       setRazaData]       = useState(null);
   const [serialNoInput,  setSerialNoInput]  = useState('');
   const [razaSearching,  setRazaSearching]  = useState(false);
+  const [receiptData,    setReceiptData]    = useState(null);
+  const [receiptItems,   setReceiptItems]   = useState([]);
+  const [txIdInput,      setTxIdInput]      = useState('');
+  const [txLoading,      setTxLoading]      = useState(false);
 
   // Load templates from DB + auto-select by templateId or subhead param
   useEffect(() => {
@@ -470,15 +601,17 @@ export default function TakhmeenFormPage() {
       .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-fill from URL params (accno + subhead) — runs once on mount
+  // Auto-fill from URL params (accno + subhead + transactionId) — runs once on mount
   useEffect(() => {
     const accno    = searchParams.get('accno');
     const sh       = searchParams.get('subhead');
     const fy       = searchParams.get('forYear');
     const serialNo = searchParams.get('serialNo');
+    const txId     = searchParams.get('transactionId');
     if (sh)       setSubHead(sh);
     if (fy)       setForYear(fy);
     if (serialNo) { setSerialNoInput(serialNo); searchRaza(serialNo); }
+    if (txId)     { setTxIdInput(txId); loadTransaction(txId); }
     if (accno)    { setAccNoInput(accno); searchMember(accno); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -558,6 +691,34 @@ export default function TakhmeenFormPage() {
     }
   }, [serialNoInput]);
 
+  // Load receipt transaction by ID
+  const loadTransaction = useCallback(async (overrideTxId) => {
+    const val = (overrideTxId !== undefined ? String(overrideTxId) : txIdInput).trim();
+    if (!val) return;
+    setTxLoading(true);
+    setReceiptData(null);
+    setReceiptItems([]);
+    try {
+      const [hdrRes, itemRes] = await Promise.all([
+        receiptService.loadTransactionDetails({ ID: val }),
+        receiptService.loadTransactionItemDetails({ TransID: val }),
+      ]);
+      const hdrs  = normalizeArray(hdrRes?.data);
+      const items = normalizeArray(itemRes?.data);
+      if (hdrs.length) {
+        const totalAmt = items.reduce((s, it) => s + Number(it.Amount || it.amount || 0), 0);
+        setReceiptData({ ...hdrs[0], Amount: totalAmt || Number(hdrs[0].Amount || hdrs[0].amount || 0) });
+      } else {
+        toast.error('Receipt not found');
+      }
+      setReceiptItems(items);
+    } catch {
+      toast.error('Failed to load receipt');
+    } finally {
+      setTxLoading(false);
+    }
+  }, [txIdInput]);
+
   // Load history when member + subHead set
   useEffect(() => {
     if (!member?.accno || !subHead) { setHistory([]); return; }
@@ -585,9 +746,10 @@ export default function TakhmeenFormPage() {
 
   useEffect(() => {
     if (isAdmin || autoPrinted.current || !activeTemplate) return;
+    if (searchParams.get('transactionId') && !receiptData) return;
     const t = setTimeout(() => { autoPrinted.current = true; window.print(); }, 600);
     return () => clearTimeout(t);
-  }, [isAdmin, activeTemplate, member]);
+  }, [isAdmin, activeTemplate, member, receiptData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handlePrint() {
     if (!activeTemplate) { toast.error('Select a template first'); return; }
@@ -626,7 +788,7 @@ export default function TakhmeenFormPage() {
               WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact',
             }}>
               {(activeTemplate.elements || []).map(el => (
-                <LiveElement key={el.id} el={el} member={member} subHead={subHead} forYear={forYear} history={history} histLoading={false} razaData={razaData} />
+                <LiveElement key={el.id} el={el} member={member} subHead={subHead} forYear={forYear} history={history} histLoading={false} razaData={razaData} receiptData={receiptData} receiptItems={receiptItems} />
               ))}
             </div>
           );
@@ -729,6 +891,33 @@ export default function TakhmeenFormPage() {
                   {razaData.EventDate && <span className="text-gray-400 ml-2">· {fmtDate(razaData.EventDate)}</span>}
                 </div>
               )}
+
+              {/* Transaction ID (for receipt printing) */}
+              <div className="flex gap-2 items-end flex-shrink-0">
+                <div>
+                  <label className="form-label">Transaction ID</label>
+                  <input
+                    className="form-input w-28"
+                    placeholder="e.g. 12345"
+                    value={txIdInput}
+                    onChange={e => setTxIdInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && loadTransaction()}
+                  />
+                </div>
+                <button onClick={() => loadTransaction()} disabled={txLoading}
+                  className="btn btn-secondary btn-sm mb-[1px]">
+                  {txLoading ? '…' : 'Load'}
+                </button>
+              </div>
+
+              {/* Receipt info badge */}
+              {receiptData && (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg px-3 py-1.5 text-[12px] flex-shrink-0">
+                  <span className="font-semibold text-purple-800">Receipt #{receiptData.ReceiptNo || receiptData.receiptNo || '—'}</span>
+                  {receiptData.Mode && <span className="text-gray-500 ml-2">{receiptData.Mode}</span>}
+                  {receiptItems.length > 0 && <span className="text-gray-400 ml-2">· {receiptItems.length} item{receiptItems.length > 1 ? 's' : ''}</span>}
+                </div>
+              )}
             </div>
           </div>
         </div>}
@@ -744,6 +933,8 @@ export default function TakhmeenFormPage() {
             history={history}
             histLoading={histLoading}
             razaData={razaData}
+            receiptData={receiptData}
+            receiptItems={receiptItems}
           />
         </div>
       </div>

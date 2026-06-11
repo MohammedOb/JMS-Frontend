@@ -81,6 +81,25 @@ const RAZA_FIELDS = [
   { field: 'address',     label: 'Address'      },
 ];
 
+// ── Receipt Fields (from transactions table) ────────────────────────────────
+const RECEIPT_FIELDS = [
+  { field: 'receiptNo',     label: 'Receipt No'        },
+  { field: 'date',          label: 'Received Date'     },
+  { field: 'mode',          label: 'Payment Mode'      },
+  { field: 'refNo',         label: 'Ref / Cheque No'   },
+  { field: 'remark',        label: 'Remark'            },
+  { field: 'amount',        label: 'Amount'            },
+  { field: 'amountInWords', label: 'Amount in Words'   },
+  { field: 'mainHead',      label: 'Main Head'         },
+  { field: 'subHead',       label: 'Sub Head'          },
+  { field: 'accno',         label: 'Acc No'            },
+  { field: 'status',        label: 'Status'            },
+  { field: 'fundLabel',     label: 'Fund Label (Auto)' },
+  { field: 'cashMemoLabel',  label: 'Cash Memo Badge'           },
+  { field: 'receivedFrom',   label: 'Received From (Name)'      },
+  { field: 'createdBy',      label: 'Received By (Collector)'   },
+];
+
 const HISTORY_COLS = [
   { key: 'forYear',   label: 'Year'      },
   { key: 'takhmeen',  label: 'Takhmeen'  },
@@ -94,6 +113,138 @@ const DEFAULT_COLS = ['forYear', 'takhmeen', 'grade', 'received'];
 
 // Legacy localStorage key — used only for one-time migration
 const LEGACY_STORAGE_KEY = 'takhmeen_form_templates';
+
+// ── Default Receipt Templates ────────────────────────────────────────────────
+function makeDefaultReceiptTemplates() {
+  const TNR  = 'Times New Roman';
+  const KANZ = 'Al-KANZ';
+
+  // ── A4 Portrait (794×1123): receipt slip top-half + annexure bottom-half ──
+  const a4Elements = [
+    // Receipt slip outer border
+    { id:'rs_box',      type:'box',          x:10,  y:10,  w:774, h:516, borderWidth:2,   borderColor:'#000000', bgColor:'' },
+    // Header
+    { id:'rs_h1',       type:'label',        x:16,  y:16,  w:762, h:27,  text:'SHIA DAWOODI BOHRA JAMAAT MASJID & DARUL EMARAT, SAGWARA', fontSize:13, fontFamily:TNR, bold:true, align:'center', fontColor:'#000000', bgColor:'' },
+    { id:'rs_h2',       type:'label',        x:16,  y:43,  w:762, h:19,  text:'Waqf Reg. No. 21 (Dungarpur)', fontSize:12, fontFamily:TNR, align:'center', fontColor:'#000000', bgColor:'' },
+    { id:'rs_h3',       type:'label',        x:16,  y:62,  w:762, h:19,  text:'Managed by : Anjuman-e-Saifee Jamaat, Sagwara', fontSize:12, fontFamily:TNR, align:'center', fontColor:'#000000', bgColor:'' },
+    { id:'rs_hline',    type:'line',         x:10,  y:83,  w:774, h:4,   orientation:'h', lineColor:'#000000', lineWidth:1.5, lineStyle:'solid' },
+    // Row 1: receipt no (right) | cash memo badge (centre) | date (left)
+    { id:'rs_rno_l',    type:'label',        x:524, y:90,  w:120, h:26,  text:'رسید نمبر :', fontSize:15, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'rs_rno_v',    type:'receiptField', field:'receiptNo',     label:'', x:648, y:90,  w:130, h:26, fontSize:14, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    { id:'rs_cm',       type:'receiptField', field:'cashMemoLabel', label:'', x:290, y:90,  w:160, h:26, fontSize:14, fontFamily:'Arial', bold:true, align:'center', fontColor:'#dc2626', bgColor:'' },
+    { id:'rs_dt_l',     type:'label',        x:18,  y:90,  w:90,  h:26,  text:'تاریخ :', fontSize:15, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'rs_dt_v',     type:'receiptField', field:'date',          label:'', x:112, y:90,  w:160, h:26, fontSize:14, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Row 2: Name
+    { id:'rs_nm_l',     type:'label',        x:660, y:124, w:122, h:27,  text:'نام :', fontSize:16, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'rs_nm_hon',   type:'label',        x:478, y:124, w:178, h:27,  text:'(حفظہ اللہ تعالی)', fontSize:13, fontFamily:KANZ, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'rs_nm_v',     type:'receiptField', field:'receivedFrom',  label:'', x:18,  y:124, w:456, h:27, fontSize:15, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Row 3: ITS No (left) | Acc No (right)
+    { id:'rs_its_l',    type:'label',        x:18,  y:159, w:66,  h:25,  text:'ITS No :', fontSize:13, fontFamily:TNR, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'rs_its_v',    type:'muminField',   field:'itsNo',         label:'', x:88,  y:159, w:160, h:25, fontSize:13, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    { id:'rs_acc_l',    type:'label',        x:556, y:159, w:100, h:25,  text:'سال نمبر :', fontSize:15, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'rs_acc_v',    type:'receiptField', field:'accno',         label:'', x:660, y:159, w:118, h:25, fontSize:14, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Row 4: Address
+    { id:'rs_addr_l',   type:'label',        x:18,  y:191, w:70,  h:25,  text:'Address :', fontSize:13, fontFamily:TNR, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'rs_addr_v',   type:'muminField',   field:'address',       label:'', x:92,  y:191, w:688, h:26, fontSize:13, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Salaam
+    { id:'rs_salaam',   type:'label',        x:190, y:228, w:414, h:36,  text:'بعد السلام الجمیل', fontSize:22, fontFamily:KANZ, align:'center', fontColor:'#000000', bgColor:'' },
+    // Amount row (right→left: label | amount | اکہ | amount-in-words)
+    { id:'rs_amt_l',    type:'label',        x:442, y:276, w:210, h:28,  text:'آپ طرف سی روبیہ :', fontSize:15, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'rs_amt_v',    type:'receiptField', field:'amount',        label:'', x:314, y:276, w:124, h:28, fontSize:15, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    { id:'rs_ankhe',    type:'label',        x:268, y:276, w:42,  h:28,  text:'اکہ', fontSize:14, fontFamily:KANZ, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'rs_amtw',     type:'receiptField', field:'amountInWords', label:'', x:18,  y:276, w:246, h:28, fontSize:12, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Fund label (full text from ContributionType: Urdu + English)
+    { id:'rs_fund',     type:'receiptField', field:'fundLabel',     label:'', x:18,  y:316, w:760, h:30, fontSize:15, fontFamily:KANZ, bold:true, align:'center', fontColor:'#000000', bgColor:'' },
+    // Signature / bottom row
+    { id:'rs_sig_l',    type:'label',        x:376, y:450, w:406, h:22,  text:'(وصول کرنار رقم صحیح عبد سیدنا طع)', fontSize:12, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'rs_recv',     type:'receiptField', field:'createdBy',     label:'', x:540, y:472, w:238, h:22, fontSize:12, fontFamily:TNR, bold:true, align:'center', fontColor:'#000000', bgColor:'' },
+    { id:'rs_sig_line', type:'line',         x:500, y:494, w:278, h:3,   orientation:'h', lineColor:'#000000', lineWidth:1, lineStyle:'solid' },
+    { id:'rs_mode',     type:'receiptField', field:'mode',          label:'', x:18,  y:498, w:180, h:22, fontSize:12, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+
+    // ── Annexure ─────────────────────────────────────────────────────────────
+    { id:'ax_box',      type:'box',          x:10,  y:542, w:774, h:572, borderWidth:1.5, borderColor:'#000000', bgColor:'' },
+    { id:'ax_hdr',      type:'label',        x:10,  y:542, w:774, h:32,  text:'Receipt Details', fontSize:13, fontFamily:TNR, bold:true, align:'center', fontColor:'#000000', bgColor:'#e8e8e8' },
+    { id:'ax_hline',    type:'line',         x:10,  y:574, w:774, h:2,   orientation:'h', lineColor:'#aaaaaa', lineWidth:1, lineStyle:'solid' },
+    // Info row 1: receipt no | date
+    { id:'ax_r1_l1',    type:'label',        x:18,  y:580, w:78,  h:21,  text:'Receipt No:', fontSize:11, fontFamily:TNR, bold:true, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'ax_r1_v1',    type:'receiptField', field:'receiptNo',     label:'', x:98,  y:580, w:120, h:21, fontSize:12, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    { id:'ax_r1_l2',    type:'label',        x:265, y:580, w:100, h:21,  text:'Received Date:', fontSize:11, fontFamily:TNR, bold:true, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'ax_r1_v2',    type:'receiptField', field:'date',          label:'', x:368, y:580, w:140, h:21, fontSize:12, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Info row 2: acc no | full name
+    { id:'ax_r2_l1',    type:'label',        x:18,  y:605, w:58,  h:21,  text:'Acc No:', fontSize:11, fontFamily:TNR, bold:true, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'ax_r2_v1',    type:'receiptField', field:'accno',         label:'', x:78,  y:605, w:120, h:21, fontSize:12, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    { id:'ax_r2_l2',    type:'label',        x:220, y:605, w:76,  h:21,  text:'Full Name:', fontSize:11, fontFamily:TNR, bold:true, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'ax_r2_v2',    type:'receiptField', field:'receivedFrom',  label:'', x:298, y:605, w:488, h:21, fontSize:12, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Info row 3: ITS | mobile | mode
+    { id:'ax_r3_l1',    type:'label',        x:18,  y:630, w:52,  h:21,  text:'ITS No:', fontSize:11, fontFamily:TNR, bold:true, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'ax_r3_v1',    type:'muminField',   field:'itsNo',         label:'', x:72,  y:630, w:130, h:21, fontSize:12, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    { id:'ax_r3_l2',    type:'label',        x:240, y:630, w:56,  h:21,  text:'Mobile:', fontSize:11, fontFamily:TNR, bold:true, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'ax_r3_v2',    type:'muminField',   field:'mobile',        label:'', x:298, y:630, w:150, h:21, fontSize:12, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    { id:'ax_r3_l3',    type:'label',        x:490, y:630, w:48,  h:21,  text:'Mode:', fontSize:11, fontFamily:TNR, bold:true, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'ax_r3_v3',    type:'receiptField', field:'mode',          label:'', x:540, y:630, w:140, h:21, fontSize:12, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Remark
+    { id:'ax_rem_l',    type:'label',        x:18,  y:655, w:58,  h:21,  text:'Remark:', fontSize:11, fontFamily:TNR, bold:true, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'ax_rem_v',    type:'receiptField', field:'remark',        label:'', x:78,  y:655, w:704, h:21, fontSize:12, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    { id:'ax_iline',    type:'line',         x:10,  y:679, w:774, h:2,   orientation:'h', lineColor:'#cccccc', lineWidth:1, lineStyle:'solid' },
+    // Items grid
+    { id:'ax_grid',     type:'receiptItemsGrid', x:10, y:681, w:774, h:428, fontSize:13, fontFamily:TNR, bgColor:'#ffffff' },
+  ];
+
+  // ── A5 Landscape (794×559): receipt slip only (annexure on next page via CSS) ──
+  const a5Elements = [
+    { id:'s5_box',      type:'box',          x:8,   y:8,   w:778, h:543, borderWidth:2,   borderColor:'#000000', bgColor:'' },
+    { id:'s5_h1',       type:'label',        x:14,  y:13,  w:766, h:23,  text:'SHIA DAWOODI BOHRA JAMAAT MASJID & DARUL EMARAT, SAGWARA', fontSize:12, fontFamily:TNR, bold:true, align:'center', fontColor:'#000000', bgColor:'' },
+    { id:'s5_h2',       type:'label',        x:14,  y:36,  w:766, h:18,  text:'Waqf Reg. No. 21 (Dungarpur)   |   Managed by : Anjuman-e-Saifee Jamaat, Sagwara', fontSize:11, fontFamily:TNR, align:'center', fontColor:'#000000', bgColor:'' },
+    { id:'s5_hline',    type:'line',         x:8,   y:57,  w:778, h:3,   orientation:'h', lineColor:'#000000', lineWidth:1.5, lineStyle:'solid' },
+    // Row 1: receipt no | cash memo | date
+    { id:'s5_rno_l',    type:'label',        x:490, y:63,  w:110, h:24,  text:'رسید نمبر :', fontSize:14, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'s5_rno_v',    type:'receiptField', field:'receiptNo',     label:'', x:602, y:63,  w:178, h:24, fontSize:13, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    { id:'s5_cm',       type:'receiptField', field:'cashMemoLabel', label:'', x:278, y:63,  w:160, h:24, fontSize:13, fontFamily:'Arial', bold:true, align:'center', fontColor:'#dc2626', bgColor:'' },
+    { id:'s5_dt_l',     type:'label',        x:14,  y:63,  w:82,  h:24,  text:'تاریخ :', fontSize:14, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'s5_dt_v',     type:'receiptField', field:'date',          label:'', x:98,  y:63,  w:152, h:24, fontSize:13, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Row 2: Name
+    { id:'s5_nm_l',     type:'label',        x:646, y:94,  w:132, h:25,  text:'نام :', fontSize:15, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'s5_nm_hon',   type:'label',        x:460, y:94,  w:182, h:25,  text:'(حفظہ اللہ تعالی)', fontSize:12, fontFamily:KANZ, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'s5_nm_v',     type:'receiptField', field:'receivedFrom',  label:'', x:14,  y:94,  w:442, h:26, fontSize:14, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Row 3: ITS | Acc No
+    { id:'s5_its_l',    type:'label',        x:14,  y:127, w:62,  h:23,  text:'ITS No :', fontSize:12, fontFamily:TNR, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'s5_its_v',    type:'muminField',   field:'itsNo',         label:'', x:78,  y:127, w:150, h:23, fontSize:12, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    { id:'s5_acc_l',    type:'label',        x:536, y:127, w:100, h:23,  text:'سال نمبر :', fontSize:14, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'s5_acc_v',    type:'receiptField', field:'accno',         label:'', x:638, y:127, w:152, h:23, fontSize:13, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Row 4: Address
+    { id:'s5_addr_l',   type:'label',        x:14,  y:156, w:66,  h:23,  text:'Address :', fontSize:12, fontFamily:TNR, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'s5_addr_v',   type:'muminField',   field:'address',       label:'', x:82,  y:156, w:700, h:24, fontSize:12, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Salaam
+    { id:'s5_salaam',   type:'label',        x:200, y:190, w:394, h:32,  text:'بعد السلام الجمیل', fontSize:20, fontFamily:KANZ, align:'center', fontColor:'#000000', bgColor:'' },
+    // Amount row
+    { id:'s5_amt_l',    type:'label',        x:420, y:232, w:214, h:26,  text:'آپ طرف سی روبیہ :', fontSize:14, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'s5_amt_v',    type:'receiptField', field:'amount',        label:'', x:296, y:232, w:120, h:26, fontSize:14, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    { id:'s5_ankhe',    type:'label',        x:252, y:232, w:40,  h:26,  text:'اکہ', fontSize:13, fontFamily:KANZ, align:'left',  fontColor:'#000000', bgColor:'' },
+    { id:'s5_amtw',     type:'receiptField', field:'amountInWords', label:'', x:14,  y:232, w:234, h:26, fontSize:11, fontFamily:TNR, bold:true, align:'left',   fontColor:'#000000', bgColor:'' },
+    // Fund label (full text from ContributionType: Urdu + English)
+    { id:'s5_fund',     type:'receiptField', field:'fundLabel',     label:'', x:14,  y:270, w:770, h:28, fontSize:15, fontFamily:KANZ, bold:true, align:'center', fontColor:'#000000', bgColor:'' },
+    // Bottom row
+    { id:'s5_sig_l',    type:'label',        x:376, y:480, w:406, h:22,  text:'(وصول کرنار رقم صحیح عبد سیدنا طع)', fontSize:11, fontFamily:KANZ, align:'right', fontColor:'#000000', bgColor:'' },
+    { id:'s5_recv',     type:'receiptField', field:'createdBy',     label:'', x:510, y:502, w:268, h:20, fontSize:11, fontFamily:TNR, bold:true, align:'center', fontColor:'#000000', bgColor:'' },
+    { id:'s5_sig_line', type:'line',         x:480, y:522, w:298, h:3,   orientation:'h', lineColor:'#000000', lineWidth:1, lineStyle:'solid' },
+    { id:'s5_mode',     type:'receiptField', field:'mode',          label:'', x:14,  y:526, w:180, h:20, fontSize:11, fontFamily:TNR, align:'left',   fontColor:'#000000', bgColor:'' },
+  ];
+
+  return [
+    {
+      Name: 'Receipt - A4',
+      SubHead: null,
+      IsDefault: 0,
+      TemplateJson: JSON.stringify({ pageSize: 'A4-portrait',  margin: { top:10, right:10, bottom:10, left:10 }, marginUnit:'mm', bgImage:'', elements: a4Elements }),
+    },
+    {
+      Name: 'Receipt - A5',
+      SubHead: null,
+      IsDefault: 0,
+      TemplateJson: JSON.stringify({ pageSize: 'A5-landscape', margin: { top:8,  right:8,  bottom:8,  left:8  }, marginUnit:'mm', bgImage:'', elements: a5Elements }),
+    },
+  ];
+}
 
 // ── DB ↔ Frontend conversion ────────────────────────────────────────────────
 function dbRowToTpl(row) {
@@ -146,8 +297,10 @@ const EL_NAME = {
   label:        ()  => 'Static Label',
   inputLine:    ()  => 'Input Line',
   image:        el  => el?.isBackground ? 'Background Image' : 'Image',
-  razaField:    el => RAZA_FIELDS.find(f => f.field === el?.field)?.label || 'Raza Field',
-  box:          ()  => 'Box / Rectangle',
+  razaField:        el => RAZA_FIELDS.find(f => f.field === el?.field)?.label || 'Raza Field',
+  receiptField:     el => RECEIPT_FIELDS.find(f => f.field === el?.field)?.label || 'Receipt Field',
+  receiptItemsGrid: ()  => 'Receipt Items Grid',
+  box:              ()  => 'Box / Rectangle',
   line:         el  => (el?.orientation || 'h') === 'v' ? 'Vertical Line' : 'Horizontal Line',
 };
 
@@ -173,8 +326,10 @@ function mkEl(type, field) {
   };
   switch (type) {
     case 'muminField':  return { ...base, type, field, label: (MUMIN_FIELDS.find(f => f.field === field)?.label || '') + ':' };
-    case 'razaField':   return { ...base, type, field, label: (RAZA_FIELDS.find(f => f.field === field)?.label || '') + ':' };
-    case 'subHead':     return { ...base, type, label: 'Sub Head:' };
+    case 'razaField':        return { ...base, type, field, label: (RAZA_FIELDS.find(f => f.field === field)?.label || '') + ':' };
+    case 'receiptField':     return { ...base, type, field, label: (RECEIPT_FIELDS.find(f => f.field === field)?.label || '') + ':' };
+    case 'receiptItemsGrid': return { ...base, type, w: 560, h: 200, fontSize: 11, bgColor: '#ffffff' };
+    case 'subHead':          return { ...base, type, label: 'Sub Head:' };
     case 'forYear':     return { ...base, type, label: 'Year:' };
     case 'currentDate': return { ...base, type, label: 'Date:' };
     case 'historyGrid': return { ...base, type, columns: [...DEFAULT_COLS], w: 560, h: 220, rowCount: 5, fontSize: 11, bgColor: '#ffffff' };
@@ -237,7 +392,7 @@ function ResizeHandles({ onHandleDown }) {
 }
 
 // ── Canvas element renderer ────────────────────────────────────────────────────
-function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart }) {
+function DesignerElement({ el, selected, isMultiSelected, onElementMouseDown, onResizeStart }) {
   const ts = {
     fontSize:   el.fontSize  || 13,
     fontFamily: el.fontFamily || 'Arial',
@@ -259,7 +414,7 @@ function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart })
         width:      el.w || 'auto',
         height:     el.h || 'auto',
         background: (el.type === 'image' || el.type === 'line') ? 'transparent' : (el.bgColor || 'transparent'),
-        outline:    locked ? 'none' : (selected ? '2px solid #3b82f6' : (el.type === 'image' && el.isBackground !== false ? '1px dashed rgba(59,130,246,0.15)' : el.type === 'image' ? '1px dashed rgba(59,130,246,0.5)' : '1px dashed rgba(130,130,130,0.4)')),
+        outline:    locked ? 'none' : (selected ? '2px solid #3b82f6' : (isMultiSelected ? '2px dashed #6366f1' : (el.type === 'image' && el.isBackground !== false ? '1px dashed rgba(59,130,246,0.15)' : el.type === 'image' ? '1px dashed rgba(59,130,246,0.5)' : '1px dashed rgba(130,130,130,0.4)'))),
         cursor:     locked ? 'default' : 'move',
         userSelect: 'none',
         overflow:   'hidden',
@@ -268,9 +423,9 @@ function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart })
         boxSizing:  'border-box',
         textAlign:  el.align || 'left',
       }}
-      onMouseDown={e => { if (locked) return; e.stopPropagation(); onSelect(el.id); onMoveStart(e, el.id); }}
+      onMouseDown={e => { if (locked) return; e.stopPropagation(); onElementMouseDown(e, el.id); }}
       onClick={e => { if (!locked) e.stopPropagation(); }}
-      onContextMenu={e => { e.preventDefault(); if (!locked) onSelect(el.id); }}
+      onContextMenu={e => { e.preventDefault(); if (!locked) onElementMouseDown(e, el.id); }}
     >
       {/* Lock badge */}
       {locked && el.type === 'image' && (
@@ -286,7 +441,7 @@ function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart })
       )}
 
       {/* Field-bound elements */}
-      {(el.type === 'muminField' || el.type === 'razaField' || el.type === 'subHead' || el.type === 'forYear') && (
+      {(el.type === 'muminField' || el.type === 'razaField' || el.type === 'receiptField' || el.type === 'subHead' || el.type === 'forYear') && (
         <span style={ts}>
           <span style={{ fontWeight: el.bold ? 700 : 600 }}>{el.label}&nbsp;</span>
           <span style={{ color: '#3b82f6', fontStyle: 'normal' }}>___</span>
@@ -337,6 +492,37 @@ function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart })
         </div>
       )}
 
+      {/* Receipt items grid preview */}
+      {el.type === 'receiptItemsGrid' && (
+        <div style={{ width: '100%', height: '100%', overflow: 'hidden', background: el.bgColor || '#fff' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontFamily: el.fontFamily || 'Arial' }}>
+            <thead>
+              <tr>
+                {['#', 'Sub Head', 'Year', 'Amount'].map((h, i) => (
+                  <th key={h} style={{ border: '1px solid #d1d5db', padding: '2px 4px', background: '#e8e8e8', fontSize: Math.max((el.fontSize || 11) - 1, 9), fontWeight: 600, textAlign: i === 0 || i === 2 ? 'center' : i === 3 ? 'right' : 'left', whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <tr key={i}>
+                  <td style={{ border: '1px solid #e5e7eb', padding: '2px 4px', height: 20, textAlign: 'center', fontSize: el.fontSize || 11, color: '#9ca3af' }}>{i + 1}</td>
+                  <td style={{ border: '1px solid #e5e7eb', padding: '2px 4px', height: 20 }} />
+                  <td style={{ border: '1px solid #e5e7eb', padding: '2px 4px', height: 20 }} />
+                  <td style={{ border: '1px solid #e5e7eb', padding: '2px 4px', height: 20 }} />
+                </tr>
+              ))}
+              <tr>
+                <td colSpan={3} style={{ border: '1px solid #ccc', padding: '2px 4px', background: '#e8e8e8', fontSize: Math.max((el.fontSize || 11) - 1, 9), fontStyle: 'italic', color: '#6b7280' }}>Amount in words…</td>
+                <td style={{ border: '1px solid #ccc', padding: '2px 4px', background: '#e8e8e8', fontWeight: 'bold', textAlign: 'right', fontSize: el.fontSize || 11 }}>₹ —</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {/* Box / Rectangle */}
       {el.type === 'box' && (
         <div style={{
@@ -356,7 +542,7 @@ function DesignerElement({ el, selected, onSelect, onMoveStart, onResizeStart })
         </div>
       )}
 
-      {selected && !locked && (
+      {(selected || isMultiSelected) && !locked && (
         <ResizeHandles onHandleDown={(e, handle) => onResizeStart(e, el.id, handle)} />
       )}
     </div>
@@ -501,7 +687,7 @@ function PropertiesPanel({ el, onChange, onDelete, onCopy }) {
         </div>}
 
         {/* Element-specific: prefix label */}
-        {(el.type === 'muminField' || el.type === 'razaField' || el.type === 'subHead' || el.type === 'forYear' || el.type === 'inputLine') && (
+        {(el.type === 'muminField' || el.type === 'razaField' || el.type === 'receiptField' || el.type === 'subHead' || el.type === 'forYear' || el.type === 'inputLine') && (
           <div>
             <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Prefix Label</div>
             <input className="form-input text-[11px]" value={el.label || ''}
@@ -519,6 +705,20 @@ function PropertiesPanel({ el, onChange, onDelete, onCopy }) {
                 onChange({ ...el, field: e.target.value, label: f ? f.label + ':' : el.label });
               }}>
               {RAZA_FIELDS.map(f => <option key={f.field} value={f.field}>{f.label}</option>)}
+            </select>
+          </div>
+        )}
+
+        {/* Receipt field picker */}
+        {el.type === 'receiptField' && (
+          <div>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 mb-2">Bound Field</div>
+            <select className="form-input text-[11px]" value={el.field || ''}
+              onChange={e => {
+                const f = RECEIPT_FIELDS.find(x => x.field === e.target.value);
+                onChange({ ...el, field: e.target.value, label: f ? f.label + ':' : el.label });
+              }}>
+              {RECEIPT_FIELDS.map(f => <option key={f.field} value={f.field}>{f.label}</option>)}
             </select>
           </div>
         )}
@@ -643,14 +843,17 @@ export default function PrintTemplatesPage() {
   const [selectedEl,   setSelectedEl]   = useState(null);
   const [groupOpen,    setGroupOpen]    = useState({});
   const [loading,      setLoading]      = useState(true);
+  const [multiSel,     setMultiSel]     = useState(new Set()); // Set of selected element IDs
+  const [lassoBox,     setLassoBox]     = useState(null);      // {x1,y1,x2,y2} canvas coords while dragging
   const canvasRef    = useRef(null);
   const dragRef      = useRef(null);
   const fileRef      = useRef(null);
   const fileRefImg   = useRef(null);
   const copiedElRef  = useRef(null);
+  const lassoRef     = useRef(null);
   // Keep a ref to latest templates + activeId for use inside drag closures
-  const stateRef    = useRef({ templates, activeId, selectedEl });
-  useEffect(() => { stateRef.current = { templates, activeId, selectedEl }; }, [templates, activeId, selectedEl]);
+  const stateRef    = useRef({ templates, activeId, selectedEl, multiSel });
+  useEffect(() => { stateRef.current = { templates, activeId, selectedEl, multiSel }; }, [templates, activeId, selectedEl, multiSel]);
 
   // ── Load templates from DB on mount ─────────────────────────────────────────
   useEffect(() => {
@@ -711,6 +914,39 @@ export default function PrintTemplatesPage() {
   const margin   = { ...DEFAULT_MARGIN, ...(activeTemplate?.margin || {}) };
 
   // ── Template CRUD ────────────────────────────────────────────────────────────
+  async function seedReceiptTemplates() {
+    const defaults = makeDefaultReceiptTemplates();
+    try {
+      let touched = 0;
+      const updatedIds = [];
+      for (const payload of defaults) {
+        const existing = templates.find(t => t.name === payload.Name);
+        if (existing) {
+          // Update the existing template with the fresh layout
+          await takhmeenService.updateFormTemplate({ ...tplToDbPayload(existing), TemplateJson: payload.TemplateJson });
+          let config = {};
+          try { config = JSON.parse(payload.TemplateJson || '{}'); } catch {}
+          patchTpl(existing.id, config);
+          updatedIds.push(existing.id);
+          touched++;
+        } else {
+          const res = await takhmeenService.addFormTemplate(payload);
+          const newId = res?.data?.insertId ?? res?.insertId;
+          if (!newId) continue;
+          let config = {};
+          try { config = JSON.parse(payload.TemplateJson || '{}'); } catch {}
+          setTemplates(prev => [...prev, { id: newId, name: payload.Name, subHead: '', isDefault: false, ...config }]);
+          updatedIds.push(newId);
+          touched++;
+        }
+      }
+      if (updatedIds.length) setActiveId(updatedIds[0]);
+      toast.success(`Receipt templates ${touched > 0 ? 'updated' : 'ready'} (${touched})`);
+    } catch {
+      toast.error('Failed to update receipt templates');
+    }
+  }
+
   async function createTpl() {
     const name = prompt('Template name:');
     if (!name?.trim()) return;
@@ -771,6 +1007,86 @@ export default function PrintTemplatesPage() {
     setSelectedEl(null);
   }
 
+  // ── Element mouse-down: handles ctrl+click toggle and regular click/drag ──────
+  function onElementMouseDown(e, elId) {
+    if (e.ctrlKey || e.metaKey) {
+      // Toggle in multi-select, no drag
+      setMultiSel(prev => {
+        const next = new Set(prev);
+        if (next.has(elId)) next.delete(elId); else next.add(elId);
+        return next;
+      });
+      setSelectedEl(elId);
+      return;
+    }
+    const { multiSel: mSel } = stateRef.current;
+    const isInMulti = mSel.size > 1 && mSel.has(elId);
+    setSelectedEl(elId);
+    if (!isInMulti) setMultiSel(new Set([elId]));
+    startDrag(e, elId, 'move');
+  }
+
+  // ── Rubber-band lasso selection ───────────────────────────────────────────────
+  function startLasso(e) {
+    if (e.button !== 0 || e.target !== canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const { templates: tpls, activeId: aid } = stateRef.current;
+    const ps = PAGE_SIZES[tpls.find(t => t.id === aid)?.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
+    const scale = ps.w / rect.width;
+    const x0 = (e.clientX - rect.left) * scale;
+    const y0 = (e.clientY - rect.top) * scale;
+    lassoRef.current = { x0, y0 };
+    setLassoBox({ x1: x0, y1: y0, x2: x0, y2: y0 });
+
+    const onMove = ev => {
+      if (!lassoRef.current) return;
+      const r = canvasRef.current?.getBoundingClientRect();
+      if (!r) return;
+      setLassoBox({ x1: x0, y1: y0, x2: (ev.clientX - r.left) * scale, y2: (ev.clientY - r.top) * scale });
+    };
+    const onUp = ev => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      if (!lassoRef.current) return;
+      lassoRef.current = null;
+      setLassoBox(null);
+      const r = canvasRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const x1 = (ev.clientX - r.left) * scale;
+      const y1 = (ev.clientY - r.top) * scale;
+      const dist = Math.abs(x1 - x0) + Math.abs(y1 - y0);
+      if (dist < 8) {
+        if (!ev.ctrlKey && !ev.metaKey) { setSelectedEl(null); setMultiSel(new Set()); }
+        return;
+      }
+      const { templates: tpls2, activeId: aid2 } = stateRef.current;
+      const tpl = tpls2.find(t => t.id === aid2);
+      if (!tpl) return;
+      const minX = Math.min(x0, x1), maxX = Math.max(x0, x1);
+      const minY = Math.min(y0, y1), maxY = Math.max(y0, y1);
+      const inside = tpl.elements.filter(el => {
+        const cx = el.x + (el.w || 0) / 2;
+        const cy = el.y + (el.h || 0) / 2;
+        return cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
+      });
+      if (inside.length) {
+        const ids = new Set(inside.map(el => el.id));
+        if (ev.ctrlKey || ev.metaKey) {
+          setMultiSel(prev => new Set([...prev, ...ids]));
+        } else {
+          setMultiSel(ids);
+        }
+        setSelectedEl(inside[inside.length - 1].id);
+      } else if (!ev.ctrlKey && !ev.metaKey) {
+        setMultiSel(new Set());
+        setSelectedEl(null);
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  }
+
   // ── Unified drag (move + resize) ─────────────────────────────────────────────
   const startDrag = useCallback((e, elId, mode, handle = null) => {
     e.preventDefault();
@@ -778,16 +1094,27 @@ export default function PrintTemplatesPage() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect  = canvas.getBoundingClientRect();
-    const { templates: tpls, activeId: aid } = stateRef.current;
+    const { templates: tpls, activeId: aid, multiSel: mSel } = stateRef.current;
     const ps   = PAGE_SIZES[tpls.find(t => t.id === aid)?.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
     const scale = ps.w / rect.width;
     const el   = tpls.find(t => t.id === aid)?.elements.find(x => x.id === elId);
     if (!el) return;
 
+    // Determine which elements to move (multi-move if applicable)
+    const isMultiMove = mode === 'move' && mSel.size > 1 && mSel.has(elId);
+    const movedIds = isMultiMove ? [...mSel] : [elId];
+    // Capture original positions for all moved elements
+    const origPositions = {};
+    for (const mid of movedIds) {
+      const me = tpls.find(t => t.id === aid)?.elements.find(x => x.id === mid);
+      if (me) origPositions[mid] = { x: me.x, y: me.y };
+    }
+
     dragRef.current = {
       mode, elId, handle, scale,
       startX: e.clientX, startY: e.clientY,
       origX: el.x, origY: el.y, origW: el.w || 200, origH: el.h || 32,
+      movedIds, origPositions,
     };
 
     const onMove = ev => {
@@ -801,10 +1128,13 @@ export default function PrintTemplatesPage() {
         return {
           ...t,
           elements: t.elements.map(e => {
-            if (e.id !== d.elId) return e;
             if (d.mode === 'move') {
-              return { ...e, x: Math.max(0, Math.round(d.origX + dx)), y: Math.max(0, Math.round(d.origY + dy)) };
+              if (!d.movedIds.includes(e.id)) return e;
+              const orig = d.origPositions[e.id];
+              if (!orig) return e;
+              return { ...e, x: Math.max(0, Math.round(orig.x + dx)), y: Math.max(0, Math.round(orig.y + dy)) };
             }
+            if (e.id !== d.elId) return e;
             return { ...e, ...applyResize({ x: d.origX, y: d.origY, w: d.origW, h: d.origH }, d.handle, dx, dy) };
           }),
         };
@@ -821,7 +1151,7 @@ export default function PrintTemplatesPage() {
     window.addEventListener('mouseup', onUp);
   }, []);
 
-  // ── Ctrl+C / Ctrl+V — fresh closure so selectedEl/templates are never stale ───
+  // ── Ctrl+C / Ctrl+V — use stateRef so closure is never stale ───────────────
   useEffect(() => {
     function onCopyPaste(e) {
       if (!e.ctrlKey && !e.metaKey) return;
@@ -830,29 +1160,33 @@ export default function PrintTemplatesPage() {
       const key = e.key.toLowerCase();
 
       if (key === 'c') {
-        if (!selectedEl || !activeId) return;
-        const el = templates.find(t => String(t.id) === String(activeId))
-                            ?.elements.find(x => x.id === selectedEl);
-        if (!el) return;
+        const { templates: tpls, activeId: aid, multiSel: mSel, selectedEl: sel } = stateRef.current;
+        const srcIds = mSel.size > 0 ? [...mSel] : (sel ? [sel] : []);
+        if (!srcIds.length || !aid) return;
+        const els = tpls.find(t => String(t.id) === String(aid))?.elements.filter(e => srcIds.includes(e.id)) || [];
+        if (!els.length) return;
         e.preventDefault();
-        copiedElRef.current = el;
-        toast.success('Copied', { id: 'cp', duration: 900 });
+        copiedElRef.current = els;
+        toast.success(`Copied ${els.length} element${els.length > 1 ? 's' : ''}`, { id: 'cp', duration: 900 });
       }
 
       if (key === 'v') {
         const src = copiedElRef.current;
-        if (!src || !activeId) return;
+        const list = Array.isArray(src) ? src : (src ? [src] : []);
+        if (!list.length || !activeId) return;
         e.preventDefault();
-        const pasted = { ...src, id: newId(), x: (src.x || 0) + 15, y: (src.y || 0) + 15 };
+        const pasted = list.map(el => ({ ...el, id: newId(), x: (el.x || 0) + 15, y: (el.y || 0) + 15 }));
         setTemplates(prev => prev.map(t =>
-          String(t.id) !== String(activeId) ? t : { ...t, elements: [...t.elements, pasted] }
+          String(t.id) !== String(activeId) ? t : { ...t, elements: [...t.elements, ...pasted] }
         ));
-        setSelectedEl(pasted.id);
+        const newIds = new Set(pasted.map(el => el.id));
+        setMultiSel(newIds);
+        setSelectedEl(pasted[pasted.length - 1].id);
       }
     }
     window.addEventListener('keydown', onCopyPaste);
     return () => window.removeEventListener('keydown', onCopyPaste);
-  }, [templates, activeId, selectedEl]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Arrow keys + Delete (stateRef is fine here — no element lookup needed) ───
   useEffect(() => {
@@ -860,26 +1194,31 @@ export default function PrintTemplatesPage() {
     function onKeyDown(e) {
       const tag = document.activeElement?.tagName;
       const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-      const { selectedEl: selId, activeId: aid } = stateRef.current;
+      const { selectedEl: sel, activeId: aid, multiSel: mSel } = stateRef.current;
 
       if ((e.key === 'Delete' || e.key === 'Backspace') && !inInput) {
-        if (!selId || !aid) return;
+        const toDelete = mSel.size > 0 ? [...mSel] : (sel ? [sel] : []);
+        if (!toDelete.length || !aid) return;
         e.preventDefault();
         setTemplates(prev => prev.map(t =>
-          t.id !== aid ? t : { ...t, elements: t.elements.filter(el => el.id !== selId) }
+          t.id !== aid ? t : { ...t, elements: t.elements.filter(el => !toDelete.includes(el.id)) }
         ));
+        setMultiSel(new Set());
         setSelectedEl(null);
         return;
       }
 
-      if (!ARROWS[e.key] || inInput || !selId || !aid) return;
+      const { selectedEl: sel2, activeId: aid2, multiSel: mSel2 } = stateRef.current;
+      const toMove = mSel2.size > 0 ? [...mSel2] : (sel2 ? [sel2] : []);
+      if (!ARROWS[e.key] || inInput) return;
+      if (!toMove.length || !aid2) return;
       e.preventDefault();
       const step = e.shiftKey ? 10 : 1;
       const [dx, dy] = ARROWS[e.key].map(v => v * step);
       setTemplates(prev => prev.map(t => {
-        if (t.id !== aid) return t;
+        if (t.id !== aid2) return t;
         return { ...t, elements: t.elements.map(el =>
-          el.id !== selId ? el : { ...el, x: Math.max(0, el.x + dx), y: Math.max(0, el.y + dy) }
+          !toMove.includes(el.id) ? el : { ...el, x: Math.max(0, el.x + dx), y: Math.max(0, el.y + dy) }
         )};
       }));
     }
@@ -945,7 +1284,7 @@ export default function PrintTemplatesPage() {
         <div>
           <h1 className="text-title text-navy-900">Design Templates</h1>
           <p className="text-[12px] text-gray-500 mt-0.5">
-            Create and design printable form layouts — drag to move, drag handles to resize.
+            Create and design printable form layouts — Drag to move · Resize handles · Ctrl+click or drag canvas to multi-select · Ctrl+C/V to copy/paste across templates.
           </p>
         </div>
         {activeTemplate && (
@@ -965,13 +1304,16 @@ export default function PrintTemplatesPage() {
           <div className="card flex-shrink-0">
             <div className="card-header py-2 flex items-center justify-between">
               <span className="text-[12px] font-semibold">Templates</span>
-              <button onClick={createTpl} className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold">+ New</button>
+              <div className="flex items-center gap-2">
+                <button onClick={seedReceiptTemplates} title="Add default Receipt - A4 and Receipt - A5 templates" className="text-[10px] text-purple-600 hover:text-purple-800 font-semibold whitespace-nowrap">+ Receipt</button>
+                <button onClick={createTpl} className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold">+ New</button>
+              </div>
             </div>
             <div className="divide-y divide-border max-h-36 overflow-y-auto">
               {!templates.length && <div className="px-3 py-2 text-[11px] text-gray-400">No templates yet</div>}
               {templates.map(t => (
                 <div key={t.id}
-                  onClick={() => { setActiveId(t.id); setSelectedEl(null); }}
+                  onClick={() => { setActiveId(t.id); setSelectedEl(null); setMultiSel(new Set()); }}
                   className={`flex items-center gap-1 px-3 py-2 cursor-pointer text-[12px] transition-colors ${activeId === t.id ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-50 text-gray-700'}`}>
                   {t.isDefault && <span title="Default for this SubHead" className="text-yellow-500 text-[10px] flex-shrink-0">★</span>}
                   <span className="flex-1 truncate">{t.name}</span>
@@ -1109,6 +1451,28 @@ export default function PrintTemplatesPage() {
                   </div>
                 )}
 
+                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Receipt Fields</div>
+                <button
+                  onClick={() => setGroupOpen(p => ({ ...p, __receipt__: !p.__receipt__ }))}
+                  className="w-full flex items-center justify-between text-[11px] px-2 py-0.5 text-gray-500 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors">
+                  <span className="font-medium">Receipt Details</span>
+                  <span className="text-[9px]">{groupOpen.__receipt__ ? '▾' : '▸'}</span>
+                </button>
+                {groupOpen.__receipt__ && (
+                  <div className="ml-3 border-l border-blue-100 pl-1 space-y-0.5">
+                    {RECEIPT_FIELDS.map(f => (
+                      <button key={f.field} onClick={() => addEl('receiptField', f.field)}
+                        className="w-full text-left text-[11px] px-2 py-0.5 rounded hover:bg-blue-50 text-gray-600 hover:text-blue-700">
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button onClick={() => addEl('receiptItemsGrid')}
+                  className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
+                  Receipt Items Grid
+                </button>
+
                 <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Shapes & Layout</div>
                 <button onClick={() => addEl('box')}
                   className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
@@ -1195,7 +1559,8 @@ export default function PrintTemplatesPage() {
           ) : (
             <div
               ref={canvasRef}
-              onClick={() => setSelectedEl(null)}
+              onMouseDown={startLasso}
+              onClick={e => { if (!lassoRef.current) { setSelectedEl(null); setMultiSel(new Set()); } }}
               onContextMenu={e => e.preventDefault()}
               style={{
                 position:   'relative',
@@ -1220,11 +1585,24 @@ export default function PrintTemplatesPage() {
                   key={el.id}
                   el={el}
                   selected={selectedEl === el.id}
-                  onSelect={setSelectedEl}
-                  onMoveStart={(e, id) => startDrag(e, id, 'move')}
+                  isMultiSelected={multiSel.has(el.id)}
+                  onElementMouseDown={onElementMouseDown}
                   onResizeStart={(e, id, handle) => startDrag(e, id, 'resize', handle)}
                 />
               ))}
+
+              {/* Lasso selection overlay */}
+              {lassoBox && (() => {
+                const lx = Math.min(lassoBox.x1, lassoBox.x2);
+                const ly = Math.min(lassoBox.y1, lassoBox.y2);
+                const lw = Math.abs(lassoBox.x2 - lassoBox.x1);
+                const lh = Math.abs(lassoBox.y2 - lassoBox.y1);
+                return (
+                  <div style={{ position: 'absolute', left: lx, top: ly, width: lw, height: lh,
+                    border: '1.5px dashed #3b82f6', background: 'rgba(59,130,246,0.07)',
+                    pointerEvents: 'none', zIndex: 50 }} />
+                );
+              })()}
             </div>
           )}
         </div>
@@ -1236,7 +1614,7 @@ export default function PrintTemplatesPage() {
             el={selEl}
             onChange={updateEl}
             onDelete={() => selEl && deleteEl(selEl.id)}
-            onCopy={() => selEl && (copiedElRef.current = selEl)}
+            onCopy={() => selEl && (copiedElRef.current = [selEl])}
           />
         </div>
 

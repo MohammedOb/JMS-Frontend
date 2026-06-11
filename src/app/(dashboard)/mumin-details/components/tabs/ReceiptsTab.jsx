@@ -4,13 +4,16 @@ import { useState, useEffect, useMemo } from 'react';
 import { EditIcon, PrintIcon } from '@/components/shared/Icons';
 import { StatusBadge } from '@/components/shared/Badge';
 import { fmt, fmtDate, normalizeArray } from '../../utils';
-import { receiptService } from '@/services';
+import { receiptService, takhmeenService } from '@/services';
+import PrintConfigButton, { PrintConfigModal } from '@/components/shared/PrintConfigButton';
 import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 
 export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt, onEditReceipt, onPrintReceipt }) {
   const { can } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const [loading,     setLoading]     = useState(false);
+  const [cfgOpen,     setCfgOpen]     = useState(false);
+  const [printConfig, setPrintConfig] = useState(null);
 
   // Filters
   const [filterHubType, setFilterHubType] = useState('');
@@ -19,6 +22,15 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
   const [showUpdateInfo, setShowUpdateInfo] = useState(false);
+
+  useEffect(() => {
+    takhmeenService.loadPrintButtonConfig('receipt-print')
+      .then(res => {
+        const row = res?.data?.data?.[0];
+        if (row) setPrintConfig({ templateId: row.TemplateId ? String(row.TemplateId) : '', subhead: row.SubHead || '', forYear: row.ForYear || '' });
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (accno) {
@@ -168,6 +180,15 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
           {can('receipts.create') && (
             <button className="btn btn-primary btn-sm whitespace-nowrap" onClick={onAddReceipt}>+ New Receipt</button>
           )}
+          {can('takhmeen.edit') && (
+            <button
+              title="Configure receipt print template"
+              onClick={() => setCfgOpen(true)}
+              className="inline-flex items-center gap-1 px-2 py-1 text-[12px] rounded border border-gray-200 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+            >
+              ⚙ Print Config
+            </button>
+          )}
         </div>
       </div>
       <div className="overflow-x-auto rounded-lg border border-border">
@@ -206,9 +227,16 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
                       </button>
                     )}
                     {can('receipts.edit') && (
-                      <button className="btn btn-secondary btn-sm" onClick={() => onPrintReceipt(r)}>
-                        <PrintIcon className="w-3.5 h-3.5" />
-                      </button>
+                      <PrintConfigButton
+                        buttonId="receipt-print"
+                        accno={accno}
+                        transactionId={r.ID || r.id}
+                        hideGear
+                        configOverride={printConfig}
+                        icon={<PrintIcon className="w-3.5 h-3.5" />}
+                        label=""
+                        className="btn btn-secondary btn-sm"
+                      />
                     )}
                   </td>
                   <td className={`${td} ${isCancelled ? 'text-red-100' : 'text-blue-500'} font-semibold`}>#{r.receiptNo}</td>
@@ -249,6 +277,15 @@ export default function ReceiptsTab({ receipts, setReceipts, accno, onAddReceipt
           </div>
         </div>
       )}
+
+      {/* Print Config Modal (admin only, single instance) */}
+      <PrintConfigModal
+        open={cfgOpen}
+        onClose={() => setCfgOpen(false)}
+        buttonId="receipt-print"
+        savedConfig={printConfig}
+        onSaved={setPrintConfig}
+      />
     </div>
   );
 }

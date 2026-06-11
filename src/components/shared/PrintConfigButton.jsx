@@ -134,7 +134,7 @@ function PrintConfigModal({ open, onClose, buttonId, defaultSubhead, savedConfig
 export { PrintConfigModal };
 
 // ── Main Component ─────────────────────────────────────────────────────────────
-export default function PrintConfigButton({ buttonId, accno, serialNo, defaultSubhead, label, className, icon, hideGear, configOverride }) {
+export default function PrintConfigButton({ buttonId, accno, serialNo, transactionId, defaultSubhead, label, className, icon, hideGear, configOverride }) {
   const { can } = useAuth();
   const showGear = !hideGear && can('takhmeen.edit');
   const [open,   setOpen]   = useState(false);
@@ -166,7 +166,8 @@ export default function PrintConfigButton({ buttonId, accno, serialNo, defaultSu
     params.set('subhead', cfg?.subhead || defaultSubhead || '');
     if (cfg?.templateId) params.set('templateId', cfg.templateId);
     if (cfg?.forYear)    params.set('forYear',    cfg.forYear);
-    if (serialNo)        params.set('serialNo',   serialNo);
+    if (serialNo)        params.set('serialNo',      serialNo);
+    if (transactionId)   params.set('transactionId', transactionId);
     window.open(`/view-template?${params}`, '_blank');
   }
 
