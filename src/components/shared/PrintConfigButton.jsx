@@ -131,18 +131,21 @@ function PrintConfigModal({ open, onClose, buttonId, defaultSubhead, savedConfig
   );
 }
 
+export { PrintConfigModal };
+
 // ── Main Component ─────────────────────────────────────────────────────────────
-export default function PrintConfigButton({ buttonId, accno, serialNo, defaultSubhead, label, className, icon }) {
+export default function PrintConfigButton({ buttonId, accno, serialNo, defaultSubhead, label, className, icon, hideGear, configOverride }) {
   const { can } = useAuth();
-  const showGear = can('takhmeen.edit');
+  const showGear = !hideGear && can('takhmeen.edit');
   const [open,   setOpen]   = useState(false);
   const [config, setConfig] = useState(null);
 
   // Remove stale localStorage key left over from old implementation
   useEffect(() => { localStorage.removeItem('print_button_configs'); }, []);
 
-  // Load saved config from DB on mount so handlePrint uses the correct settings
+  // Only load from DB when no external config is provided
   useEffect(() => {
+    if (configOverride !== undefined) return;
     takhmeenService.loadPrintButtonConfig(buttonId)
       .then(res => {
         const row = res?.data?.data?.[0];
@@ -155,10 +158,10 @@ export default function PrintConfigButton({ buttonId, accno, serialNo, defaultSu
         }
       })
       .catch(() => {});
-  }, [buttonId]);
+  }, [buttonId, configOverride]);
 
   function handlePrint() {
-    const cfg = config;
+    const cfg = configOverride !== undefined ? configOverride : config;
     const params = new URLSearchParams({ accno: accno || '' });
     params.set('subhead', cfg?.subhead || defaultSubhead || '');
     if (cfg?.templateId) params.set('templateId', cfg.templateId);

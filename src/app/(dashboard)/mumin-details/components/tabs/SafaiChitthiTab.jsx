@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { safaiService, takhmeenService } from '@/services';
 import Modal from '@/components/shared/Modal';
 import { EditIcon, PrintIcon, TrashIcon, CheckIcon, RefreshIcon } from '@/components/shared/Icons';
-import PrintConfigButton from '@/components/shared/PrintConfigButton';
+import PrintConfigButton, { PrintConfigModal } from '@/components/shared/PrintConfigButton';
 import AddSafaiChitthiModal  from '../modals/AddSafaiChitthiModal';
 import EditSafaiChitthiModal from '../modals/EditSafaiChitthiModal';
 
@@ -107,10 +107,25 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
   const [deleteTarget,  setDeleteTarget]  = useState(null);
   const [approveTarget, setApproveTarget] = useState(null);
   const [revertTarget,  setRevertTarget]  = useState(null);
+  const [cfgOpen,       setCfgOpen]       = useState(false);
+  const [printConfig,   setPrintConfig]   = useState(null);
   const [allRazafor,    setAllRazafor]    = useState([]);
   const [allPlace,      setAllPlace]      = useState([]);
   const [allTime,       setAllTime]       = useState([]);
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  useEffect(() => {
+    takhmeenService.loadPrintButtonConfig('safai-chitthi-print')
+      .then(res => {
+        const row = res?.data?.data?.[0];
+        if (row) setPrintConfig({
+          templateId: row.TemplateId ? String(row.TemplateId) : '',
+          subhead:    row.SubHead  || '',
+          forYear:    row.ForYear  || '',
+        });
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     Promise.allSettled([
@@ -360,9 +375,20 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
             {[20, 50, 100, 200, 500, 1000, 'All'].map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        {can('members.create.razachitthitab') && (
-          <button className="btn btn-primary btn-sm" onClick={openAdd}>+ Add Raza</button>
-        )}
+        <div className="flex items-center gap-2">
+          {can('takhmeen.edit') && (
+            <button
+              title="Configure print settings"
+              onClick={() => setCfgOpen(true)}
+              className="inline-flex items-center gap-1 px-2 py-1 text-[12px] rounded border border-gray-200 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+            >
+              ⚙ Print Config
+            </button>
+          )}
+          {can('members.create.razachitthitab') && (
+            <button className="btn btn-primary btn-sm" onClick={openAdd}>+ Add Raza</button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-lg overflow-hidden border border-border overflow-x-auto safai-scroll">
@@ -390,6 +416,8 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
                         accno={r.AccNo}
                         serialNo={r.SerialNo}
                         label=""
+                        hideGear
+                        configOverride={printConfig}
                         icon={<PrintIcon className="w-3.5 h-3.5" />}
                         className="w-7 h-7 rounded border border-border bg-white text-gray-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center justify-center text-[12px]"
                       />
@@ -463,6 +491,15 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
           </div>
         </div>
       )}
+
+      {/* Print Config Modal (admin only, single instance) */}
+      <PrintConfigModal
+        open={cfgOpen}
+        onClose={() => setCfgOpen(false)}
+        buttonId="safai-chitthi-print"
+        savedConfig={printConfig}
+        onSaved={setPrintConfig}
+      />
 
       {/* Add Modal */}
       <AddSafaiChitthiModal
