@@ -107,6 +107,20 @@ export default function PublicFormPage({ params }) {
     .map(s => ({ ...s, questions: s.questions.filter(q => !q.PerMember) }))
     .filter(s => s.questions.length > 0);
 
+  // ── Question-level show/hide within a section ──────────────────────────────
+
+  const isQuestionVisible = (q) => {
+    const showIf = q.ConditionalLogic?.showIf;
+    if (!showIf?.questionId || !showIf?.answers?.length) return true;
+    const val = String(answers[showIf.questionId] ?? '');
+    if (!val) return false;
+    const controlQ = allQuestions.find(cq => cq.ID === showIf.questionId);
+    if (controlQ?.QuestionType === 'checkbox') {
+      return showIf.answers.some(a => val.split(',').includes(a));
+    }
+    return showIf.answers.includes(val);
+  };
+
   // ── Eligibility ────────────────────────────────────────────────────────────
 
   const getIneligibilityReason = (m) => {
@@ -504,7 +518,7 @@ export default function PublicFormPage({ params }) {
 
   const goNext = () => {
     for (const q of (currentSharedSection?.questions ?? [])) {
-      if (q.IsRequired && !String(answers[q.ID] ?? '').trim()) {
+      if (q.IsRequired && isQuestionVisible(q) && !String(answers[q.ID] ?? '').trim()) {
         toast.error(`"${q.QuestionText}" is required`); return;
       }
     }
@@ -564,7 +578,7 @@ export default function PublicFormPage({ params }) {
     const visitedIndices = new Set([...sectionHistory, sectionIdx]);
     for (const idx of visitedIndices) {
       for (const q of (sharedSections[idx]?.questions ?? [])) {
-        if (q.IsRequired && !String(answers[q.ID] ?? '').trim()) {
+        if (q.IsRequired && isQuestionVisible(q) && !String(answers[q.ID] ?? '').trim()) {
           toast.error(`"${q.QuestionText}" is required`); return;
         }
       }
@@ -573,7 +587,11 @@ export default function PublicFormPage({ params }) {
     setSubmitting(true);
     try {
       const m     = memberData;
-      const allAnswersArr = allQuestions.map(q => ({ QuestionID: q.ID, AnswerText: answers[q.ID] ?? '' }));
+      // Clear answers for hidden questions before submitting
+      const allAnswersArr = allQuestions.map(q => ({
+        QuestionID: q.ID,
+        AnswerText: isQuestionVisible(q) ? (answers[q.ID] ?? '') : '',
+      }));
 
       let accNo          = m ? (String(m.AccNo || '').trim() || null) : null;
       // For outside members (m=null), seed itsNo from the ITS field the user typed
@@ -728,6 +746,7 @@ export default function PublicFormPage({ params }) {
             submitting={submitting}
             isLastSection={isLastSection}
             memberData={memberData}
+            isQuestionVisible={isQuestionVisible}
             goNext={goNext}
             goBack={goBack}
             submit={submit}

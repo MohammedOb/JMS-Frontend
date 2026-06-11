@@ -19,14 +19,38 @@ export default function QuestionRow({
   question, sectionLocalId, allSections, sectorOptions = [],
   onUpdate, onRemove, onMoveUp, onMoveDown, isFirst, isLast,
 }) {
-  const [showLogic,   setShowLogic]   = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showLogic,       setShowLogic]       = useState(false);
+  const [showFilters,     setShowFilters]     = useState(false);
+  const [showConditional, setShowConditional] = useState(false);
   const isBranching = BRANCHING_TYPES.includes(question.QuestionType);
   const update      = (key, val) => onUpdate({ ...question, [key]: val });
 
-  // ── Option filter helpers ────────────────────────────────────────────────────
+  // ── ConditionalLogic helpers ────────────────────────────────────────────────
   const cl            = question.ConditionalLogic || {};
   const optionFilters = cl.optionFilters || {};
+
+  // ── Show-if helpers ──────────────────────────────────────────────────────────
+  const TRIGGERABLE_TYPES = ['yesno', 'radio', 'select', 'checkbox'];
+  const sectionQs  = (allSections.find(s => s.localId === sectionLocalId)?.questions ?? []);
+  const triggerQs  = sectionQs.filter(q => q._key !== question._key && TRIGGERABLE_TYPES.includes(q.QuestionType));
+  const showIf     = cl.showIf || null;
+  // Look up by _key (session-local) first, fall back to DB questionId for older saved configs
+  const triggerQ   = showIf
+    ? (triggerQs.find(q => q._key === showIf.questionKey) || triggerQs.find(q => q.ID && q.ID === showIf.questionId))
+    : null;
+
+  const getTriggerAnswers = (q) => {
+    if (!q) return [];
+    if (q.QuestionType === 'yesno') return ['Yes', 'No'];
+    return (Array.isArray(q.Options) ? q.Options : []).filter(Boolean);
+  };
+  // Store questionKey (_key) + questionId (DB ID if available) — backend resolves _key → DB ID on save
+  const setShowIf = (qKey, qId, answers) => {
+    const newCl = { ...cl };
+    if (!qKey) { delete newCl.showIf; }
+    else { newCl.showIf = { questionKey: qKey, questionId: qId || null, answers }; }
+    update('ConditionalLogic', Object.keys(newCl).length ? newCl : null);
+  };
   const filterCount   = Object.keys(optionFilters).length;
 
   const getFieldKeyForOpt = (opt) => {
@@ -385,10 +409,21 @@ export default function QuestionRow({
                 : 'text-gray-400 hover:text-gray-600'
             }`}
           >
-            ⚡ Conditional Logic
+            ⚡ Section Logic
             {question.ConditionalLogic?.rules?.length
-              ? ` (${question.ConditionalLogic.rules.length} rule${question.ConditionalLogic.rules.length > 1 ? 's' : ''})`
+              ? ` (${question.ConditionalLogic.rules.length})`
               : ''}
+          </button>
+        )}
+        {triggerQs.length > 0 && (
+          <button
+            onClick={() => setShowConditional(v => !v)}
+            className={`text-[11px] font-medium flex items-center gap-1 transition-colors ${
+              showIf ? 'text-indigo-600 hover:text-indigo-800' : 'text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            👁 Show only if…
+            {showIf && <span className="bg-indigo-100 text-indigo-700 border border-indigo-200 rounded px-1.5 py-0.5 text-[10px] font-semibold">on</span>}
           </button>
         )}
       </div>
@@ -400,8 +435,60 @@ export default function QuestionRow({
             question={question}
             allSections={allSections}
             currentSectionLocalId={sectionLocalId}
-            onChange={(logic) => update('ConditionalLogic', logic)}
+            onChange={(logic) => update('ConditionalLogic', { ...cl, ...logic })}
           />
+        </div>
+      )}
+
+      {/* ── Show only if panel ────────────────────────────────────────────────── */}
+      {showConditional && (
+        <div className="px-10 py-3 border-t border-indigo-100 bg-indigo-50 space-y-2">
+          <p className="text-[10px] font-semibold text-indigo-600 uppercase tracking-wider">
+            Show this question only when…
+          </p>
+          <div className="flex items-start gap-2 flex-wrap">
+            <select
+              className="form-select h-7 text-[11px] min-w-[200px]"
+              value={triggerQ?._key ?? ''}
+              onChange={e => {
+                const key = e.target.value ? Number(e.target.value) : null;
+                const selectedQ = triggerQs.find(q => q._key === key);
+                setShowIf(key, selectedQ?.ID || null, []);
+              }}
+            >
+              <option value="">— Always show —</option>
+              {triggerQs.map(q => (
+                <option key={q._key} value={q._key}>
+                  {q.QuestionText || 'Untitled'}
+                </option>
+              ))}
+            </select>
+            {triggerQ && (
+              <div className="flex flex-col gap-1">
+                <p className="text-[10px] text-indigo-500 font-medium">Answer is one of:</p>
+                <div className="flex flex-wrap gap-2">
+                  {getTriggerAnswers(triggerQ).map(ans => (
+                    <label key={ans} className="flex items-center gap-1.5 text-[11px] cursor-pointer select-none bg-white border border-indigo-200 rounded px-2 py-1">
+                      <input
+                        type="checkbox"
+                        checked={(showIf?.answers ?? []).includes(ans)}
+                        onChange={e => {
+                          const cur = showIf?.answers ?? [];
+                          const next = e.target.checked ? [...cur, ans] : cur.filter(a => a !== ans);
+                          setShowIf(showIf.questionKey, showIf.questionId, next);
+                        }}
+                        className="accent-indigo-600"
+                      />
+                      {ans}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {!triggerQ && showIf?.questionId && (
+            <p className="text-[10px] text-amber-600">Referenced question not found — it may have been deleted.</p>
+          )}
         </div>
       )}
     </div>

@@ -32,10 +32,21 @@ const parseAnswer = (v, fallback) => {
   try { return JSON.parse(v); } catch { return fallback; }
 };
 
-export default function MemberCellInput({ question, value, onChange, memberData }) {
+export default function MemberCellInput({ question, value, onChange, memberData, memberAnswers = {} }) {
   const opts = parseJson(question.Options, []);
   const minW = MIN_W[question.QuestionType] ?? MIN_W.default;
   const cls  = `${BASE} ${minW}`;
+
+  // Show-if: check if this question should be visible based on another question's answer
+  const showIf = question.ConditionalLogic?.showIf;
+  if (showIf?.questionId && showIf?.answers?.length) {
+    const ctrlVal = String(memberAnswers[showIf.questionId] ?? '');
+    const met = ctrlVal && (showIf.answers.includes(ctrlVal) || showIf.answers.some(a => ctrlVal.split(',').includes(a)));
+    if (!met) {
+      if (value) onChange('');
+      return <span className="text-gray-300 text-[10px] italic">—</span>;
+    }
+  }
 
   // Filter options by per-option profile rules stored in ConditionalLogic.optionFilters
   const optionFilters = question.ConditionalLogic?.optionFilters ?? {};

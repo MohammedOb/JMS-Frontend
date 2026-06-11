@@ -12,6 +12,7 @@ export default function FormStep({
   submitting,
   isLastSection,
   memberData,
+  isQuestionVisible,
   goNext, goBack,
   submit,
 }) {
@@ -58,8 +59,9 @@ export default function FormStep({
 
       {currentSharedSection.questions.length === 0 ? (
         <p className="text-gray-400 text-[13px] text-center py-4">No questions in this section.</p>
-      ) : (
-        currentSharedSection.questions.map((q, i) => (
+      ) : (() => {
+        const visible = currentSharedSection.questions.filter(q => !isQuestionVisible || isQuestionVisible(q));
+        return visible.map((q, i) => (
           <div key={q.ID}>
             <label className="block text-[13px] font-semibold text-gray-800 mb-2">
               {i + 1}. {q.QuestionText}
@@ -72,8 +74,8 @@ export default function FormStep({
               onChange={v => setAnswers(p => ({ ...p, [q.ID]: v }))}
             />
           </div>
-        ))
-      )}
+        ));
+      })()}
 
       <div className="flex gap-3 pt-2">
         <button onClick={goBack}

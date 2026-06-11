@@ -199,6 +199,7 @@ export default function FamilyStep({
                               question={q}
                               value={perMemberAnswers[key]?.[q.ID] ?? ''}
                               memberData={m}
+                              memberAnswers={perMemberAnswers[key] ?? {}}
                               onChange={val => setPerMemberAnswer(key, q.ID, val)}
                             />
                           ) : (
