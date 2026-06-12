@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { memberService, takhmeenService, safaiService, receiptService } from '@/services';
+import { memberService, takhmeenService, safaiService, receiptService, vajebaatService } from '@/services';
 import { useAuth } from '@/context/AuthContext';
 import ComboBox from '@/components/shared/ComboBox';
 import toast from 'react-hot-toast';
@@ -41,6 +41,7 @@ const MUMIN_FIELD_MAP = {
   sabeelRemark:  m => m?.sabeelRemark  || '',
   distributor:   m => m?.distributor   || '',
   tokenNo:       m => m?.tokenNo       || '',
+  tokendate:     m => m?.tokendate     ? fmtDate(m.tokendate) : '',
   fmbRemark:     m => m?.fmbRemark     || '',
   createdDate:   m => m?.createdDate   || '',
   closeYear:     m => m?.closeYear     || '',
@@ -113,7 +114,7 @@ const RECEIPT_FIELD_MAP = {
   receiptNo:     r => r?.ReceiptNo     || r?.receiptNo     || '',
   date:          r => r?.ReceivedDate  ? fmtDate(r.ReceivedDate) : (r?.Date ? fmtDate(r.Date) : ''),
   mode:          r => (r?.IsCashMemo || r?.isCashMemo) ? 'Cash Memo' : (r?.Mode || r?.mode || ''),
-  refNo:         r => r?.RefNo         || r?.Refno         || r?.refNo  || '',
+  refNo:         r => r?.TransactionRefNo || r?.RefNo      || r?.Refno  || r?.refNo || '',
   remark:        r => r?.Remark        || r?.remark        || '',
   amount:        r => r?.Amount        != null ? `₹${Number(r.Amount).toLocaleString('en-IN')}` : '',
   amountInWords: r => r?.Amount        != null ? amountInWordsRcp(Number(r.Amount)) : '',
@@ -185,7 +186,8 @@ function normalizeMember(m = {}) {
     sabeelAmount:  m.SabeelAmt      || m.sabeelAmount  || '',
     sabeelRemark:  m.SabeelRemark   || m.sabeelRemark  || '',
     distributor:   m.DistributorName|| m.distributor   || '',
-    tokenNo:       m.TokenNo        || m.tokenNo       || '',
+    tokenNo:       m.LocalTokenNo   || m.LocalTokenNo  || '',
+    tokendate:     m.LocalTokenDate || m.LocalTokenDate|| '',
     fmbRemark:     m.FMBRemark      || m.fmbRemark     || '',
     createdDate:   m.AccountCreated || m.createdDate   || '',
     closeYear:     m.ThaliCloseYear || m.closeYear     || '',
@@ -309,7 +311,7 @@ function AutoFit({ label, value, style, containerW, containerH, multiLine = fals
 }
 
 // ── Live canvas element ────────────────────────────────────────────────────────
-function LiveElement({ el, member, subHead, forYear, history, histLoading, razaData, receiptData, receiptItems }) {
+function LiveElement({ el, member, subHead, forYear, history, histLoading, razaData, receiptData, receiptItems, silaFitraData }) {
   const ts = {
     fontSize:   el.fontSize  || 13,
     fontFamily: el.fontFamily || 'Arial',
@@ -444,14 +446,44 @@ function LiveElement({ el, member, subHead, forYear, history, histLoading, razaD
     );
   }
 
+  // Sila Fitra individual field
+  if (el.type === 'silafitraField') {
+    const r = silaFitraData?.[0] || null;
+    const sfr = Number(r?.SF || 0);
+    const tot = r ? ['M','B','GB','H','AM'].reduce((s, k) => s + (Number(r[k]) || 0), 0) : 0;
+    const SFMAP = {
+      forYear:         () => r?.ForYear          || '',
+      sfRate:          () => r ? String(sfr)     : '',
+      mardCount:       () => r ? String(Number(r.M  || 0)) : '',
+      mardAmount:      () => r ? String(sfr * Number(r.M  || 0) * 2) : '',
+      bairaCount:      () => r ? String(Number(r.B  || 0)) : '',
+      bairaAmount:     () => r ? String(sfr * Number(r.B  || 0) * 2) : '',
+      gairBaligCount:  () => r ? String(Number(r.GB || 0)) : '',
+      gairBaligAmount: () => r ? String(sfr * Number(r.GB || 0)) : '',
+      hamalCount:      () => r ? String(Number(r.H  || 0)) : '',
+      hamalAmount:     () => r ? String(sfr * Number(r.H  || 0)) : '',
+      amwaatCount:     () => r ? String(Number(r.AM || 0)) : '',
+      amwaatAmount:    () => r ? String(sfr * Number(r.AM || 0)) : '',
+      totalCount:      () => r ? String(tot)     : '',
+      totalAmount:     () => r ? String(sfr * ((Number(r.M||0) + Number(r.B||0)) * 2 + Number(r.GB||0) + Number(r.H||0) + Number(r.AM||0))) : '',
+    };
+    const value = SFMAP[el.field]?.() ?? '';
+    const multiLine = false;
+    return (
+      <div style={containerStyle}>
+        <AutoFit label={el.label} value={value} style={ts} containerW={el.w} containerH={el.h} multiLine={multiLine} />
+      </div>
+    );
+  }
+
   // Receipt items grid (annexure table)
   if (el.type === 'receiptItemsGrid') {
     const items = receiptItems || [];
     const totalAmt = items.reduce((s, it) => s + Number(it.Amount || it.amount || 0), 0);
     const fs  = el.fontSize  || 11;
     const fsh = Math.max(fs - 1, 9);
-    const thStyle = (align = 'left') => ({ border: '1px solid #d1d5db', padding: '2px 5px', background: '#e8e8e8', fontWeight: 600, fontSize: fsh, textAlign: align });
-    const tdStyle = (align = 'left') => ({ border: '1px solid #e5e7eb', padding: '2px 5px', fontSize: fs });
+    const thStyle = (align = 'center') => ({ border: '1px solid #d1d5db', padding: '2px 5px', background: '#e8e8e8', fontWeight: 600, fontSize: fsh, textAlign: align });
+    const tdStyle = (align = 'center') => ({ border: '1px solid #e5e7eb', padding: '2px 5px', fontSize: fs, textAlign: align });
     return (
       <div style={{ ...containerStyle, background: el.bgColor || '#fff' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', fontSize: fs, fontFamily: el.fontFamily || 'Arial' }}>
@@ -460,7 +492,7 @@ function LiveElement({ el, member, subHead, forYear, history, histLoading, razaD
               <th style={{ ...thStyle('center'), width: '36px' }}>#</th>
               <th style={thStyle('left')}>Sub Head</th>
               <th style={{ ...thStyle('center'), width: '70px' }}>Year</th>
-              <th style={{ ...thStyle('right'), width: '100px' }}>Amount</th>
+              <th style={{ ...thStyle('center'), width: '100px' }}>Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -471,7 +503,7 @@ function LiveElement({ el, member, subHead, forYear, history, histLoading, razaD
                 <td style={{ ...tdStyle('center') }}>{i + 1}</td>
                 <td style={tdStyle('left')}>{it.SubHead || it.HubSubHead || it.subHead || it.hubSubHead || '—'}</td>
                 <td style={{ ...tdStyle('center') }}>{it.ForYear || it.forYear || '—'}</td>
-                <td style={{ ...tdStyle('right') }}>₹{Number(it.Amount || it.amount || 0).toLocaleString('en-IN')}</td>
+                <td style={{ ...tdStyle('center') }}>₹{Number(it.Amount || it.amount || 0).toLocaleString('en-IN')}</td>
               </tr>
             ))}
             {items.length > 0 && (
@@ -479,7 +511,7 @@ function LiveElement({ el, member, subHead, forYear, history, histLoading, razaD
                 <td colSpan={3} style={{ border: '1px solid #ccc', padding: '4px 8px', fontStyle: 'italic', fontWeight: 'normal', fontSize: fsh, color: '#555' }}>
                   {amountInWordsRcp(totalAmt)}
                 </td>
-                <td style={{ border: '1px solid #ccc', padding: '4px 8px', textAlign: 'right' }}>
+                <td style={{ border: '1px solid #ccc', padding: '4px 8px', textAlign: 'center' }}>
                   ₹{totalAmt.toLocaleString('en-IN')}
                 </td>
               </tr>
@@ -506,7 +538,7 @@ function LiveElement({ el, member, subHead, forYear, history, histLoading, razaD
 }
 
 // ── Live Canvas ────────────────────────────────────────────────────────────────
-function LiveCanvas({ template, member, subHead, forYear, history, histLoading, razaData, receiptData, receiptItems }) {
+function LiveCanvas({ template, member, subHead, forYear, history, histLoading, razaData, receiptData, receiptItems, silaFitraData }) {
   if (!template) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-400 text-[13px] flex-col gap-2">
@@ -544,6 +576,7 @@ function LiveCanvas({ template, member, subHead, forYear, history, histLoading, 
           razaData={razaData}
           receiptData={receiptData}
           receiptItems={receiptItems}
+          silaFitraData={silaFitraData}
         />
       ))}
     </div>
@@ -574,6 +607,7 @@ export default function TakhmeenFormPage() {
   const [receiptItems,   setReceiptItems]   = useState([]);
   const [txIdInput,      setTxIdInput]      = useState('');
   const [txLoading,      setTxLoading]      = useState(false);
+  const [silaFitraData,  setSilaFitraData]  = useState([]);
 
   // Load templates from DB + auto-select by templateId or subhead param
   useEffect(() => {
@@ -670,6 +704,14 @@ export default function TakhmeenFormPage() {
       })
       .catch(() => {});
   }, [member?.accno, serialNoInput]);
+
+  // Load Sila Fitra details when member changes
+  useEffect(() => {
+    if (!member?.accno) { setSilaFitraData([]); return; }
+    vajebaatService.loadSilaFitra({ AccNo: member.accno })
+      .then(res => setSilaFitraData(normalizeArray(res?.data)))
+      .catch(() => setSilaFitraData([]));
+  }, [member?.accno]);
 
   // Load raza by serial number
   const searchRaza = useCallback(async (overrideSerial) => {
@@ -788,7 +830,7 @@ export default function TakhmeenFormPage() {
               WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact',
             }}>
               {(activeTemplate.elements || []).map(el => (
-                <LiveElement key={el.id} el={el} member={member} subHead={subHead} forYear={forYear} history={history} histLoading={false} razaData={razaData} receiptData={receiptData} receiptItems={receiptItems} />
+                <LiveElement key={el.id} el={el} member={member} subHead={subHead} forYear={forYear} history={history} histLoading={false} razaData={razaData} receiptData={receiptData} receiptItems={receiptItems} silaFitraData={silaFitraData} />
               ))}
             </div>
           );
@@ -935,6 +977,7 @@ export default function TakhmeenFormPage() {
             razaData={razaData}
             receiptData={receiptData}
             receiptItems={receiptItems}
+            silaFitraData={silaFitraData}
           />
         </div>
       </div>

@@ -5,7 +5,15 @@ import { fmt } from '../../../utils';
 
 const BLANK = { forYear: '', sfRate: '', mardo: '', baira: '', gairBalig: '', hamal: '', amwaat: '' };
 const totalM  = (r) => ['mardo','baira','gairBalig','hamal','amwaat'].reduce((s,k) => s + (Number(r[k])||0), 0);
-const calcAmt = (r) => Number(r.sfAmount) || (Number(r.sfRate||0) * totalM(r));
+const calcAmt = (r) => {
+  const rate = Number(r.sfRate || 0);
+  return rate * (
+    (Number(r.mardo || 0) + Number(r.baira || 0)) * 2 +
+    Number(r.gairBalig || 0) +
+    Number(r.hamal || 0) +
+    Number(r.amwaat || 0)
+  );
+};
 const byYearDesc = (a, b) => (parseInt(b.forYear)||0) - (parseInt(a.forYear)||0);
 
 const NUM_FIELDS = [

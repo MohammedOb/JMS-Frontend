@@ -40,6 +40,7 @@ const EXPORT_COLS = [
   { key: 'Subsector',          label: 'Subsector'         },
   { key: 'Amount',             label: 'Amount'            },
   { key: 'Mode',               label: 'Mode'              },
+  { key: 'TransactionRefNo',   label: 'Ref No'            },
   { key: 'HubMainHead',        label: 'Main Head'         },
   { key: 'HubSubHead',         label: 'Sub Head'          },
   { key: 'ForYear',            label: 'For Year'          },
@@ -52,7 +53,7 @@ const EXPORT_COLS = [
 ];
 
 // base columns excluding the two Update columns
-const BASE_COL_COUNT = 17; // Actions + 16 data cols
+const BASE_COL_COUNT = 18; // Actions + 17 data cols
 
 const normalizeArr = (data) => {
   if (!data) return [];
@@ -99,9 +100,10 @@ export default function DailyReportPage() {
   });
 
   // ── Results ──────────────────────────────────────────────────────────────────
-  const [rows,     setRows]     = useState([]);
-  const [loading,  setLoading]  = useState(false);
-  const [searched, setSearched] = useState(false);
+  const [rows,        setRows]        = useState([]);
+  const [loading,     setLoading]     = useState(false);
+  const [searched,    setSearched]    = useState(false);
+  const [quickSearch, setQuickSearch] = useState('');
 
   // ── Pagination ───────────────────────────────────────────────────────────────
   const [pageSize,    setPageSize]    = useState(100);
@@ -242,41 +244,54 @@ export default function DailyReportPage() {
     Mode: '', HubMainHead: '', HubSubHead: '', ForYear: '', Sector: '', Subsector: '',
   });
 
+  // ── Quick text search across all columns (incl. Remark, TransactionRefNo) ───
+  const filteredRows = useMemo(() => {
+    const q = quickSearch.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(r => {
+      const hay = Object.values(r)
+        .map(v => (v == null ? '' : String(v)))
+        .join(' ')
+        .toLowerCase() + ' ' + fmtDate(r.ReceivedDate);
+      return hay.includes(q);
+    });
+  }, [rows, quickSearch]);
+
   // ── Pagination ───────────────────────────────────────────────────────────────
-  const totalPages = pageSize === 'All' ? 1 : Math.ceil(rows.length / pageSize);
+  const totalPages = pageSize === 'All' ? 1 : Math.ceil(filteredRows.length / pageSize);
 
   const pagedRows = useMemo(() => {
-    if (pageSize === 'All') return rows;
+    if (pageSize === 'All') return filteredRows;
     const start = (currentPage - 1) * pageSize;
-    return rows.slice(start, start + pageSize);
-  }, [rows, pageSize, currentPage]);
+    return filteredRows.slice(start, start + pageSize);
+  }, [filteredRows, pageSize, currentPage]);
 
   // ── Summary data ─────────────────────────────────────────────────────────────
   const grandTotal = useMemo(() =>
-    rows.reduce((s, r) => s + (Number(r.Amount) || 0), 0),
-    [rows]
+    filteredRows.reduce((s, r) => s + (Number(r.Amount) || 0), 0),
+    [filteredRows]
   );
 
   const headSummary = useMemo(() => {
     const map = new Map();
-    rows.forEach(r => {
+    filteredRows.forEach(r => {
       const key = `${r.HubSubHead || '—'}|${r.ForYear || '—'}`;
       if (!map.has(key)) map.set(key, { headType: r.HubSubHead || '—', forYear: r.ForYear || '—', total: 0 });
       map.get(key).total += Number(r.Amount) || 0;
     });
     return Array.from(map.values())
       .sort((a, b) => a.headType.localeCompare(b.headType) || String(a.forYear).localeCompare(String(b.forYear)));
-  }, [rows]);
+  }, [filteredRows]);
 
   const modeSummary = useMemo(() => {
     const map = new Map();
-    rows.forEach(r => {
+    filteredRows.forEach(r => {
       const key = r.Mode || 'Unknown';
       if (!map.has(key)) map.set(key, { mode: key, total: 0 });
       map.get(key).total += Number(r.Amount) || 0;
     });
     return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [rows]);
+  }, [filteredRows]);
 
   // ── Edit handlers ─────────────────────────────────────────────────────────────
   const handleEdit = (row) => {
@@ -293,6 +308,8 @@ export default function DailyReportPage() {
       receiptNo:          row.ReceiptNo,
       receivedDate:       row.ReceivedDate,
       mode:               row.Mode || 'Cash',
+      transactionRefNo:   row.TransactionRefNo || '',
+      remark:             row.Remark || '',
       status:             row.Status || 'Clear',
       updateReason:       '',
       RecordUpdateReason: row.RecordUpdateReason || '',
@@ -326,11 +343,12 @@ export default function DailyReportPage() {
         ITSNo:              rcForm.itsNo    || editRow.ITSNo,
         ReceivedDate:       rcForm.receivedDate,
         Mode:               rcForm.mode,
+        TransactionRefNo:   rcForm.transactionRefNo ?? '',
         Status:             rcForm.status,
         RecordUpdateReason: rcForm.updateReason,
         RecordUpdateDate:   new Date().toISOString(),
         ReceivedAmount:     rcForm.items?.reduce((s, it) => s + (Number(it.amount) || 0), 0) ?? rcForm.amount,
-        Remark:             rcForm.items?.[0]?.remark ?? '',
+        Remark:             rcForm.remark ?? rcForm.items?.[0]?.remark ?? '',
       });
       toast.success('Receipt updated');
       setEditModal(false);
@@ -391,6 +409,8 @@ export default function DailyReportPage() {
       },
       date:             row.ReceivedDate || '',
       mode:             isCashMemo ? 'Cash Memo' : (row.Mode || ''),
+      refNo:            row.TransactionRefNo || '',
+      remark:           row.Remark || '',
       createdBy:        row.Createdby   || '',
       contributionType: row.ContributionType || '',
     });
@@ -425,7 +445,7 @@ export default function DailyReportPage() {
 
   const exportCSV = () => {
     const header = EXPORT_COLS.map(c => c.label).join(',');
-    const body   = rows.map(r =>
+    const body   = filteredRows.map(r =>
       EXPORT_COLS.map(c => `"${String(r[c.key] ?? '').replace(/"/g, '""')}"`).join(',')
     );
     download(new Blob([header + '\n' + body.join('\n')], { type: 'text/csv;charset=utf-8;' }), 'receipts.csv');
@@ -436,7 +456,7 @@ export default function DailyReportPage() {
     const { utils, writeFile } = await import('xlsx');
     const ws = utils.aoa_to_sheet([
       EXPORT_COLS.map(c => c.label),
-      ...rows.map(r => EXPORT_COLS.map(c => r[c.key] ?? '')),
+      ...filteredRows.map(r => EXPORT_COLS.map(c => r[c.key] ?? '')),
     ]);
     const wb = utils.book_new();
     utils.book_append_sheet(wb, ws, 'Receipts');
@@ -451,11 +471,11 @@ export default function DailyReportPage() {
     doc.setFontSize(13);
     doc.text('Receipt List', 14, 15);
     doc.setFontSize(9);
-    doc.text(`${rows.length.toLocaleString()} records · ${new Date().toLocaleDateString('en-GB')}`, 14, 21);
+    doc.text(`${filteredRows.length.toLocaleString()} records · ${new Date().toLocaleDateString('en-GB')}`, 14, 21);
     autoTable(doc, {
       startY: 26,
       head:   [EXPORT_COLS.map(c => c.label)],
-      body:   rows.map(r => EXPORT_COLS.map(c => String(r[c.key] ?? '—'))),
+      body:   filteredRows.map(r => EXPORT_COLS.map(c => String(r[c.key] ?? '—'))),
       styles:             { fontSize: 7, cellPadding: 2 },
       headStyles:         { fillColor: [15, 40, 80], textColor: 255, fontStyle: 'bold' },
       alternateRowStyles: { fillColor: [245, 247, 250] },
@@ -465,7 +485,7 @@ export default function DailyReportPage() {
   };
 
   const printList = () => {
-    const tableRows = rows.map((r, i) =>
+    const tableRows = filteredRows.map((r, i) =>
       `<tr><td>${i + 1}</td>${EXPORT_COLS.map(c => `<td>${r[c.key] ?? '—'}</td>`).join('')}</tr>`
     ).join('');
     const html = `<html><head><title>Receipt List</title><style>
@@ -477,7 +497,7 @@ export default function DailyReportPage() {
       tr:nth-child(even) td{background:#f8fafc}
     </style></head><body>
       <h2>Receipt List</h2>
-      <p>${rows.length.toLocaleString()} records · ${new Date().toLocaleDateString('en-GB')}</p>
+      <p>${filteredRows.length.toLocaleString()} records · ${new Date().toLocaleDateString('en-GB')}</p>
       <table>
         <thead><tr><th>#</th>${EXPORT_COLS.map(c => `<th>${c.label}</th>`).join('')}</tr></thead>
         <tbody>${tableRows}</tbody>
@@ -588,6 +608,23 @@ export default function DailyReportPage() {
             <DownloadIcon className="w-3.5 h-3.5 mr-1.5" />Export
           </button>
           )}
+          <div className="relative">
+            <input
+              className="form-input w-[230px] pr-7 text-[12px]"
+              placeholder="Search results… (remark, ref no…)"
+              value={quickSearch}
+              onChange={e => { setQuickSearch(e.target.value); setCurrentPage(1); }}
+            />
+            {quickSearch && (
+              <button
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                title="Clear search"
+                onClick={() => { setQuickSearch(''); setCurrentPage(1); }}
+              >
+                <XIcon className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           <label className="flex items-center gap-1.5 ml-1 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -614,7 +651,9 @@ export default function DailyReportPage() {
           </select>
           {searched && (
             <span className="text-[12px] font-semibold text-navy-800 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md whitespace-nowrap">
-              {rows.length.toLocaleString()} records
+              {quickSearch.trim()
+                ? `${filteredRows.length.toLocaleString()} of ${rows.length.toLocaleString()} records`
+                : `${rows.length.toLocaleString()} records`}
             </span>
           )}
         </div>
@@ -632,7 +671,7 @@ export default function DailyReportPage() {
             }}
           >
             <div className="px-3 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider border-b border-border">
-              Export {rows.length.toLocaleString()} records
+              Export {filteredRows.length.toLocaleString()} records
             </div>
             {[
               { icon: BarChartIcon, label: 'Excel (.xlsx)', action: exportExcel },
@@ -667,6 +706,7 @@ export default function DailyReportPage() {
                 <th className="th-navy">Subsector</th>
                 <th className="th-navy">Amount</th>
                 <th className="th-navy">Mode</th>
+                <th className="th-navy">Ref No</th>
                 <th className="th-navy">Main Head</th>
                 <th className="th-navy">Sub Head</th>
                 <th className="th-navy">For Year</th>
@@ -686,8 +726,10 @@ export default function DailyReportPage() {
                 </td></tr>
               ) : loading ? (
                 <tr><td colSpan={colCount} className="text-center py-12 text-gray-400">Loading…</td></tr>
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={colCount} className="text-center py-12 text-gray-400">No receipts found</td></tr>
+              ) : filteredRows.length === 0 ? (
+                <tr><td colSpan={colCount} className="text-center py-12 text-gray-400">
+                  {rows.length > 0 ? 'No receipts match your search' : 'No receipts found'}
+                </td></tr>
               ) : pagedRows.map((r, i) => {
                 const cancelled = String(r.Status ?? '').toLowerCase().includes('cancel');
                 const td = `px-3 py-2.5 border-t border-border whitespace-nowrap`;
@@ -743,6 +785,7 @@ export default function DailyReportPage() {
                     <td className={td}>{r.Subsector || '—'}</td>
                     <td className={`${td} font-semibold`}>{fmt(r.Amount)}</td>
                     <td className={td}>{r.IsCashMemo || r.Mode === 'Cash Memo' ? 'Cash Memo' : (r.Mode || '—')}</td>
+                    <td className={td}>{r.TransactionRefNo || '—'}</td>
                     <td className={td}>{r.HubMainHead || '—'}</td>
                     <td className={td}>{r.HubSubHead  || '—'}</td>
                     <td className={td}>{r.ForYear     || '—'}</td>
@@ -773,10 +816,10 @@ export default function DailyReportPage() {
         </div>
 
         {/* Pagination */}
-        {searched && rows.length > 0 && totalPages > 1 && (
+        {searched && filteredRows.length > 0 && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-2.5 border-t border-border">
             <span className="text-[11px] text-gray-500">
-              Showing {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, rows.length)} of {rows.length.toLocaleString()}
+              Showing {((currentPage - 1) * pageSize) + 1}–{Math.min(currentPage * pageSize, filteredRows.length)} of {filteredRows.length.toLocaleString()}
             </span>
             <div className="flex items-center gap-1">
               <button className="btn btn-secondary btn-sm px-2 disabled:opacity-40"
@@ -794,7 +837,7 @@ export default function DailyReportPage() {
       </div>
 
       {/* ── Summary tables ────────────────────────────────────────────────────── */}
-      {searched && rows.length > 0 && (
+      {searched && filteredRows.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
           {/* Head Summary */}

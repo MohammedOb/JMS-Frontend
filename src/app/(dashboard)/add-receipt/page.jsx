@@ -96,7 +96,7 @@ function distributeItems(items, splitRows) {
 }
 
 const EMPTY_PROFILE = { accno: '', fullName: '', mobile: '', itsNo: '', localHofIts: '', sector: '', grade: '' };
-const EMPTY_RC_FORM = { date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false, isCashMemo: false, sendWhatsApp: false, whatsAppMobile: '' };
+const EMPTY_RC_FORM = { date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', transactionRefNo: '', remark: '', sendSMS: false, isCashMemo: false, sendWhatsApp: false, whatsAppMobile: '' };
 const EMPTY_RC_ITEM = { hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', grade: '', amount: '', remark: '' };
 
 export default function AddReceiptPage() {
@@ -364,6 +364,7 @@ export default function AddReceiptPage() {
         ITSNo:            profile.itsNo,
         ReceivedDate:     rcForm.date,
         Mode:             rcForm.mode,
+        TransactionRefNo: rcForm.transactionRefNo || '',
         Remark:           rcForm.remark,
         Createdby:        createdBy,
         ContributionType: rcForm.transType || 'VOLUNTARY CONTRIBUTION',
@@ -428,7 +429,8 @@ export default function AddReceiptPage() {
         profile:          { ...profile },
         date:             rcForm.date,
         mode:             rcForm.mode,
-        refNo:            rcForm.remark || '',
+        refNo:            rcForm.transactionRefNo || '',
+        remark:           rcForm.remark || '',
         createdBy:        createdBy,
         contributionType: rcForm.transType || '',
       };
@@ -573,7 +575,16 @@ export default function AddReceiptPage() {
                   </select>
                 </div>
               </div>
-              <div className="lg:col-span-2">
+              <div>
+                <label className="form-label">Transaction Ref No.</label>
+                <input
+                  className="form-input"
+                  placeholder="Cheque / UPI / Txn ref…"
+                  value={rcForm.transactionRefNo || ''}
+                  onChange={e => setRcForm(p => ({ ...p, transactionRefNo: e.target.value }))}
+                />
+              </div>
+              <div>
                 <label className="form-label">Remark</label>
                 <input
                   className="form-input"

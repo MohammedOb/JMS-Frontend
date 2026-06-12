@@ -27,7 +27,7 @@ function ReceiptWithAnnexure({ rcpt, slipProps, index, total }) {
           profile={slipProps.profile}
           date={slipProps.date}
           mode={slipProps.mode}
-          remark={slipProps.refNo}
+          remark={slipProps.remark ?? slipProps.refNo}
           status={rcpt.status}
         />
       </div>
@@ -45,8 +45,8 @@ function ReceiptWithAnnexure({ rcpt, slipProps, index, total }) {
 export default function ReceiptPrintModal({ open, onClose, printData }) {
   if (!open || !printData) return null;
 
-  const { receipts = [], profile, date, mode, refNo, createdBy, contributionType } = printData;
-  const slipProps = { profile, date, mode, refNo, createdBy, contributionType };
+  const { receipts = [], profile, date, mode, refNo, remark, createdBy, contributionType } = printData;
+  const slipProps = { profile, date, mode, refNo, remark, createdBy, contributionType };
 
   const slipList = receipts.map((rcpt, i) => (
     <ReceiptWithAnnexure key={i} rcpt={rcpt} slipProps={slipProps} index={i} total={receipts.length} />

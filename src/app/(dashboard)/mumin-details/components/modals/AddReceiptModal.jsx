@@ -133,7 +133,7 @@ export default function AddReceiptModal({
     setSaving(false);
     // Reset form fields so reopening the modal always starts clean
     setRcItems([]);
-    setRcForm({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false, isCashMemo: false, sendWhatsApp: false, whatsAppMobile: '' });
+    setRcForm({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', transactionRefNo: '', remark: '', sendSMS: false, isCashMemo: false, sendWhatsApp: false, whatsAppMobile: '' });
     setRcItem({ hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', grade: member?.grade || '', amount: '', remark: '' });
   }, [open, member]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -536,6 +536,15 @@ export default function AddReceiptModal({
                   {['Cash', 'Cash Memo', 'Online', 'Cheque', 'UPI'].map(m => <option key={m}>{m}</option>)}
                 </select>
               </div>
+            </div>
+            <div className="w-40 shrink-0">
+              <label className="form-label">Transaction Ref No.</label>
+              <input
+                className="form-input"
+                placeholder="Cheque / UPI / Txn ref…"
+                value={rcForm.transactionRefNo || ''}
+                onChange={e => setRcForm(p => ({ ...p, transactionRefNo: e.target.value }))}
+              />
             </div>
             <div className="flex-1 min-w-[160px]">
               <label className="form-label">Remark</label>

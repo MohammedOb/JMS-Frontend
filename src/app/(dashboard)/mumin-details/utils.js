@@ -93,6 +93,7 @@ export const normalizeReceiptRow = (r) => ({
   grade:        r.Grade        || r.grade        || '',
   amount:       r.Amount       ?? r.amount       ?? r.Received      ?? 0,
   mode:         r.Mode         || r.mode         || r.PaymentMode   || '',
+  transactionRefNo: r.TransactionRefNo || r.transactionRefNo || '',
   status:       r.Status       || r.status       || r.ReceiptStatus || '',
   ...r,
 });

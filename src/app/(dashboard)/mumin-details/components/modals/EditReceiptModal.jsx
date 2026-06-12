@@ -289,7 +289,7 @@ export default function EditReceiptModal({
           <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2.5">
             Transaction Info
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <div>
               <label className="form-label flex items-center gap-1.5">
                 Received Date
@@ -323,6 +323,15 @@ export default function EditReceiptModal({
               )}
             </div>
             <div>
+              <label className="form-label">Transaction Ref No.</label>
+              <input
+                className="form-input"
+                placeholder="Cheque / UPI / Txn ref…"
+                value={rcForm?.transactionRefNo ?? rcForm?.TransactionRefNo ?? ''}
+                onChange={e => setRcForm(p => ({ ...p, transactionRefNo: e.target.value }))}
+              />
+            </div>
+            <div>
               <label className="form-label">Status</label>
               <select
                 className="form-select"
@@ -337,6 +346,15 @@ export default function EditReceiptModal({
             <div>
               <label className="form-label">Receipt No.</label>
               <input className="form-input bg-gray-50" value={rcForm?.receiptNo || ''} readOnly />
+            </div>
+            <div className="col-span-2 sm:col-span-5">
+              <label className="form-label">Remark</label>
+              <input
+                className="form-input"
+                placeholder="Optional"
+                value={rcForm?.remark ?? rcForm?.Remark ?? ''}
+                onChange={e => setRcForm(p => ({ ...p, remark: e.target.value }))}
+              />
             </div>
           </div>
         </div>

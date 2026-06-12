@@ -51,6 +51,7 @@ const MUMIN_FIELDS = [
   // FMB & Misc
   { field: 'distributor',   label: 'Distributor',     group: 'FMB & Misc' },
   { field: 'tokenNo',       label: 'Token No',        group: 'FMB & Misc' },
+  { field: 'tokendate',     label: 'Token Date',      group: 'FMB & Misc' },
   { field: 'fmbRemark',     label: 'FMB Remark',      group: 'FMB & Misc' },
   // Dates
   { field: 'createdDate',   label: 'Account Created', group: 'Dates' },
@@ -98,6 +99,24 @@ const RECEIPT_FIELDS = [
   { field: 'cashMemoLabel',  label: 'Cash Memo Badge'           },
   { field: 'receivedFrom',   label: 'Received From (Name)'      },
   { field: 'createdBy',      label: 'Received By (Collector)'   },
+];
+
+// ── Sila Fitra Fields (from silafitradetails table) ────────────────────────────
+const SILAFITRA_FIELDS = [
+  { field: 'forYear',          label: 'For Year'              },
+  { field: 'sfRate',           label: 'SF Rate (per head)'    },
+  { field: 'mardCount',        label: 'Mard - Count'          },
+  { field: 'mardAmount',       label: 'Mard - Amount'         },
+  { field: 'bairaCount',       label: 'Baira - Count'         },
+  { field: 'bairaAmount',      label: 'Baira - Amount'        },
+  { field: 'gairBaligCount',   label: 'Gair Balig - Count'    },
+  { field: 'gairBaligAmount',  label: 'Gair Balig - Amount'   },
+  { field: 'hamalCount',       label: 'Hamal - Count'         },
+  { field: 'hamalAmount',      label: 'Hamal - Amount'        },
+  { field: 'amwaatCount',      label: 'Amwaat - Count'        },
+  { field: 'amwaatAmount',     label: 'Amwaat - Amount'       },
+  { field: 'totalCount',       label: 'Total - Count'         },
+  { field: 'totalAmount',      label: 'Total - Amount'        },
 ];
 
 const HISTORY_COLS = [
@@ -300,6 +319,7 @@ const EL_NAME = {
   razaField:        el => RAZA_FIELDS.find(f => f.field === el?.field)?.label || 'Raza Field',
   receiptField:     el => RECEIPT_FIELDS.find(f => f.field === el?.field)?.label || 'Receipt Field',
   receiptItemsGrid: ()  => 'Receipt Items Grid',
+  silafitraField:   el  => SILAFITRA_FIELDS.find(f => f.field === el?.field)?.label || 'Sila Fitra Field',
   box:              ()  => 'Box / Rectangle',
   line:         el  => (el?.orientation || 'h') === 'v' ? 'Vertical Line' : 'Horizontal Line',
 };
@@ -329,6 +349,7 @@ function mkEl(type, field) {
     case 'razaField':        return { ...base, type, field, label: (RAZA_FIELDS.find(f => f.field === field)?.label || '') + ':' };
     case 'receiptField':     return { ...base, type, field, label: (RECEIPT_FIELDS.find(f => f.field === field)?.label || '') + ':' };
     case 'receiptItemsGrid': return { ...base, type, w: 560, h: 200, fontSize: 11, bgColor: '#ffffff' };
+    case 'silafitraField':   return { ...base, type, field, label: '' };
     case 'subHead':          return { ...base, type, label: 'Sub Head:' };
     case 'forYear':     return { ...base, type, label: 'Year:' };
     case 'currentDate': return { ...base, type, label: 'Date:' };
@@ -407,6 +428,7 @@ function DesignerElement({ el, selected, isMultiSelected, onElementMouseDown, on
 
   return (
     <div
+      data-designer-el={locked ? undefined : '1'}
       style={{
         position:   'absolute',
         left:       el.x,
@@ -428,7 +450,7 @@ function DesignerElement({ el, selected, isMultiSelected, onElementMouseDown, on
       onContextMenu={e => { e.preventDefault(); if (!locked) onElementMouseDown(e, el.id); }}
     >
       {/* Lock badge */}
-      {locked && el.type === 'image' && (
+      {locked && (el.type === 'image' || el.type === 'box') && (
         <div style={{ position: 'absolute', top: 4, right: 4, zIndex: 5, background: 'rgba(0,0,0,0.45)', borderRadius: 4, padding: '1px 5px', fontSize: 11, color: '#fff', pointerEvents: 'none', lineHeight: 1.6 }}>
           🔒
         </div>
@@ -441,7 +463,7 @@ function DesignerElement({ el, selected, isMultiSelected, onElementMouseDown, on
       )}
 
       {/* Field-bound elements */}
-      {(el.type === 'muminField' || el.type === 'razaField' || el.type === 'receiptField' || el.type === 'subHead' || el.type === 'forYear') && (
+      {(el.type === 'muminField' || el.type === 'razaField' || el.type === 'receiptField' || el.type === 'silafitraField' || el.type === 'subHead' || el.type === 'forYear') && (
         <span style={ts}>
           <span style={{ fontWeight: el.bold ? 700 : 600 }}>{el.label}&nbsp;</span>
           <span style={{ color: '#3b82f6', fontStyle: 'normal' }}>___</span>
@@ -587,8 +609,8 @@ function PropertiesPanel({ el, onChange, onDelete, onCopy }) {
       {/* Properties */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4 text-[12px]">
 
-        {/* Lock toggle — images only */}
-        {el.type === 'image' && (
+        {/* Lock toggle */}
+        {(el.type === 'image' || el.type === 'box') && (
           <button
             onClick={() => onChange({ ...el, locked: !el.locked })}
             className={`w-full text-[11px] py-1.5 rounded border font-medium transition-colors flex items-center justify-center gap-1.5 ${
@@ -1009,6 +1031,9 @@ export default function PrintTemplatesPage() {
 
   // ── Element mouse-down: handles ctrl+click toggle and regular click/drag ──────
   function onElementMouseDown(e, elId) {
+    // Cancel any pending lasso — element click takes priority over lasso
+    if (lassoRef.current) lassoRef.current.active = false;
+
     if (e.ctrlKey || e.metaKey) {
       // Toggle in multi-select, no drag
       setMultiSel(prev => {
@@ -1026,66 +1051,81 @@ export default function PrintTemplatesPage() {
     startDrag(e, elId, 'move');
   }
 
-  // ── Rubber-band lasso selection ───────────────────────────────────────────────
-  function startLasso(e) {
-    if (e.button !== 0 || e.target !== canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const { templates: tpls, activeId: aid } = stateRef.current;
-    const ps = PAGE_SIZES[tpls.find(t => t.id === aid)?.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
-    const scale = ps.w / rect.width;
-    const x0 = (e.clientX - rect.left) * scale;
-    const y0 = (e.clientY - rect.top) * scale;
-    lassoRef.current = { x0, y0 };
-    setLassoBox({ x1: x0, y1: y0, x2: x0, y2: y0 });
+  // ── Rubber-band lasso ────────────────────────────────────────────────────────
+  // Capture phase fires BEFORE any element's stopPropagation.
+  // active: null = pending, true = committed to lasso, false = cancelled by element mousedown.
+  // When an element's onMouseDown runs it sets active=false, so the lasso never draws.
+  // Clicking on empty canvas (or locked background): no element cancels → active commits on drag.
+  useEffect(() => {
+    function onCaptureDown(e) {
+      if (e.button !== 0) return;
+      const canvas = canvasRef.current;
+      if (!canvas || !canvas.contains(e.target)) return;
 
-    const onMove = ev => {
-      if (!lassoRef.current) return;
-      const r = canvasRef.current?.getBoundingClientRect();
-      if (!r) return;
-      setLassoBox({ x1: x0, y1: y0, x2: (ev.clientX - r.left) * scale, y2: (ev.clientY - r.top) * scale });
-    };
-    const onUp = ev => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      if (!lassoRef.current) return;
-      lassoRef.current = null;
-      setLassoBox(null);
-      const r = canvasRef.current?.getBoundingClientRect();
-      if (!r) return;
-      const x1 = (ev.clientX - r.left) * scale;
-      const y1 = (ev.clientY - r.top) * scale;
-      const dist = Math.abs(x1 - x0) + Math.abs(y1 - y0);
-      if (dist < 8) {
-        if (!ev.ctrlKey && !ev.metaKey) { setSelectedEl(null); setMultiSel(new Set()); }
-        return;
-      }
-      const { templates: tpls2, activeId: aid2 } = stateRef.current;
-      const tpl = tpls2.find(t => t.id === aid2);
-      if (!tpl) return;
-      const minX = Math.min(x0, x1), maxX = Math.max(x0, x1);
-      const minY = Math.min(y0, y1), maxY = Math.max(y0, y1);
-      const inside = tpl.elements.filter(el => {
-        const cx = el.x + (el.w || 0) / 2;
-        const cy = el.y + (el.h || 0) / 2;
-        return cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
-      });
-      if (inside.length) {
-        const ids = new Set(inside.map(el => el.id));
-        if (ev.ctrlKey || ev.metaKey) {
-          setMultiSel(prev => new Set([...prev, ...ids]));
-        } else {
-          setMultiSel(ids);
+      const rect = canvas.getBoundingClientRect();
+      const { templates: tpls, activeId: aid } = stateRef.current;
+      const ps = PAGE_SIZES[tpls.find(t => t.id === aid)?.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
+      const scale = ps.w / rect.width;
+      const x0 = (e.clientX - rect.left) * scale;
+      const y0 = (e.clientY - rect.top) * scale;
+      lassoRef.current = { x0, y0, active: null }; // null = pending
+
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const onMove = ev => {
+        const lasso = lassoRef.current;
+        if (!lasso || lasso.active === false) return; // cancelled by element
+        const r = canvasRef.current?.getBoundingClientRect();
+        if (!r) return;
+        const x1 = clamp((ev.clientX - r.left) * scale, 0, ps.w);
+        const y1 = clamp((ev.clientY - r.top)  * scale, 0, ps.h);
+        const dist = Math.abs(x1 - x0) + Math.abs(y1 - y0);
+        if (lasso.active === null && dist > 8) lasso.active = true; // commit to lasso
+        if (lasso.active === true) setLassoBox({ x1: x0, y1: y0, x2: x1, y2: y1 });
+      };
+      const onUp = ev => {
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        const lasso = lassoRef.current;
+        lassoRef.current = null;
+        setLassoBox(null);
+        if (!lasso || lasso.active !== true) return; // click or cancelled — do nothing
+        const r = canvasRef.current?.getBoundingClientRect();
+        if (!r) return;
+        const x1 = clamp((ev.clientX - r.left) * scale, 0, ps.w);
+        const y1 = clamp((ev.clientY - r.top)  * scale, 0, ps.h);
+        const { templates: tpls2, activeId: aid2 } = stateRef.current;
+        const tpl = tpls2.find(t => t.id === aid2);
+        if (!tpl) return;
+        const minX = Math.min(x0, x1), maxX = Math.max(x0, x1);
+        const minY = Math.min(y0, y1), maxY = Math.max(y0, y1);
+        const inside = tpl.elements.filter(el => {
+          const elR = el.x + (el.w || 0);
+          const elB = el.y + (el.h || 0);
+          return el.x < maxX && elR > minX && el.y < maxY && elB > minY;
+        });
+        if (inside.length) {
+          // Set sentinel so the canvas onClick (which fires after mouseup on same element)
+          // doesn't immediately clear the selection we just made.
+          lassoRef.current = 'done';
+          const ids = new Set(inside.map(el => el.id));
+          if (ev.ctrlKey || ev.metaKey) {
+            setMultiSel(prev => new Set([...prev, ...ids]));
+          } else {
+            setMultiSel(ids);
+          }
+          setSelectedEl(inside[inside.length - 1].id);
+        } else if (!ev.ctrlKey && !ev.metaKey) {
+          setMultiSel(new Set());
+          setSelectedEl(null);
         }
-        setSelectedEl(inside[inside.length - 1].id);
-      } else if (!ev.ctrlKey && !ev.metaKey) {
-        setMultiSel(new Set());
-        setSelectedEl(null);
-      }
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  }
+      };
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    }
+
+    window.addEventListener('mousedown', onCaptureDown, true);
+    return () => window.removeEventListener('mousedown', onCaptureDown, true);
+  }, []);
 
   // ── Unified drag (move + resize) ─────────────────────────────────────────────
   const startDrag = useCallback((e, elId, mode, handle = null) => {
@@ -1401,104 +1441,95 @@ export default function PrintTemplatesPage() {
           {activeTemplate && (
             <div className="card flex-shrink-0">
               <div className="card-header py-2"><span className="text-[12px] font-semibold">Add Elements</span></div>
-              <div className="p-2 space-y-0.5">
+              <div className="p-2 space-y-1">
 
-                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-1 pb-0.5">Form Fields</div>
-                {[['Hub Sub Head','subHead'],['For Year','forYear'],['Current Date','currentDate'],['History Grid','historyGrid']].map(([lbl,type]) => (
-                  <button key={type} onClick={() => addEl(type)}
-                    className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
-                    {lbl}
-                  </button>
-                ))}
-
-                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Mumin Fields</div>
-                {MUMIN_GROUPS.map(group => (
-                  <div key={group}>
-                    <button
-                      onClick={() => setGroupOpen(p => ({ ...p, [group]: !p[group] }))}
-                      className="w-full flex items-center justify-between text-[11px] px-2 py-0.5 text-gray-500 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors">
-                      <span className="font-medium">{group}</span>
-                      <span className="text-[9px]">{groupOpen[group] ? '▾' : '▸'}</span>
-                    </button>
-                    {groupOpen[group] && (
-                      <div className="ml-3 border-l border-blue-100 pl-1 space-y-0.5">
-                        {MUMIN_FIELDS.filter(f => f.group === group).map(f => (
-                          <button key={f.field} onClick={() => addEl('muminField', f.field)}
-                            className="w-full text-left text-[11px] px-2 py-0.5 rounded hover:bg-blue-50 text-gray-600 hover:text-blue-700">
-                            {f.label}
-                          </button>
-                        ))}
+                {/* helper components */}
+                {(() => {
+                  const SectionHead = ({ label, color = 'blue' }) => {
+                    const map = { blue: 'bg-blue-600', green: 'bg-emerald-600', purple: 'bg-purple-600', amber: 'bg-amber-500', slate: 'bg-slate-500', teal: 'bg-teal-600' };
+                    return (
+                      <div className={`flex items-center gap-1.5 px-2 py-1 mt-1 rounded-md ${map[color] || map.blue} bg-opacity-10`}
+                        style={{ background: color === 'blue' ? '#eff6ff' : color === 'green' ? '#ecfdf5' : color === 'purple' ? '#f5f3ff' : color === 'amber' ? '#fffbeb' : color === 'teal' ? '#f0fdfa' : '#f8fafc' }}>
+                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${map[color] || map.blue}`} />
+                        <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: color === 'blue' ? '#1d4ed8' : color === 'green' ? '#065f46' : color === 'purple' ? '#6d28d9' : color === 'amber' ? '#92400e' : color === 'teal' ? '#0f766e' : '#374151' }}>
+                          {label}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                ))}
-
-                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Raza Fields</div>
-                <button
-                  onClick={() => setGroupOpen(p => ({ ...p, __raza__: !p.__raza__ }))}
-                  className="w-full flex items-center justify-between text-[11px] px-2 py-0.5 text-gray-500 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors">
-                  <span className="font-medium">Raza Details</span>
-                  <span className="text-[9px]">{groupOpen.__raza__ ? '▾' : '▸'}</span>
-                </button>
-                {groupOpen.__raza__ && (
-                  <div className="ml-3 border-l border-blue-100 pl-1 space-y-0.5">
-                    {RAZA_FIELDS.map(f => (
-                      <button key={f.field} onClick={() => addEl('razaField', f.field)}
-                        className="w-full text-left text-[11px] px-2 py-0.5 rounded hover:bg-blue-50 text-gray-600 hover:text-blue-700">
-                        {f.label}
+                    );
+                  };
+                  const Item = ({ label, onClick, icon = '＋' }) => (
+                    <button onClick={onClick}
+                      className="w-full text-left flex items-center gap-1.5 text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700 transition-colors group">
+                      <span className="text-[10px] text-gray-300 group-hover:text-blue-400 flex-shrink-0">{icon}</span>
+                      {label}
+                    </button>
+                  );
+                  const GroupItem = ({ group, groupKey, children }) => (
+                    <div>
+                      <button onClick={() => setGroupOpen(p => ({ ...p, [groupKey]: !p[groupKey] }))}
+                        className="w-full flex items-center justify-between text-[11px] px-2 py-1 text-gray-600 hover:text-blue-700 rounded hover:bg-blue-50 transition-colors font-medium">
+                        <span>{group}</span>
+                        <span className="text-[9px] text-gray-400">{groupOpen[groupKey] ? '▾' : '▸'}</span>
                       </button>
-                    ))}
-                  </div>
-                )}
+                      {groupOpen[groupKey] && (
+                        <div className="ml-3 border-l-2 border-blue-100 pl-1.5 space-y-0.5 pb-0.5">
+                          {children}
+                        </div>
+                      )}
+                    </div>
+                  );
 
-                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Receipt Fields</div>
-                <button
-                  onClick={() => setGroupOpen(p => ({ ...p, __receipt__: !p.__receipt__ }))}
-                  className="w-full flex items-center justify-between text-[11px] px-2 py-0.5 text-gray-500 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors">
-                  <span className="font-medium">Receipt Details</span>
-                  <span className="text-[9px]">{groupOpen.__receipt__ ? '▾' : '▸'}</span>
-                </button>
-                {groupOpen.__receipt__ && (
-                  <div className="ml-3 border-l border-blue-100 pl-1 space-y-0.5">
-                    {RECEIPT_FIELDS.map(f => (
-                      <button key={f.field} onClick={() => addEl('receiptField', f.field)}
-                        className="w-full text-left text-[11px] px-2 py-0.5 rounded hover:bg-blue-50 text-gray-600 hover:text-blue-700">
-                        {f.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <button onClick={() => addEl('receiptItemsGrid')}
-                  className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
-                  Receipt Items Grid
-                </button>
+                  return (
+                    <>
+                      <SectionHead label="Form Fields" color="blue" />
+                      {[['Hub Sub Head','subHead','⊞'],['For Year','forYear','📅'],['Current Date','currentDate','📅'],['History Grid','historyGrid','▤']].map(([lbl,type,icon]) => (
+                        <Item key={type} label={lbl} icon={icon} onClick={() => addEl(type)} />
+                      ))}
 
-                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Shapes & Layout</div>
-                <button onClick={() => addEl('box')}
-                  className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
-                  Box / Rectangle
-                </button>
-                <button onClick={() => addEl('line', null, { orientation: 'h', w: 200, h: 20 })}
-                  className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
-                  Horizontal Line
-                </button>
-                <button onClick={() => addEl('line', null, { orientation: 'v', w: 20, h: 200 })}
-                  className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
-                  Vertical Line
-                </button>
-                <input ref={fileRefImg} type="file" accept="image/*" className="hidden" onChange={handleAddImage} />
-                <button onClick={() => fileRefImg.current?.click()}
-                  className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
-                  🖼 Add Image (Logo / Stamp)
-                </button>
+                      <SectionHead label="Mumin Fields" color="green" />
+                      {MUMIN_GROUPS.map(group => (
+                        <GroupItem key={group} group={group} groupKey={group}>
+                          {MUMIN_FIELDS.filter(f => f.group === group).map(f => (
+                            <Item key={f.field} label={f.label} onClick={() => addEl('muminField', f.field)} />
+                          ))}
+                        </GroupItem>
+                      ))}
 
-                <div className="text-[9px] font-semibold uppercase tracking-widest text-gray-400 px-1 pt-2 pb-0.5">Other</div>
-                {[['Static Label','label'],['Input Line (blank)','inputLine']].map(([lbl,type]) => (
-                  <button key={type} onClick={() => addEl(type)}
-                    className="w-full text-left text-[11px] px-2 py-1 rounded hover:bg-blue-50 text-gray-700 hover:text-blue-700">
-                    {lbl}
-                  </button>
-                ))}
+                      <SectionHead label="Raza Fields" color="purple" />
+                      <GroupItem group="Raza Details" groupKey="__raza__">
+                        {RAZA_FIELDS.map(f => (
+                          <Item key={f.field} label={f.label} onClick={() => addEl('razaField', f.field)} />
+                        ))}
+                      </GroupItem>
+
+                      <SectionHead label="Receipt Fields" color="amber" />
+                      <GroupItem group="Receipt Details" groupKey="__receipt__">
+                        {RECEIPT_FIELDS.map(f => (
+                          <Item key={f.field} label={f.label} onClick={() => addEl('receiptField', f.field)} />
+                        ))}
+                      </GroupItem>
+                      <Item label="Receipt Items Grid" icon="▤" onClick={() => addEl('receiptItemsGrid')} />
+
+                      <SectionHead label="Sila Fitra Fields" color="teal" />
+                      <GroupItem group="Sila Fitra Details" groupKey="__silafitra__">
+                        {SILAFITRA_FIELDS.map(f => (
+                          <Item key={f.field} label={f.label} onClick={() => addEl('silafitraField', f.field)} />
+                        ))}
+                      </GroupItem>
+
+                      <SectionHead label="Shapes & Layout" color="slate" />
+                      <Item label="Box / Rectangle" icon="□" onClick={() => addEl('box')} />
+                      <Item label="Horizontal Line" icon="─" onClick={() => addEl('line', null, { orientation: 'h', w: 200, h: 20 })} />
+                      <Item label="Vertical Line" icon="│" onClick={() => addEl('line', null, { orientation: 'v', w: 20, h: 200 })} />
+                      <input ref={fileRefImg} type="file" accept="image/*" className="hidden" onChange={handleAddImage} />
+                      <Item label="Add Image (Logo / Stamp)" icon="🖼" onClick={() => fileRefImg.current?.click()} />
+
+                      <SectionHead label="Other" color="slate" />
+                      <Item label="Static Label" icon="T" onClick={() => addEl('label')} />
+                      <Item label="Input Line (blank)" icon="__" onClick={() => addEl('inputLine')} />
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -1559,8 +1590,11 @@ export default function PrintTemplatesPage() {
           ) : (
             <div
               ref={canvasRef}
-              onMouseDown={startLasso}
-              onClick={e => { if (!lassoRef.current) { setSelectedEl(null); setMultiSel(new Set()); } }}
+              onClick={() => {
+                // Suppress deselect if a lasso drag just completed on this mouseup
+                if (lassoRef.current === 'done') { lassoRef.current = null; return; }
+                setSelectedEl(null); setMultiSel(new Set());
+              }}
               onContextMenu={e => e.preventDefault()}
               style={{
                 position:   'relative',

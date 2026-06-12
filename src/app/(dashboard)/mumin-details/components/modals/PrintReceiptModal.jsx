@@ -37,6 +37,7 @@ export default function PrintReceiptModal({ open, onClose, member, receipt }) {
             ['Mobile',     member?.mobile],
             ['Date',       fmtDate(receipt.receivedDate)],
             ['Mode',       receipt.mode],
+            ['Ref No',     receipt.transactionRefNo],
             ['Status',     receipt.status],
           ].map(([k, v]) => (
             <div key={k} className="flex gap-2">

@@ -200,7 +200,8 @@ function MuminDetailsInner() {
       profile:          { accno: member?.accno, fullName: member?.name, mobile: member?.mobile, itsNo: member?.itsNo, sector: member?.sector, address: member?.address || '' },
       date:             row.receivedDate || row.date || '',
       mode:             row.mode || row.Mode || '',
-      refNo:            row.remark || row.Remark || '',
+      refNo:            row.transactionRefNo || row.TransactionRefNo || '',
+      remark:           row.remark || row.Remark || '',
       createdBy:        row.createdBy || row.Createdby || '',
       contributionType: row.ContributionType || row.contributionType || '',
     });
@@ -221,7 +222,7 @@ function MuminDetailsInner() {
   const [editTakRow,   setEditTakRow]   = useState(null);
   const [editReceiptRow, setEditReceiptRow] = useState(null);
   const [rcItems,      setRcItems]      = useState([]);
-  const [rcForm,       setRcForm]       = useState({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', remark: '', sendSMS: false });
+  const [rcForm,       setRcForm]       = useState({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', transactionRefNo: '', remark: '', sendSMS: false });
   const [rcItem,       setRcItem]       = useState({ hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', amount: '', remark: '' });
   const [safaiForm,    setSafaiForm]    = useState({ issueDate: today(), validTill: '', reason: '', remark: '' });
   const [vajForm,      setVajForm]      = useState({ sf: '', vaj: '', house: '', niyaz: '', other: '' });
@@ -583,6 +584,7 @@ function MuminDetailsInner() {
       ITSNo:            profile.itsNo,
       ReceivedDate:     rcForm.date,
       Mode:             rcForm.mode,
+      TransactionRefNo: rcForm.transactionRefNo || '',
       Remark:           rcForm.remark,
       Createdby:        createdBy,
       ContributionType: rcForm.transType || 'VOLUNTARY CONTRIBUTION',
@@ -652,7 +654,8 @@ function MuminDetailsInner() {
         profile:          { accno: profile.accno, fullName: profile.fullName, mobile: profile.mobile, itsNo: profile.itsNo, sector: profile.sector, address: member?.address || '' },
         date:             rcForm.date,
         mode:             rcForm.mode,
-        refNo:            rcForm.remark || '',
+        refNo:            rcForm.transactionRefNo || '',
+        remark:           rcForm.remark || '',
         createdBy:        createdBy,
         contributionType: rcForm.transType || '',
       });
@@ -668,7 +671,8 @@ function MuminDetailsInner() {
             profile:          { accno: profile.accno, fullName: profile.fullName, mobile: profile.mobile, itsNo: profile.itsNo, sector: profile.sector, address: member?.address || '' },
             date:             rcForm.date,
             mode:             rcForm.mode,
-            refNo:            rcForm.remark || '',
+            refNo:            rcForm.transactionRefNo || '',
+            remark:           rcForm.remark || '',
             createdBy:        createdBy,
             contributionType: rcForm.transType || '',
           };
@@ -1213,7 +1217,8 @@ function MuminDetailsInner() {
               ReceivedDate:       receivedDate,
               ReceivedAmount:     totalAmt,
               Mode:               mode,
-              Remark:             editReceiptRow.remark || '',
+              TransactionRefNo:   editReceiptRow.transactionRefNo ?? editReceiptRow.TransactionRefNo ?? '',
+              Remark:             editReceiptRow.remark ?? editReceiptRow.Remark ?? '',
               RecordUpdateReason: fullReason,
               RecordUpdateDate:   recordUpdateDate,
               Status:             status,
