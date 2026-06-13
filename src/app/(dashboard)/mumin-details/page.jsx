@@ -52,6 +52,7 @@ import MuminSearchBar   from './components/MuminSearchBar';
 import MuminProfileCard from './components/MuminProfileCard';
 import FmbDetailsCard        from './components/FmbDetailsCard';
 import PrintConfigButton     from '@/components/shared/PrintConfigButton';
+import { buildViewUrl }      from '@/lib/urlToken';
 import { PrintIcon }         from '@/components/shared/Icons';
 import VajebaatInfoCard from './components/VajebaatInfoCard';
 import DueSummaryCards  from './components/DueSummaryCards';
@@ -935,7 +936,7 @@ function MuminDetailsInner() {
                 member={member}
                 showEdit={FEATURES.editFMB}
                 showPrint={FEATURES.printFMB}
-                onPrint={() => window.open(`/view-template?accno=${member?.accno}&subhead=FMB`, '_blank')}
+                onPrint={() => window.open(buildViewUrl({ accno: member?.accno, subhead: 'FMB' }), '_blank')}
                 printButtonNode={FEATURES.printFMB ? (
                   <PrintConfigButton
                     buttonId="fmb-print"
@@ -1126,14 +1127,14 @@ function MuminDetailsInner() {
                     setTakForm({ mainHead: 'Vajebaat', subHead: 'HIM', forYear: '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
                     openModal('addTakhmeen');
                   }}
-                  onHimForm={() => window.open(`/view-template?accno=${member?.accno}&subhead=HIM`, '_blank')}
+                  onHimForm={() => window.open(buildViewUrl({ accno: member?.accno, subhead: 'HIM' }), '_blank')}
                   onEditHim={(row) => { setEditTakRow(row); openModal('editTakhmeen'); }}
                   onDeleteHim={deleteTakhmeen}
                   onAddSniyaz={() => {
                     setTakForm({ mainHead: 'Vajebaat', subHead: 'Shehrullah Niyaz', forYear: '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
                     openModal('addTakhmeen');
                   }}
-                  onSniyazForm={() => window.open(`/view-template?accno=${member?.accno}&subhead=Shehrullah+Niyaz`, '_blank')}
+                  onSniyazForm={() => window.open(buildViewUrl({ accno: member?.accno, subhead: 'Shehrullah Niyaz' }), '_blank')}
                   onEditSniyaz={(row) => { setEditTakRow(row); openModal('editTakhmeen'); }}
                   onDeleteSniyaz={deleteTakhmeen}
                   onAddReceipt={() => openModal('addReceipt')}
@@ -1141,11 +1142,11 @@ function MuminDetailsInner() {
                     setTakForm({ mainHead: 'Vajebaat', subHead: 'Vajebaat', forYear: '', grade: '', takhmeen: 0, received: 0, date: today(), remark: '', lastTakhmeen: 0, currentTakhmeen: 0, paidin: '', place: '' });
                     openModal('addTakhmeen');
                   }}
-                  onVajForm={() => window.open(`/view-template?accno=${member?.accno}&subhead=Vajebaat`, '_blank')}
+                  onVajForm={() => window.open(buildViewUrl({ accno: member?.accno, subhead: 'Vajebaat' }), '_blank')}
                   onEditVaj={(row) => { setEditTakRow(row); openModal('editTakhmeen'); }}
                   onDeleteVaj={deleteTakhmeen}
-                  onPrintVaj={(row) => window.open(`/view-template?accno=${member?.accno}&subhead=Vajebaat`, '_blank')}
-                  onSfForm={() => window.open(`/view-template?accno=${member?.accno}&subhead=Sila+Fitra`, '_blank')}
+                  onPrintVaj={(row) => window.open(buildViewUrl({ accno: member?.accno, subhead: 'Vajebaat' }), '_blank')}
+                  onSfForm={() => window.open(buildViewUrl({ accno: member?.accno, subhead: 'Sila Fitra' }), '_blank')}
                   onAddSf={saveSilaFitraRecord}
                   onUpdateSf={updateSilaFitraRecord}
                   onDeleteSf={deleteSilaFitraRecord}

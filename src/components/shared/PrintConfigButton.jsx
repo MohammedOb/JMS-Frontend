@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { takhmeenService } from '@/services';
 import Modal from '@/components/shared/Modal';
 import ComboBox from '@/components/shared/ComboBox';
+import { buildViewUrl } from '@/lib/urlToken';
 
 function normalizeArray(v) {
   if (!v) return [];
@@ -162,13 +163,12 @@ export default function PrintConfigButton({ buttonId, accno, serialNo, transacti
 
   function handlePrint() {
     const cfg = configOverride !== undefined ? configOverride : config;
-    const params = new URLSearchParams({ accno: accno || '' });
-    params.set('subhead', cfg?.subhead || defaultSubhead || '');
-    if (cfg?.templateId) params.set('templateId', cfg.templateId);
-    if (cfg?.forYear)    params.set('forYear',    cfg.forYear);
-    if (serialNo)        params.set('serialNo',      serialNo);
-    if (transactionId)   params.set('transactionId', transactionId);
-    window.open(`/view-template?${params}`, '_blank');
+    const p = { accno: accno || '', subhead: cfg?.subhead || defaultSubhead || '' };
+    if (cfg?.templateId) p.templateId  = cfg.templateId;
+    if (cfg?.forYear)    p.forYear     = cfg.forYear;
+    if (serialNo)        p.serialNo    = serialNo;
+    if (transactionId)   p.transactionId = transactionId;
+    window.open(buildViewUrl(p), '_blank');
   }
 
   return (

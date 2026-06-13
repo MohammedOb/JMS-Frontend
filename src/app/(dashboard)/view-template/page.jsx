@@ -3,6 +3,7 @@
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { memberService, takhmeenService, safaiService, receiptService, vajebaatService } from '@/services';
+import { decodeViewToken } from '@/lib/urlToken';
 import { useAuth } from '@/context/AuthContext';
 import ComboBox from '@/components/shared/ComboBox';
 import toast from 'react-hot-toast';
@@ -608,6 +609,14 @@ export default function TakhmeenFormPage() {
   const [txIdInput,      setTxIdInput]      = useState('');
   const [txLoading,      setTxLoading]      = useState(false);
   const [silaFitraData,  setSilaFitraData]  = useState([]);
+  // Decode token param; fall back to individual raw params for backwards compat
+  const _token   = searchParams.get('t');
+  const _decoded = _token ? decodeViewToken(_token) : null;
+  const _p = key => _decoded?.[key] ?? searchParams.get(key) ?? '';
+
+  const [controlsOpen, setControlsOpen] = useState(
+    !_token && !searchParams.get('accno') && !searchParams.get('transactionId') && !searchParams.get('serialNo')
+  );
 
   // Load templates from DB + auto-select by templateId or subhead param
   useEffect(() => {
@@ -617,12 +626,12 @@ export default function TakhmeenFormPage() {
         const tpls = rows.map(dbRowToTpl);
         setTemplates(tpls);
         if (!tpls.length) return;
-        const templateIdParam = searchParams.get('templateId');
+        const templateIdParam = _p('templateId');
         if (templateIdParam) {
           const direct = tpls.find(t => String(t.id) === String(templateIdParam));
           if (direct) { setActiveId(direct.id); return; }
         }
-        const sh = searchParams.get('subhead')?.toLowerCase();
+        const sh = _p('subhead')?.toLowerCase();
         if (sh) {
           const bySubHead  = tpls.filter(t => { const tsh = t.subHead?.toLowerCase() || ''; return tsh && (tsh === sh || tsh.includes(sh) || sh.includes(tsh)); });
           const defaultOne = bySubHead.find(t => t.isDefault) || bySubHead[0];
@@ -635,13 +644,13 @@ export default function TakhmeenFormPage() {
       .catch(() => {});
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-fill from URL params (accno + subhead + transactionId) — runs once on mount
+  // Auto-fill from URL params — supports opaque token (?t=…) or raw params for backwards compat
   useEffect(() => {
-    const accno    = searchParams.get('accno');
-    const sh       = searchParams.get('subhead');
-    const fy       = searchParams.get('forYear');
-    const serialNo = searchParams.get('serialNo');
-    const txId     = searchParams.get('transactionId');
+    const accno    = _p('accno');
+    const sh       = _p('subhead');
+    const fy       = _p('forYear');
+    const serialNo = _p('serialNo');
+    const txId     = _p('transactionId');
     if (sh)       setSubHead(sh);
     if (fy)       setForYear(fy);
     if (serialNo) { setSerialNoInput(serialNo); searchRaza(serialNo); }
@@ -662,7 +671,7 @@ export default function TakhmeenFormPage() {
         }
         setSubHeadOpts(opts);
         // Resolve URL param to actual DB subhead value (handles partial/case-insensitive matches)
-        const paramSh = searchParams.get('subhead');
+        const paramSh = _p('subhead');
         if (paramSh && opts.length) {
           const p = paramSh.toLowerCase();
           const match = opts.find(o => o.toLowerCase() === p)
@@ -847,11 +856,22 @@ export default function TakhmeenFormPage() {
               Search a member by Acc No, pick a template and print the form.
             </p>
           </div>
-          {isAdmin && <button onClick={handlePrint} className="btn btn-primary">Print Form</button>}
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => setControlsOpen(o => !o)}
+                className="btn btn-secondary btn-sm"
+                title={controlsOpen ? 'Hide controls' : 'Show controls'}
+              >
+                {controlsOpen ? 'Hide Controls' : 'Show Controls'}
+              </button>
+            )}
+            {isAdmin && <button onClick={handlePrint} className="btn btn-primary">Print Form</button>}
+          </div>
         </div>
 
         {/* Controls bar — admin only */}
-        {isAdmin && <div className="card mb-4 flex-shrink-0" style={{ overflow: 'visible' }}>
+        {isAdmin && controlsOpen && <div className="card mb-4 flex-shrink-0" style={{ overflow: 'visible' }}>
           <div className="card-body py-3" style={{ overflow: 'visible' }}>
             <div className="flex flex-wrap gap-3 items-end">
 

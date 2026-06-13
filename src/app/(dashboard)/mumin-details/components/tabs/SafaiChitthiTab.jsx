@@ -7,6 +7,7 @@ import { safaiService, takhmeenService } from '@/services';
 import Modal from '@/components/shared/Modal';
 import { EditIcon, PrintIcon, TrashIcon, CheckIcon, RefreshIcon } from '@/components/shared/Icons';
 import PrintConfigButton, { PrintConfigModal } from '@/components/shared/PrintConfigButton';
+import { buildViewUrl } from '@/lib/urlToken';
 import AddSafaiChitthiModal  from '../modals/AddSafaiChitthiModal';
 import EditSafaiChitthiModal from '../modals/EditSafaiChitthiModal';
 
@@ -177,16 +178,16 @@ export default function SafaiChitthiTab({ member, onCountChange }) {
     try {
       const cfgRes = await takhmeenService.loadPrintButtonConfig('safai-chitthi-print');
       const row    = cfgRes?.data?.data?.[0];
-      const params = new URLSearchParams({ accno: accno || '' });
-      if (row?.SubHead)    params.set('subhead',    row.SubHead);
-      if (row?.TemplateId) params.set('templateId', String(row.TemplateId));
-      if (row?.ForYear)    params.set('forYear',    row.ForYear);
-      if (serialNo)        params.set('serialNo',   String(serialNo));
-      window.open(`/view-template?${params}`, '_blank');
+      const p = { accno: accno || '' };
+      if (row?.SubHead)    p.subhead    = row.SubHead;
+      if (row?.TemplateId) p.templateId = String(row.TemplateId);
+      if (row?.ForYear)    p.forYear    = row.ForYear;
+      if (serialNo)        p.serialNo   = String(serialNo);
+      window.open(buildViewUrl(p), '_blank');
     } catch {
-      const params = new URLSearchParams({ accno: accno || '' });
-      if (serialNo) params.set('serialNo', String(serialNo));
-      window.open(`/view-template?${params}`, '_blank');
+      const p = { accno: accno || '' };
+      if (serialNo) p.serialNo = String(serialNo);
+      window.open(buildViewUrl(p), '_blank');
     }
   }
 
