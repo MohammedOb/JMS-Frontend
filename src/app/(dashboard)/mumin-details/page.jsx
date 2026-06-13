@@ -145,9 +145,10 @@ function MuminDetailsInner() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [suggestLoading,  setSuggestLoading]  = useState(false);
   const [dropdownStyle,   setDropdownStyle]   = useState({});
-  const searchInputRef  = useRef(null);
-  const suggestTimer    = useRef(null);
-  const initialLoadDone = useRef(false);
+  const searchInputRef   = useRef(null);
+  const suggestTimer     = useRef(null);
+  const initialLoadDone  = useRef(false);
+  const familyPrefetched = useRef(null); // tracks hofIts for which family was pre-loaded
 
   // ── Member data ───────────────────────────────────────────────────────────
   const [member,     setMember]     = useState(null);
@@ -325,6 +326,9 @@ function MuminDetailsInner() {
       const memberData = normalized.member;
       if (!memberData || !memberData.accno) throw new Error('Member not found');
 
+      // Fetch family members once — used for HOF name lookup AND to pre-populate
+      // the family tab so loadFamilyMembers doesn't need a second network call.
+      let prefetchedFamily = normalized.family;
       if (memberData.hofIts) {
         try {
           const hofRes = await memberService.loadFamilyMembersDetails({ HOF_ID: memberData.hofIts });
@@ -334,6 +338,10 @@ function MuminDetailsInner() {
             : Array.isArray(hofRes.data?.data) ? hofRes.data.data : [];
           const hofMember = hofList.find(m => String(m.ITS_ID) === String(memberData.hofIts));
           if (hofMember?.Full_Name) memberData.hofName = hofMember.Full_Name;
+          if (hofList.length > 0) {
+            prefetchedFamily = hofList;
+            familyPrefetched.current = String(memberData.hofIts);
+          }
         } catch { /* leave hofName from loadMuminDetails as fallback */ }
       }
 
@@ -359,7 +367,7 @@ function MuminDetailsInner() {
       setMember(memberData);
       setTakhmeen(takhmeen);
       setReceipts(receipts);
-      setFamily(normalized.family);
+      setFamily(prefetchedFamily);
       setSafaiList(normalized.safai);
       setMemberForm(memberData);
       router.replace(`/mumin-details?accno=${realAccno}`, { scroll: false });
@@ -422,8 +430,10 @@ function MuminDetailsInner() {
       .catch(err => console.error('getDistributors failed:', err?.response?.data ?? err.message));
   }, []); // eslint-disable-line
 
-  const loadFamilyMembers = useCallback(async () => {
+  const loadFamilyMembers = useCallback(async (force = false) => {
     if (!member?.hofIts) return;
+    // Skip if loadMember already pre-fetched family for this same hofIts
+    if (!force && familyPrefetched.current === String(member.hofIts)) return;
     setFamilyLoading(true);
     try {
       const res = await memberService.loadFamilyMembersDetails({ HOF_ID: member.hofIts });
