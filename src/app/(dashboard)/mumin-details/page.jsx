@@ -152,6 +152,7 @@ function MuminDetailsInner() {
 
   // ── Member data ───────────────────────────────────────────────────────────
   const [member,     setMember]     = useState(null);
+  const memberRef = useRef(null); // stable ref so loadFamilyMembers doesn't recreate on every render
   const [takhmeen,   setTakhmeen]   = useState([]);
   const [receipts,   setReceipts]   = useState([]);
   const [family,     setFamily]     = useState([]);
@@ -423,13 +424,18 @@ function MuminDetailsInner() {
       .catch(err => console.error('getDistributors failed:', err?.response?.data ?? err.message));
   }, []); // eslint-disable-line
 
+  // Keep the ref in sync on every render so loadFamilyMembers can read latest member
+  // without being recreated every time member changes (which caused the extra API call).
+  memberRef.current = member;
+
   const loadFamilyMembers = useCallback(async (force = false) => {
-    if (!member?.hofIts) return;
+    const m = memberRef.current;
+    if (!m?.hofIts) return;
     // Skip if loadMember already pre-fetched family for this same hofIts
-    if (!force && familyPrefetched.current === String(member.hofIts)) return;
+    if (!force && familyPrefetched.current === String(m.hofIts)) return;
     setFamilyLoading(true);
     try {
-      const res = await memberService.loadFamilyMembersDetails({ HOF_ID: member.hofIts });
+      const res = await memberService.loadFamilyMembersDetails({ HOF_ID: m.hofIts });
       setFamily(normalizeArray(res.data));
     } catch (err) {
       console.error('loadFamilyMembers failed', err);
@@ -437,11 +443,11 @@ function MuminDetailsInner() {
     } finally {
       setFamilyLoading(false);
     }
-  }, [member]);
+  }, []); // stable — never recreated, reads member via ref
 
   useEffect(() => {
-    if (tab === 'family' && member) loadFamilyMembers();
-  }, [tab, member, loadFamilyMembers]);
+    if (tab === 'family' && memberRef.current) loadFamilyMembers();
+  }, [tab, loadFamilyMembers]); // loadFamilyMembers is stable so this only fires when tab changes
 
   useEffect(() => {
     if (tab === 'vajebaat' && member) loadVajebaat();
