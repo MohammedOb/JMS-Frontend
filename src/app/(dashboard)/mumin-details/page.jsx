@@ -326,43 +326,36 @@ function MuminDetailsInner() {
       const memberData = normalized.member;
       if (!memberData || !memberData.accno) throw new Error('Member not found');
 
-      // Fetch family members once — used for HOF name lookup AND to pre-populate
-      // the family tab so loadFamilyMembers doesn't need a second network call.
-      let prefetchedFamily = normalized.family;
-      if (memberData.hofIts) {
-        try {
-          const hofRes = await memberService.loadFamilyMembersDetails({ HOF_ID: memberData.hofIts });
-          const hofList = Array.isArray(hofRes.data) ? hofRes.data
-            : Array.isArray(hofRes.data?.recordset) ? hofRes.data.recordset
-            : Array.isArray(hofRes.data?.recordsets?.[0]) ? hofRes.data.recordsets[0]
-            : Array.isArray(hofRes.data?.data) ? hofRes.data.data : [];
-          const hofMember = hofList.find(m => String(m.ITS_ID) === String(memberData.hofIts));
-          if (hofMember?.Full_Name) memberData.hofName = hofMember.Full_Name;
-          if (hofList.length > 0) {
-            prefetchedFamily = hofList;
-            familyPrefetched.current = String(memberData.hofIts);
-          }
-        } catch { /* leave hofName from loadMuminDetails as fallback */ }
-      }
-
       // Use the real AccNo from the member record — callers may pass an ITS number
       const realAccno = memberData.accno;
 
-      let takhmeen = [];
-      try {
-        const takRes = await takhmeenService.loadDetails({ AccNo: realAccno });
-        takhmeen = normalizeArray(takRes.data).map(normalizeTakRow);
-      } catch (err) {
-        console.error('LoadTakhmeenDetails failed', err);
+      // Fire all three dependent calls in parallel — each only needs realAccno/hofIts
+      // which are already known, so no need to await them sequentially.
+      const [hofRes, takRes, rRes] = await Promise.all([
+        memberData.hofIts
+          ? memberService.loadFamilyMembersDetails({ HOF_ID: memberData.hofIts }).catch(() => null)
+          : Promise.resolve(null),
+        takhmeenService.loadDetails({ AccNo: realAccno }).catch((err) => { console.error('LoadTakhmeenDetails failed', err); return null; }),
+        receiptService.loadTransactionDetails({ AccNo: realAccno }).catch((err) => { console.error('LoadTransactionDetails failed', err); return null; }),
+      ]);
+
+      // Extract HOF name and family list from the parallel family fetch
+      let prefetchedFamily = normalized.family;
+      if (hofRes) {
+        const hofList = Array.isArray(hofRes.data) ? hofRes.data
+          : Array.isArray(hofRes.data?.recordset) ? hofRes.data.recordset
+          : Array.isArray(hofRes.data?.recordsets?.[0]) ? hofRes.data.recordsets[0]
+          : Array.isArray(hofRes.data?.data) ? hofRes.data.data : [];
+        const hofMember = hofList.find(m => String(m.ITS_ID) === String(memberData.hofIts));
+        if (hofMember?.Full_Name) memberData.hofName = hofMember.Full_Name;
+        if (hofList.length > 0) {
+          prefetchedFamily = hofList;
+          familyPrefetched.current = String(memberData.hofIts);
+        }
       }
 
-      let receipts = [];
-      try {
-        const rRes = await receiptService.loadTransactionDetails({ AccNo: realAccno });
-        receipts = normalizeArray(rRes.data).map(normalizeReceiptRow);
-      } catch (err) {
-        console.error('LoadTransactionDetails failed', err);
-      }
+      const takhmeen = takRes ? normalizeArray(takRes.data).map(normalizeTakRow) : [];
+      const receipts = rRes ? normalizeArray(rRes.data).map(normalizeReceiptRow) : [];
 
       setMember(memberData);
       setTakhmeen(takhmeen);
