@@ -538,6 +538,52 @@ function LiveElement({ el, member, subHead, forYear, history, histLoading, razaD
   );
 }
 
+// ── Cancelled watermark overlay ───────────────────────────────────────────────
+function CancelledWatermark() {
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, pointerEvents: 'none',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 10,
+    }}>
+      {/* diagonal lines forming an X */}
+      <div style={{
+        position: 'absolute', inset: 0, overflow: 'hidden',
+      }}>
+        <div style={{
+          position: 'absolute', top: 0, left: 0, width: '141%', height: '2px',
+          background: 'rgba(220,38,38,0.35)',
+          transform: 'rotate(atan2(100%,100%)) translate(0,0)',
+          transformOrigin: 'top left',
+          transform: `rotate(${Math.atan2(1, 1) * 180 / Math.PI}deg)`,
+        }} />
+        <div style={{
+          position: 'absolute', bottom: 0, left: 0, width: '141%', height: '2px',
+          background: 'rgba(220,38,38,0.35)',
+          transformOrigin: 'bottom left',
+          transform: `rotate(${-Math.atan2(1, 1) * 180 / Math.PI}deg)`,
+        }} />
+      </div>
+      {/* CANCELLED stamp */}
+      <div style={{
+        transform: 'rotate(-35deg)',
+        border: '4px solid rgba(220,38,38,0.65)',
+        borderRadius: 6,
+        padding: '6px 18px',
+        color: 'rgba(220,38,38,0.65)',
+        fontSize: 52,
+        fontWeight: 800,
+        fontFamily: 'Arial, sans-serif',
+        letterSpacing: 6,
+        whiteSpace: 'nowrap',
+        userSelect: 'none',
+      }}>
+        CANCELLED
+      </div>
+    </div>
+  );
+}
+
 // ── Live Canvas ────────────────────────────────────────────────────────────────
 function LiveCanvas({ template, member, subHead, forYear, history, histLoading, razaData, receiptData, receiptItems, silaFitraData }) {
   if (!template) {
@@ -549,7 +595,8 @@ function LiveCanvas({ template, member, subHead, forYear, history, histLoading, 
     );
   }
 
-  const pageSize = PAGE_SIZES[template.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
+  const pageSize  = PAGE_SIZES[template.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
+  const cancelled = String(receiptData?.Status || receiptData?.status || '').toLowerCase().includes('cancel');
 
   return (
     <div
@@ -580,6 +627,7 @@ function LiveCanvas({ template, member, subHead, forYear, history, histLoading, 
           silaFitraData={silaFitraData}
         />
       ))}
+      {cancelled && <CancelledWatermark />}
     </div>
   );
 }
@@ -832,6 +880,7 @@ export default function TakhmeenFormPage() {
       <div id="tak-print-root">
         {activeTemplate && (() => {
           const ps = PAGE_SIZES[activeTemplate.pageSize || DEFAULT_PAGE] || PAGE_SIZES[DEFAULT_PAGE];
+          const cancelled = String(receiptData?.Status || receiptData?.status || '').toLowerCase().includes('cancel');
           return (
             <div style={{
               position: 'relative', width: ps.w, height: ps.h, overflow: 'hidden',
@@ -841,6 +890,7 @@ export default function TakhmeenFormPage() {
               {(activeTemplate.elements || []).map(el => (
                 <LiveElement key={el.id} el={el} member={member} subHead={subHead} forYear={forYear} history={history} histLoading={false} razaData={razaData} receiptData={receiptData} receiptItems={receiptItems} silaFitraData={silaFitraData} />
               ))}
+              {cancelled && <CancelledWatermark />}
             </div>
           );
         })()}
