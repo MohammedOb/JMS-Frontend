@@ -512,7 +512,7 @@ function LiveElement({ el, member, subHead, forYear, history, histLoading, razaD
                 <td colSpan={3} style={{ border: '1px solid #ccc', padding: '4px 8px', fontStyle: 'italic', fontWeight: 'normal', fontSize: fsh, color: '#555' }}>
                   {amountInWordsRcp(totalAmt)}
                 </td>
-                <td style={{ border: '1px solid #ccc', padding: '4px 8px', textAlign: 'center' }}>
+                <td style={{ border: '1px solid #ccc', padding: '4px 8px', textAlign: 'center', fontSize: '18px', fontWeight: 'bold' }}>
                   ₹{totalAmt.toLocaleString('en-IN')}
                 </td>
               </tr>

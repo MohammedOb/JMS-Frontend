@@ -18,6 +18,7 @@ export default function TakhmeenModal({
   const { user } = useAuth();
   const [headOptions,  setHeadOptions]  = useState([]);
   const [gradeOptions, setGradeOptions] = useState([]);
+  const [gradesLoaded, setGradesLoaded] = useState(false);
   const [history,      setHistory]      = useState([]);
   const [histLoading,  setHistLoading]  = useState(false);
 
@@ -53,9 +54,10 @@ export default function TakhmeenModal({
     }
   }, [row?.subHead, headOptions]);
 
-  // Load Grade suggestions from API
+  // Load Grade suggestions from API — set gradesLoaded so we can hide the field when none exist
   useEffect(() => {
-    if (!row?.mainHead || !row?.subHead) { setGradeOptions([]); return; }
+    if (!row?.mainHead || !row?.subHead) { setGradeOptions([]); setGradesLoaded(false); return; }
+    setGradesLoaded(false);
     const t = setTimeout(() => {
       takhmeenService.loadGradeDetails({
         HubMainHead: row.mainHead,
@@ -70,7 +72,8 @@ export default function TakhmeenModal({
             amount: r.Amount,
           })));
         })
-        .catch(() => setGradeOptions([]));
+        .catch(() => setGradeOptions([]))
+        .finally(() => setGradesLoaded(true));
     }, 300);
     return () => clearTimeout(t);
   }, [row?.mainHead, row?.subHead, row?.grade]);
@@ -203,18 +206,20 @@ export default function TakhmeenModal({
           </div>
         )}
 
-        {/* Grade */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="form-label">Grade</label>
-            <ComboBox
-              value={row.grade || ''}
-              options={gradeOptions}
-              placeholder="e.g. A, B, C+"
-              onChange={(v, o) => { set('grade', v); if (o?.amount != null) set('takhmeen', o.amount); }}
-            />
+        {/* Grade — hidden when the selected sub-head has no grade table entries */}
+        {(!gradesLoaded || gradeOptions.length > 0) && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="form-label">Grade</label>
+              <ComboBox
+                value={row.grade || ''}
+                options={gradeOptions}
+                placeholder={gradesLoaded ? 'e.g. A, B, C+' : 'Loading…'}
+                onChange={(v, o) => { set('grade', v); if (o?.amount != null) set('takhmeen', o.amount); }}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Takhmeen + Received + Remaining */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

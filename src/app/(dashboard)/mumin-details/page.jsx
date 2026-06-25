@@ -65,6 +65,7 @@ import ReceiptsTab     from './components/tabs/ReceiptsTab';
 import FamilyTab       from './components/tabs/FamilyTab';
 import SafaiChitthiTab from './components/tabs/SafaiChitthiTab';
 import VajebaatTab     from './components/tabs/VajebaatTab';
+import FollowupTab     from './components/tabs/FollowupTab';
 
 // Modal components
 import TakhmeenModal       from './components/modals/AddTakhmeenModal';
@@ -126,6 +127,7 @@ function MuminDetailsInner() {
     familyTab:        true,
     safaiTab:         can('members.view.safaichitthi_tab'),
     vajebaatTab:      can('members.view_vajebaat_tab'),
+    followupTab:      can('followup.view'),
 
     // New member button in search bar
     newMember:        !hideButtons && (can('members.add') || can('receipts.create')),
@@ -137,6 +139,7 @@ function MuminDetailsInner() {
     FEATURES.familyTab   && { key: 'family',   label: 'Family Details' },
     FEATURES.safaiTab    && { key: 'safai',     label: 'Safai Chitthi' },
     FEATURES.vajebaatTab && { key: 'vajebaat',  label: 'Vajebaat' },
+    FEATURES.followupTab && { key: 'followup',  label: 'Follow Up' },
   ].filter(Boolean);
 
   // ── Search state ──────────────────────────────────────────────────────────
@@ -163,8 +166,10 @@ function MuminDetailsInner() {
   const [himList,    setHimList]    = useState([]);
   const [sniyazList, setSniyazList] = useState([]);
   const [silaFitra,  setSilaFitra]  = useState([]);
-  const [due,        setDue]        = useState(null);
+  const [due,           setDue]           = useState(null);
   const [familyLoading, setFamilyLoading] = useState(false);
+  const [followupList,  setFollowupList]  = useState([]);
+  const [followupLoading, setFollowupLoading] = useState(false);
 
   // ── Tab & modals ──────────────────────────────────────────────────────────
   const [tab, setTab] = useState(params.get('tab') || TAB_LIST[0]?.key || '');
@@ -453,6 +458,10 @@ function MuminDetailsInner() {
   useEffect(() => {
     if (tab === 'vajebaat' && member) loadVajebaat();
   }, [tab, member, loadVajebaat]);
+
+  useEffect(() => {
+    if (tab === 'followup' && member) loadFollowups(member.accno);
+  }, [tab, member]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Takhmeen handlers ─────────────────────────────────────────────────────
   const reloadTakhmeen = async () => {
@@ -768,11 +777,21 @@ function MuminDetailsInner() {
     } catch { toast.error('Failed to reset'); }
   };
 
+  const loadFollowups = async (accno) => {
+    setFollowupLoading(true);
+    try {
+      const res = await followupService.getByAccno(accno);
+      setFollowupList(res.data?.data ?? res.data ?? []);
+    } catch { /* silently ignore */ }
+    finally { setFollowupLoading(false); }
+  };
+
   const saveFollowup = async () => {
     try {
       await followupService.create({ accno: member.accno, ...followupForm });
       toast.success('Follow-up saved');
       closeModal('addFollowup');
+      loadFollowups(member.accno);
     } catch { toast.error('Failed to save'); }
   };
 
@@ -889,6 +908,7 @@ function MuminDetailsInner() {
     family:   family.length,
     safai:    safaiCount,
     vajebaat: vajebaat.length + himList.length,
+    followup: followupList.filter(r => r.status === 'open').length,
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1162,6 +1182,17 @@ function MuminDetailsInner() {
                     });
                     openModal('editVaj');
                   }}
+                />
+              )}
+              {tab === 'followup' && (
+                <FollowupTab
+                  followups={followupList}
+                  loading={followupLoading}
+                  onAdd={() => {
+                    setFollowupForm({ date: today(), note: '', action: 'Call Again' });
+                    openModal('addFollowup');
+                  }}
+                  onReload={() => member && loadFollowups(member.accno)}
                 />
               )}
             </div>

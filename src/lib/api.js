@@ -6,7 +6,7 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-function resolveApiBaseUrl() {
+export function resolveApiBaseUrl() {
   const fallback = 'http://localhost:5000/';
   const configured = process.env.NEXT_PUBLIC_API_URL || fallback;
 

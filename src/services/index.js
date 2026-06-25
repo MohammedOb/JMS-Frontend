@@ -76,7 +76,9 @@ export const memberService = {
 
 // ── Takhmeen ─────────────────────────────────────────────────────────────────
 export const takhmeenService = {
-  loadDetails:   cache.cached((params) => api.post('/LoadTakhmeenDetails',   params), (p) => cache.makeKey('takhmeen',       p), TTL.list),
+  loadDetails:          cache.cached((params) => api.post('/LoadTakhmeenDetails',         params), (p) => cache.makeKey('takhmeen',         p), TTL.list),
+  bulkLoadHistory:      (data)  => api.post('/BulkLoadTakhmeenHistory', data),
+  bulkAddDetails:       (data)  => api.post('/BulkAddTakhmeenDetails',  data),
   addDetails:    cache.mutates((data)  => api.post('/AddTakhmeenDetails',    data),   'takhmeen'),
   updateDetails: cache.mutates((data)  => api.post('/UpdateTakhmeenDetails', data),   'takhmeen'),
   deleteDetails: cache.mutates((data)  => api.delete('/DeleteTakhmeenDetails', { data }), 'takhmeen'),
@@ -104,6 +106,16 @@ export const takhmeenService = {
   // Print button configs (DB-backed, replaces localStorage)
   loadPrintButtonConfig: (buttonId) => api.post('/LoadPrintButtonConfig', { ButtonId: buttonId }),
   savePrintButtonConfig: (data)     => api.post('/SavePrintButtonConfig', data),
+
+  // Alert rules (DB-backed, replaces hardcoded REQUIRED_TAKHMEEN in AlertBanners)
+  loadRequiredTakhmeenRules: cache.cached(
+    () => api.post('/LoadRequiredTakhmeenRules', {}),
+    () => 'takhmeen:required-rules',
+    TTL.lookup
+  ),
+  loadAllRequiredTakhmeenRules: () => api.post('/LoadAllRequiredTakhmeenRules', {}),
+  saveRequiredTakhmeenRule:   cache.mutates((data) => api.post('/SaveRequiredTakhmeenRule',   data), 'takhmeen:required-rules'),
+  deleteRequiredTakhmeenRule: cache.mutates((data) => api.post('/DeleteRequiredTakhmeenRule', data), 'takhmeen:required-rules'),
 };
 
 // ── Vajebaat ─────────────────────────────────────────────────────────────────
@@ -146,10 +158,13 @@ export const dueService = {
 
 // ── Follow Up ────────────────────────────────────────────────────────────────
 export const followupService = {
-  getAll:  (params)        => api.get('/followup', { params }),
-  create:  (data)          => api.post('/followup', data),
-  update:  (id, data)      => api.put(`/followup/${id}`, data),
-  delete:  (id)            => api.delete(`/followup/${id}`),
+  getAll:     (params)     => api.get('/followup', { params }),
+  getByAccno: (accno)      => api.get('/followup', { params: { accno } }),
+  create:     (data)       => api.post('/followup', data),
+  update:     (id, data)   => api.put(`/followup/${id}`, data),
+  close:      (id)         => api.post(`/followup/${id}/close`),
+  reopen:     (id)         => api.post(`/followup/${id}/reopen`),
+  delete:     (id)         => api.delete(`/followup/${id}`),
 };
 
 // ── Expenses ─────────────────────────────────────────────────────────────────

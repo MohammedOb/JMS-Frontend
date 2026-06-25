@@ -5,7 +5,7 @@ import { useState } from 'react';
 import toast      from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import { utilityService } from '@/services';
-import { CalculatorIcon, XIcon, RefreshIcon, MapPinIcon, BarChartIcon, TrashIcon, SaveIcon, DatabaseIcon } from '@/components/shared/Icons';
+import { CalculatorIcon, XIcon, RefreshIcon, MapPinIcon, TrashIcon, SaveIcon, DatabaseIcon } from '@/components/shared/Icons';
 import ITSImportPanel from './_components/ITSImportPanel';
 
 const NOTE_DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
@@ -54,13 +54,6 @@ export default function UtilityPage() {
       color: 'border-navy-700/30 bg-navy-800/[0.03]',
       btnClass: 'btn-primary',
       fn: () => run('mohallah', utilityService.updateMohallahNames, 'Mohallah names updated'),
-    },
-    {
-      key: 'dues', icon: BarChartIcon, title: 'Recalculate All Dues',
-      desc: 'Recalculates outstanding dues for all members based on current takhmeen and receipt data.',
-      color: 'border-amber-500/30 bg-amber-500/[0.04]',
-      btnClass: 'btn-primary',
-      fn: () => run('dues', utilityService.recalcDues, 'Dues recalculated'),
     },
     {
       key: 'cache', icon: TrashIcon, title: 'Clear System Cache',

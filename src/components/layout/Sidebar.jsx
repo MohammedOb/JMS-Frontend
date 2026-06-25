@@ -37,6 +37,7 @@ const NAV_SECTIONS = [
       { label: 'Mumin Details',    href: '/mumin-details',    icon: UsersIcon,    permission: 'members.view' },
       { label: 'ITS Data',         href: '/its-data',         icon: DatabaseIcon, permission: 'members.view' },
       { label: 'Mumin Takhmeen',   href: '/mumin-takhmeen',   icon: CoinsIcon,    permission: 'takhmeen.report_view' },
+      { label: 'Bulk Takhmeen',    href: '/bulk-takhmeen',    icon: CoinsIcon,    permission: 'takhmeen.edit' },
       { label: 'View Template',     href: '/view-template',    icon: PrintIcon,    permission: 'takhmeen.edit' },
       { label: 'Design Templates', href: '/design-templates', icon: FileTextIcon, permission: 'takhmeen.edit' },
     ],
@@ -98,9 +99,10 @@ const NAV_SECTIONS = [
     items: [
       { label: 'FMB Daily Menu',    href: '/fmb-daily-menu',    icon: UtensilsIcon, permission: 'fmb_menu.view' },
       { label: 'Access Control',    href: '/access-control',    icon: UserCogIcon,  permission: 'users.view' },
-      { label: 'System Variables',  href: '/system-variables',  icon: SettingsIcon, permission: 'utility.view' },
-      { label: 'Theme Settings',    href: '/theme-settings',    icon: PaletteIcon,  permission: 'utility.view' },
-      { label: 'Utility',           href: '/utility',           icon: SettingsIcon, permission: 'utility.view' },
+      { label: 'System Variables',   href: '/system-variables',      icon: SettingsIcon,      permission: 'utility.view' },
+      { label: 'Alert Rules',        href: '/takhmeen-alert-rules',  icon: AlertCircleIcon,   permission: 'utility.view' },
+      { label: 'Theme Settings',     href: '/theme-settings',        icon: PaletteIcon,       permission: 'utility.view' },
+      { label: 'Utility',            href: '/utility',               icon: SettingsIcon,      permission: 'utility.view' },
     ],
   },
 ];
