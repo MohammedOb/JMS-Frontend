@@ -67,10 +67,12 @@ export const memberService = {
   loadMuminDetails:         cache.cached((filters) => api.post('/LoadMuminDetails',         filters), (f) => cache.makeKey('mumin',        f), TTL.search),
   loadFamilyMembersDetails: cache.cached((data)    => api.post('/LoadFamilyMembersDetails', data),    (d) => cache.makeKey('mumin:family',  d), TTL.search),
   loadFamilyMembersCount:   cache.cached((data)    => api.post('/LoadFamilyMembersCount',   data),    (d) => cache.makeKey('mumin:fcount',  d), TTL.search),
-  updateMuminDetails:       cache.mutates((data)   => api.post('/UpdateMuminDetails',    data), 'mumin'),
-  addMuminDetails:          cache.mutates((data)   => api.post('/AddMuminDetails',       data), 'mumin'),
-  updateMuminDetailsFMB:    cache.mutates((data)   => api.post('/UpdateMuminDetailsFMB', data), 'mumin'),
-  updateMuminDetailsVaj:    cache.mutates((data)   => api.post('/UpdateMuminDetailsVaj', data), 'mumin'),
+  updateMuminDetails:            cache.mutates((data) => api.post('/UpdateMuminDetails',            data), 'mumin'),
+  addMuminDetails:               cache.mutates((data) => api.post('/AddMuminDetails',               data), 'mumin'),
+  updateMuminDetailsFMB:         cache.mutates((data) => api.post('/UpdateMuminDetailsFMB',         data), 'mumin'),
+  updateMuminDetailsVaj:         cache.mutates((data) => api.post('/UpdateMuminDetailsVaj',         data), 'mumin'),
+  updateMuminDetailsSabeel:      cache.mutates((data) => api.post('/UpdateMuminDetailsSabeel',      data), 'mumin'),
+  bulkUpdateMuminDetailsSabeel:  cache.mutates(()     => api.post('/BulkUpdateMuminDetailsSabeel',  {}),   'mumin'),
   loadMohallaDetails:       cache.cached((filters) => api.post('/LoadMohallaDetails',    filters), (f) => cache.makeKey('mohallah', f), TTL.ref),
 };
 
@@ -313,6 +315,8 @@ export const utilityService = {
   clearCache:            async () => { cache.clear(); return api.post('/utility/clear-cache'); },
   backupData:            () => api.post('/utility/backup'),
   generateReport:        (type) => api.post('/utility/generate-report', { type }),
+  getSchedules:          () => api.get('/utility/schedules'),
+  saveSchedule:          (key, data) => api.put(`/utility/schedules/${key}`, data),
 };
 
 // ── System Variables ─────────────────────────────────────────────────────────

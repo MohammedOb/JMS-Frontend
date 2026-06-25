@@ -1,19 +1,125 @@
 'use client';
 import PermissionGuard from '@/components/shared/PermissionGuard';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import toast      from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
-import { utilityService } from '@/services';
-import { CalculatorIcon, XIcon, RefreshIcon, MapPinIcon, TrashIcon, SaveIcon, DatabaseIcon } from '@/components/shared/Icons';
+import { utilityService, memberService } from '@/services';
+import { CalculatorIcon, XIcon, RefreshIcon, MapPinIcon, TrashIcon, SaveIcon, DatabaseIcon, ClockIcon } from '@/components/shared/Icons';
 import ITSImportPanel from './_components/ITSImportPanel';
 
 const NOTE_DENOMS = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
 
+// ── Schedule row component ────────────────────────────────────────────────────
+function ScheduleRow({ taskKey, schedule, onChange }) {
+  const [saving, setSaving] = useState(false);
+  const saveTimer = useRef(null);
+
+  const save = useCallback(async (patch) => {
+    const merged = { ...schedule, ...patch };
+    onChange(taskKey, merged); // optimistic
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async () => {
+      setSaving(true);
+      try {
+        await utilityService.saveSchedule(taskKey, {
+          schedule_time: merged.schedule_time,
+          enabled: merged.enabled,
+        });
+      } catch {
+        toast.error('Failed to save schedule');
+      } finally {
+        setSaving(false);
+      }
+    }, 400);
+  }, [taskKey, schedule, onChange]);
+
+  const lastRunLabel = (() => {
+    if (!schedule?.last_run_at) return null;
+    const d = new Date(schedule.last_run_at);
+    const today = new Date();
+    const isToday =
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear();
+    const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return isToday ? `Today ${timeStr}` : `${d.toLocaleDateString()} ${timeStr}`;
+  })();
+
+  const enabled = schedule?.enabled ?? false;
+  const scheduleTime = schedule?.schedule_time ?? '02:00';
+  const lastStatus = schedule?.last_run_status;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-100">
+      <div className="flex items-center gap-2 flex-wrap">
+        <ClockIcon className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+        <span className="text-[11px] text-gray-500 font-medium">Auto-run</span>
+
+        {/* Toggle */}
+        <button
+          type="button"
+          onClick={() => save({ enabled: !enabled })}
+          className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200
+            ${enabled ? 'bg-blue-500' : 'bg-gray-300'}`}
+          style={{ height: '18px', width: '32px' }}
+        >
+          <span
+            className="pointer-events-none inline-block h-[14px] w-[14px] transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+            style={{ transform: enabled ? 'translateX(14px)' : 'translateX(0)' }}
+          />
+        </button>
+
+        {/* Time picker — shown when enabled */}
+        {enabled && (
+          <input
+            type="time"
+            value={scheduleTime}
+            onChange={(e) => save({ schedule_time: e.target.value })}
+            className="text-[11px] border border-gray-200 rounded px-1.5 py-0.5 text-gray-700 focus:outline-none focus:border-blue-400"
+          />
+        )}
+
+        {saving && <span className="text-[10px] text-gray-400 italic">saving…</span>}
+      </div>
+
+      {/* Last run info */}
+      {lastRunLabel && (
+        <div className="flex items-center gap-1.5 mt-1.5">
+          <span className="text-[10.5px] text-gray-400">Last run: {lastRunLabel}</span>
+          {lastStatus === 'success' && (
+            <span className="text-[9.5px] font-semibold text-green-600 bg-green-50 border border-green-200 rounded px-1">OK</span>
+          )}
+          {lastStatus === 'failed' && (
+            <span className="text-[9.5px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded px-1">FAILED</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function UtilityPage() {
-  const [running,  setRunning]  = useState({});
-  const [noteForm, setNoteForm] = useState(Object.fromEntries(NOTE_DENOMS.map(d => [d, ''])));
-  const [noteTotal,setNoteTotal]= useState(null);
+  const [running,   setRunning]   = useState({});
+  const [schedules, setSchedules] = useState({});
+  const [noteForm,  setNoteForm]  = useState(Object.fromEntries(NOTE_DENOMS.map(d => [d, ''])));
+  const [noteTotal, setNoteTotal] = useState(null);
+
+  // Load schedules on mount
+  useEffect(() => {
+    utilityService.getSchedules()
+      .then(res => {
+        const map = {};
+        (res.data?.data || []).forEach(s => { map[s.task_key] = s; });
+        setSchedules(map);
+      })
+      .catch(() => {}); // non-critical
+  }, []);
+
+  const handleScheduleChange = useCallback((key, patch) => {
+    setSchedules(prev => ({ ...prev, [key]: { ...(prev[key] || {}), ...patch } }));
+  }, []);
 
   const run = async (key, fn, successMsg) => {
     setRunning(p => ({ ...p, [key]: true }));
@@ -69,6 +175,13 @@ export default function UtilityPage() {
       btnClass: 'btn-success',
       fn: () => run('backup', utilityService.backupData, 'Backup created'),
     },
+    {
+      key: 'sabeelSync', icon: RefreshIcon, title: 'Bulk Sync Sabeel Type',
+      desc: 'Updates SabeelType and SabeelRemark for all members from their most recent Sabeel takhmeen record.',
+      color: 'border-amber-500/30 bg-amber-500/[0.04]',
+      btnClass: 'btn-primary',
+      fn: () => run('sabeelSync', memberService.bulkUpdateMuminDetailsSabeel, 'Sabeel types synced'),
+    },
   ];
 
   return (
@@ -92,6 +205,11 @@ export default function UtilityPage() {
                 >
                   {running[a.key] ? 'Running…' : 'Run'}
                 </button>
+                <ScheduleRow
+                  taskKey={a.key}
+                  schedule={schedules[a.key]}
+                  onChange={handleScheduleChange}
+                />
               </div>
             </div>
           </div>

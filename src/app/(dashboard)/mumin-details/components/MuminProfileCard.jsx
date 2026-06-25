@@ -4,7 +4,7 @@ import Badge from '@/components/shared/Badge';
 import { EditIcon, KeyIcon } from '@/components/shared/Icons';
 import { fmt, fmtDate } from '../utils';
 
-export default function MuminProfileCard({ member, initials, features = {}, onEdit, onAddReceipt, onPrint, onResetPass, onOverallDue }) {
+export default function MuminProfileCard({ member, sabeelInfo, initials, features = {}, onEdit, onAddReceipt, onPrint, onResetPass, onOverallDue }) {
   return (
     <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
       <div className="bg-navy-800 px-4 py-5 text-center">
@@ -35,10 +35,10 @@ export default function MuminProfileCard({ member, initials, features = {}, onEd
           ['Subsector',       member.mohallah || '—'],
           ['Staying In',      member.stayingIn || '—'],
           ['Work Status',     member.workStatus || '—'],
-          ['Sabeel Type',     member.sabeelType || '—'],
-          ['Current Grade',   member.grade || '—'],
-          ['Sabeel Amt',      fmt(member.sabeelAmount)],
-          ['Sabeel Remark',   member.sabeelRemark || '—'],
+          ['Sabeel Type',     sabeelInfo?.subHead || member.sabeelType || '—'],
+          ['Current Grade',   sabeelInfo?.grade || member.grade || '—'],
+          ['Sabeel Amt',      fmt(sabeelInfo != null ? sabeelInfo.takhmeen : member.sabeelAmount)],
+          ['Sabeel Remark',   sabeelInfo?.remark || member.sabeelRemark || '—'],
           ['Account Created', fmtDate(member.createdDate)],
           ['Login Access',    member.loginAccess || '—'],
         ].map(([label, val]) => (

@@ -364,6 +364,18 @@ function MuminDetailsInner() {
       const takhmeen = takRes ? normalizeArray(takRes.data).map(normalizeTakRow) : [];
       const receipts = rRes ? normalizeArray(rRes.data).map(normalizeReceiptRow) : [];
 
+      // Silently sync SabeelType/SabeelRemark from the most recent Sabeel takhmeen
+      const latestSabeel = takhmeen
+        .filter(r => r.mainHead === 'Sabeel' && (r.subHead === 'Sabeel Regular' || r.subHead === 'Sabeel Mutaveteen'))
+        .sort((a, b) => String(b.forYear).localeCompare(String(a.forYear)))[0];
+      if (latestSabeel) {
+        memberService.updateMuminDetailsSabeel({
+          AccNo:       realAccno,
+          SabeelType:  latestSabeel.subHead,
+          SabeelRemark: latestSabeel.remark || undefined,
+        }).catch(() => {});
+      }
+
       setMember(memberData);
       setTakhmeen(takhmeen);
       setReceipts(receipts);
@@ -894,6 +906,14 @@ function MuminDetailsInner() {
     } catch { toast.error('Failed to update'); }
   };
 
+  // ── Sabeel info from most recent Sabeel takhmeen ─────────────────────────
+  const sabeelInfo = useMemo(() => {
+    const rows = takhmeen
+      .filter(r => r.mainHead === 'Sabeel' && (r.subHead === 'Sabeel Regular' || r.subHead === 'Sabeel Mutaveteen'))
+      .sort((a, b) => String(b.forYear).localeCompare(String(a.forYear)));
+    return rows[0] ?? null;
+  }, [takhmeen]);
+
   // ── Derived values ────────────────────────────────────────────────────────
   const initials = (() => {
     const words = member?.name?.trim().split(/\s+/).filter(Boolean);
@@ -943,6 +963,7 @@ function MuminDetailsInner() {
           <div className="space-y-3">
             <MuminProfileCard
               member={member}
+              sabeelInfo={sabeelInfo}
               initials={initials}
               features={FEATURES}
               onEdit={() => openModal('editMember')}
