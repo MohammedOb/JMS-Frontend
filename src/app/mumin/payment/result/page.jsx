@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { Suspense, useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/';
 
-export default function PaymentResultPage() {
+function PaymentResultContent() {
   const searchParams = useSearchParams();
   const txnid        = searchParams.get('txnid');
   const urlStatus    = searchParams.get('status'); // 'success' or 'failed' from redirect URL
@@ -122,5 +122,20 @@ export default function PaymentResultPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+const LoadingFallback = () => (
+  <div className="flex flex-col items-center justify-center h-screen gap-4">
+    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    <p className="text-[14px] text-gray-500">Loading...</p>
+  </div>
+);
+
+export default function PaymentResultPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <PaymentResultContent />
+    </Suspense>
   );
 }
