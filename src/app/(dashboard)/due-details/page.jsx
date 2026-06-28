@@ -9,11 +9,12 @@ import { dueService, takhmeenService, memberService, lookupService } from '@/ser
 import { useAuth } from '@/context/AuthContext';
 import {
   RefreshIcon, XIcon, DownloadIcon,
-  BarChartIcon, FileTextIcon, PrintIcon, SendIcon,
+  BarChartIcon, FileTextIcon, PrintIcon, SendIcon, BellIcon,
 } from '@/components/shared/Icons';
-import WAReminderModal from './components/WAReminderModal';
-import WABulkModal     from './components/WABulkModal';
-import WAQueuePanel    from './components/WAQueuePanel';
+import WAReminderModal            from './components/WAReminderModal';
+import WABulkModal                from './components/WABulkModal';
+import WAQueuePanel               from './components/WAQueuePanel';
+import SendAppNotificationModal   from '@/components/shared/SendAppNotificationModal';
 
 const INIT_FILTERS = {
   receivedFrom: '',
@@ -28,7 +29,7 @@ const INIT_FILTERS = {
   sabeelType:   '',
 };
 
-const TABLE_COLS = 19; // +checkbox +send
+const TABLE_COLS = 19; // +checkbox +send(WA+bell)
 
 const PAGE_SIZE_OPTIONS = [
   { label: '100',    value: 100   },
@@ -193,10 +194,11 @@ export default function DueDetailsPage() {
   const [showExport,  setShowExport]  = useState(false);
 
   // ── WhatsApp reminder state ───────────────────────────────────────────────
-  const [selectedAccnos, setSelectedAccnos] = useState(new Set());
-  const [waReminderRow,  setWaReminderRow]  = useState(null);
-  const [waBulkRows,     setWaBulkRows]     = useState([]);
-  const [waBulkOpen,     setWaBulkOpen]     = useState(false);
+  const [selectedAccnos,  setSelectedAccnos]  = useState(new Set());
+  const [waReminderRow,   setWaReminderRow]   = useState(null);
+  const [waBulkRows,      setWaBulkRows]      = useState([]);
+  const [waBulkOpen,      setWaBulkOpen]      = useState(false);
+  const [appNotifRow,     setAppNotifRow]     = useState(null);
   const [exportPos,   setExportPos]   = useState({});
   const [filters,     setFilters]     = useState(INIT_FILTERS);
   const [pageSize,    setPageSize]    = useState(100);
@@ -731,7 +733,7 @@ export default function DueDetailsPage() {
                 ].map(h => (
                   <th key={h} className="th-navy whitespace-nowrap">{h}</th>
                 ))}
-                <th className="th-navy px-2 w-8" title="Send WhatsApp reminder">WA</th>
+                <th className="th-navy px-2 w-16" title="Send reminder">Send</th>
               </tr>
             </thead>
             <tbody>
@@ -779,15 +781,24 @@ export default function DueDetailsPage() {
                   <td className="px-3 py-2.5 border-t border-border text-center">{r.tillPaid  || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border text-center">{r.fromYear  || '—'}</td>
                   <td className="px-3 py-2.5 border-t border-border text-center">{r.toYear    || '—'}</td>
-                  {/* Send button */}
+                  {/* Send buttons */}
                   <td className="px-2 py-2.5 border-t border-border text-center">
-                    <button
-                      title={`Send reminder to ${r.fullName}`}
-                      onClick={() => setWaReminderRow(r)}
-                      className="inline-flex items-center justify-center w-6 h-6 rounded text-green-600 hover:bg-green-100 transition-colors"
-                    >
-                      <SendIcon className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center justify-center gap-0.5">
+                      <button
+                        title={`Send WhatsApp reminder to ${r.fullName}`}
+                        onClick={() => setWaReminderRow(r)}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded text-green-600 hover:bg-green-100 transition-colors"
+                      >
+                        <SendIcon className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        title={`Send app notification to ${r.fullName}`}
+                        onClick={() => setAppNotifRow(r)}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded text-blue-600 hover:bg-blue-100 transition-colors"
+                      >
+                        <BellIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -835,6 +846,35 @@ export default function DueDetailsPage() {
         onClose={() => setWaBulkOpen(false)}
         rows={waBulkRows}
       />
+      {/* ── App notification modal ─────────────────────────────────────────── */}
+      {appNotifRow && (() => {
+        const fmtAmt = (n) => n ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
+        const forYear = appNotifRow.fromYear
+          ? (appNotifRow.toYear && appNotifRow.toYear !== appNotifRow.fromYear
+              ? `${appNotifRow.fromYear} – ${appNotifRow.toYear}`
+              : appNotifRow.fromYear)
+          : '';
+        const head = appNotifRow.hubSubHead || appNotifRow.hubMainHead || 'Due';
+        const rem  = fmtAmt(appNotifRow.remaining);
+        return (
+          <SendAppNotificationModal
+            open={!!appNotifRow}
+            onClose={() => setAppNotifRow(null)}
+            accno={appNotifRow.accno}
+            name={appNotifRow.fullName}
+            title={`Due Reminder — ${head}${forYear ? ` (${forYear})` : ''}`}
+            body={[
+              `Dear ${appNotifRow.fullName},`,
+              '',
+              `This is a reminder for your outstanding ${head} due${forYear ? ` for ${forYear}` : ''}:`,
+              `Amount Remaining: ${rem}`,
+              '',
+              'Please make payment at your earliest convenience.',
+            ].join('\n')}
+            type="due_reminder"
+          />
+        );
+      })()}
     </div>
   );
 }

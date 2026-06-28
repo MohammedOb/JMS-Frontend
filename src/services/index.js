@@ -475,4 +475,9 @@ export const regFormPublic = {
 };
 
 
+// ── App Notifications (FCM push) ─────────────────────────────────────────────
+export const notificationService = {
+  send: (payload) => api.post('/admin/notifications/send', payload),
+};
+
 // testing

@@ -1,9 +1,9 @@
 'use client';
 
-import { ClipboardListIcon, SendIcon } from '@/components/shared/Icons';
+import { ClipboardListIcon, SendIcon, BellIcon } from '@/components/shared/Icons';
 import { fmt } from '../utils';
 
-export default function DueSummaryCards({ takhmeen = [], onOverallDue, onSendReminder }) {
+export default function DueSummaryCards({ takhmeen = [], onOverallDue, onSendReminder, onSendAppNotif }) {
   const byHead = takhmeen.reduce((acc, row) => {
     if (!row.subHead || !(Number(row.remaining) > 0)) return acc;
     if (!acc[row.subHead]) acc[row.subHead] = { rem: 0, years: [] };
@@ -41,6 +41,24 @@ export default function DueSummaryCards({ takhmeen = [], onOverallDue, onSendRem
     });
   };
 
+  const handleRowAppNotif = (head, rem, years) => {
+    if (!onSendAppNotif) return;
+    onSendAppNotif({
+      rows: [{ head, rem, yearRange: yearRange(years) }],
+      total: rem,
+      isOverall: false,
+    });
+  };
+
+  const handleOverallAppNotif = () => {
+    if (!onSendAppNotif) return;
+    onSendAppNotif({
+      rows: dueRows.map(([head, { rem, years }]) => ({ head, rem, yearRange: yearRange(years) })),
+      total,
+      isOverall: true,
+    });
+  };
+
   if (dueRows.length === 0) {
     return (
       <div className="w-full bg-white border border-border rounded-lg px-4 py-3 shadow-sm flex items-center justify-center gap-2 text-green-600">
@@ -57,7 +75,7 @@ export default function DueSummaryCards({ takhmeen = [], onOverallDue, onSendRem
             <th className="px-3 py-1.5 text-left font-semibold">Type</th>
             <th className="px-3 py-1.5 text-center font-semibold">Years</th>
             <th className="px-3 py-1.5 text-right font-semibold">Remaining</th>
-            {onSendReminder && <th className="px-2 py-1.5" />}
+            {(onSendReminder || onSendAppNotif) && <th className="px-2 py-1.5" />}
           </tr>
         </thead>
         <tbody>
@@ -66,15 +84,28 @@ export default function DueSummaryCards({ takhmeen = [], onOverallDue, onSendRem
               <td className="px-3 py-1 font-extrabold text-gray-950">{head}</td>
               <td className="px-3 py-1 text-center font-extrabold text-gray-850">{yearRange(years)}</td>
               <td className="px-3 py-1 text-right font-extrabold text-red-700">{fmt(rem)}</td>
-              {onSendReminder && (
+              {(onSendReminder || onSendAppNotif) && (
                 <td className="px-2 py-1 text-center">
-                  <button
-                    title={`Send reminder for ${head}`}
-                    onClick={() => handleRowSend(head, rem, years)}
-                    className="inline-flex items-center justify-center w-6 h-6 rounded text-green-600 hover:bg-green-50 hover:text-green-700 transition-colors"
-                  >
-                    <SendIcon className="w-3 h-3" />
-                  </button>
+                  <div className="flex items-center justify-center gap-0.5">
+                    {onSendReminder && (
+                      <button
+                        title={`Send WhatsApp reminder for ${head}`}
+                        onClick={() => handleRowSend(head, rem, years)}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded text-green-600 hover:bg-green-50 hover:text-green-700 transition-colors"
+                      >
+                        <SendIcon className="w-3 h-3" />
+                      </button>
+                    )}
+                    {onSendAppNotif && (
+                      <button
+                        title={`Send app notification for ${head}`}
+                        onClick={() => handleRowAppNotif(head, rem, years)}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                      >
+                        <BellIcon className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </td>
               )}
             </tr>
@@ -82,9 +113,9 @@ export default function DueSummaryCards({ takhmeen = [], onOverallDue, onSendRem
         </tbody>
         <tfoot>
           <tr className="bg-yellow-400">
-            <td className="px-3 py-1.5 font-extrabold text-gray-900" colSpan={onSendReminder ? 2 : 2}>Total Remaining</td>
+            <td className="px-3 py-1.5 font-extrabold text-gray-900" colSpan={2}>Total Remaining</td>
             <td className="px-3 py-1.5 text-right font-extrabold text-gray-900">{fmt(total)}</td>
-            {onSendReminder && <td />}
+            {(onSendReminder || onSendAppNotif) && <td />}
           </tr>
         </tfoot>
       </table>
@@ -103,7 +134,15 @@ export default function DueSummaryCards({ takhmeen = [], onOverallDue, onSendRem
             className="btn btn-sm flex-1 justify-center bg-green-600 text-white border-green-600 hover:bg-green-700"
             onClick={handleOverallSend}
           >
-            <SendIcon className="w-3.5 h-3.5 mr-1.5" />Send Reminder
+            <SendIcon className="w-3.5 h-3.5 mr-1.5" />Send WA Reminder
+          </button>
+        )}
+        {onSendAppNotif && (
+          <button
+            className="btn btn-sm flex-1 justify-center bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+            onClick={handleOverallAppNotif}
+          >
+            <BellIcon className="w-3.5 h-3.5 mr-1.5" />Send App Notif
           </button>
         )}
       </div>

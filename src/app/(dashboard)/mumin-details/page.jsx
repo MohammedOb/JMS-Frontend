@@ -78,7 +78,8 @@ import ResetPasswordModal  from './components/modals/ResetPasswordModal';
 import AddFollowupModal    from './components/modals/AddFollowupModal';
 
 import OverallDueModal        from './components/modals/OverallDueModal';
-import SendDueReminderModal  from './components/modals/SendDueReminderModal';
+import SendDueReminderModal       from './components/modals/SendDueReminderModal';
+import SendAppNotificationModal  from '@/components/shared/SendAppNotificationModal';
 import TakhmeenPreviewModal from './components/modals/TakhmeenPreviewModal';
 import EditMemberModal     from './components/modals/EditMemberModal';
 import AddNewMemberModal   from './components/modals/AddNewMemberModal';
@@ -186,11 +187,13 @@ function MuminDetailsInner() {
     sabeelDue:   false, overallDue:   false,
     takPreview:  false, fmbPrint:     false,
     dueReminder: false,
+    appNotif:    false,
   });
   const openModal  = (k) => setModals(p => ({ ...p, [k]: true }));
   const closeModal = (k) => setModals(p => ({ ...p, [k]: false }));
 
   const [dueReminderData, setDueReminderData] = useState(null);
+  const [appNotifData,    setAppNotifData]    = useState(null);
   const [printData, setPrintData] = useState(null);
   const [showPrint, setShowPrint] = useState(false);
 
@@ -1033,6 +1036,7 @@ function MuminDetailsInner() {
                     takhmeen={takhmeen}
                     onOverallDue={FEATURES.overallDue ? () => openModal('overallDue') : null}
                     onSendReminder={(data) => { setDueReminderData(data); openModal('dueReminder'); }}
+                    onSendAppNotif={(data) => { setAppNotifData(data); openModal('appNotif'); }}
                   />
                 </div>
               )}
@@ -1337,6 +1341,36 @@ function MuminDetailsInner() {
         open={modals.dueReminder} onClose={() => closeModal('dueReminder')}
         member={member} dueData={dueReminderData}
       />
+      {(() => {
+        const d = appNotifData;
+        const memberName = member?.name || member?.FullName || '';
+        const memberAccno = member?.accno || member?.AccNo || '';
+        const fmtAmt = (n) => n ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
+        const notifTitle = d?.isOverall
+          ? `Due Reminder — Overall (${fmtAmt(d?.total)})`
+          : d?.rows?.[0] ? `Due Reminder — ${d.rows[0].head} (${fmtAmt(d.rows[0].rem)})` : 'Due Reminder';
+        const notifBody = d?.rows ? [
+          `Dear ${memberName},`,
+          '',
+          'This is a reminder for your outstanding dues:',
+          '',
+          ...d.rows.map(r => `• ${r.head}${r.yearRange ? ` (${r.yearRange})` : ''}: ${fmtAmt(r.rem)}`),
+          ...(d.isOverall && d.rows.length > 1 ? [`\nTotal: ${fmtAmt(d.total)}`] : []),
+          '',
+          'Please make payment at your earliest convenience. Contact us for any queries.',
+        ].join('\n') : '';
+        return (
+          <SendAppNotificationModal
+            open={modals.appNotif}
+            onClose={() => closeModal('appNotif')}
+            accno={memberAccno}
+            name={memberName}
+            title={notifTitle}
+            body={notifBody}
+            type="due_reminder"
+          />
+        );
+      })()}
       <TakhmeenPreviewModal
         open={modals.takPreview} onClose={() => closeModal('takPreview')}
         member={member} takhmeen={takhmeen}
