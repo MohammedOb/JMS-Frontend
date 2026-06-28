@@ -473,3 +473,6 @@ export const regFormPublic = {
   lookupByITS:   (d) => publicApi.post('/reg-form/member/its',   d),
   lookupByAccNo: (d) => publicApi.post('/reg-form/member/accno', d),
 };
+
+
+// testing
