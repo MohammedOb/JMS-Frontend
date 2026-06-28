@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import muminApi from '@/lib/muminApi';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/';
 
 export default function PaymentResultPage() {
   const searchParams = useSearchParams();
-  const router       = useRouter();
   const txnid        = searchParams.get('txnid');
   const urlStatus    = searchParams.get('status'); // 'success' or 'failed' from redirect URL
   const [status, setStatus]   = useState('loading');
@@ -29,8 +29,9 @@ export default function PaymentResultPage() {
 
     const poll = async () => {
       try {
-        const res = await muminApi.get(`/mumin/payment/status/${txnid}`);
-        const d   = res.data?.data;
+        const res = await fetch(`${API_BASE}mumin/payment/status/${txnid}`);
+        const json = await res.json();
+        const d   = json?.data;
         if (!d) { setStatus('error'); return; }
 
         setOrder(d);

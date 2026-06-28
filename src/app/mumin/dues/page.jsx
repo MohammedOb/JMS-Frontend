@@ -94,7 +94,16 @@ export default function DuesPage() {
       });
       const { payuUrl, payuParams } = res.data;
       setConfirmRow(null);
-      setPayuData({ payuUrl, payuParams });
+
+      // In native WebView: tell RN to inject the form submit so PayU stays in-app.
+      // In browser: fall back to the hidden-form auto-submit approach.
+      if (typeof window !== 'undefined' && window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(
+          JSON.stringify({ type: 'payu_checkout', payuUrl, payuParams })
+        );
+      } else {
+        setPayuData({ payuUrl, payuParams });
+      }
     } catch {
       setPaying(false);
       alert('Could not initiate payment. Please try again.');
