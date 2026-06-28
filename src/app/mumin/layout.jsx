@@ -43,8 +43,16 @@ function ProfileIcon({ className }) {
 export default function MuminLayout({ children }) {
   const router   = useRouter();
   const pathname = usePathname();
-  const [ready, setReady]   = useState(false);
-  const [unread, setUnread] = useState(0);
+  const [ready, setReady]     = useState(false);
+  const [unread, setUnread]   = useState(0);
+  const [inWebView, setInWebView] = useState(false);
+
+  // Detect if running inside the native app's WebView
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.ReactNativeWebView) {
+      setInWebView(true);
+    }
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('jms_mumin_token');
@@ -55,10 +63,7 @@ export default function MuminLayout({ children }) {
     }
   }, [pathname, router]);
 
-  // Register FCM token with backend for already-logged-in users.
-  // The Expo shell injects window.__FCM_TOKEN__ and calls window.__onFcmToken__.
-  // We define the handler here (layout wraps all pages) so it runs regardless
-  // of whether the user came through the login page.
+  // Register FCM token with backend (works for already-logged-in users too)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -72,16 +77,12 @@ export default function MuminLayout({ children }) {
       }).catch(() => {});
     };
 
-    // If token was already injected before this component mounted
     if (window.__FCM_TOKEN__) registerToken(window.__FCM_TOKEN__);
-
-    // Listen for token injection (fires after WebView load completes)
     window.__onFcmToken__ = (token) => registerToken(token);
-
     return () => { window.__onFcmToken__ = null; };
   }, []);
 
-  // Fetch unread notification count
+  // Fetch unread count and post to native nav
   useEffect(() => {
     if (!ready || pathname === '/mumin/login') return;
     const token = localStorage.getItem('jms_mumin_token');
@@ -90,7 +91,14 @@ export default function MuminLayout({ children }) {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
-      .then(d => setUnread((d.data || []).filter(n => !n.is_read).length))
+      .then(d => {
+        const count = (d.data || []).filter(n => !n.is_read).length;
+        setUnread(count);
+        // Sync badge count with native tab bar
+        if (typeof window !== 'undefined' && window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'unread_count', count }));
+        }
+      })
       .catch(() => {});
   }, [ready, pathname]);
 
@@ -99,60 +107,44 @@ export default function MuminLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col max-w-lg mx-auto relative shadow-xl">
-      {/* Top header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
-        <div>
-          <div className="text-[15px] font-bold text-gray-900">JMS Portal</div>
-          <div className="text-[11px] text-gray-400">Member Self-Service</div>
-        </div>
-        <button
-          onClick={() => {
-            localStorage.removeItem('jms_mumin_token');
-            localStorage.removeItem('jms_mumin_user');
-            router.replace('/mumin/login');
-          }}
-          className="text-[12px] text-red-500 font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors"
-        >
-          Logout
-        </button>
-      </header>
-
-      {/* Page content */}
-      <main className="flex-1 overflow-y-auto pb-20">
+      {/* Page content — no bottom padding in WebView (native tab bar is outside the WebView) */}
+      <main className={`flex-1 overflow-y-auto ${inWebView ? 'pb-2' : 'pb-20'}`}>
         {children}
       </main>
 
-      {/* Bottom tab bar */}
-      <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white border-t border-gray-200 z-10">
-        <div className="flex">
-          {NAV.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || pathname.startsWith(href + '/');
-            const isBell = href === '/mumin/notifications';
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex-1 flex flex-col items-center pt-2 pb-3 gap-1 text-[11px] font-semibold transition-colors relative ${
-                  active ? 'text-blue-600' : 'text-gray-400'
-                }`}
-              >
-                {active && (
-                  <span className="absolute top-0 left-1/4 right-1/4 h-[3px] bg-blue-600 rounded-b-full" />
-                )}
-                <div className="relative">
-                  <Icon className="w-6 h-6" />
-                  {isBell && unread > 0 && (
-                    <span className="absolute -top-1 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5">
-                      {unread > 9 ? '9+' : unread}
-                    </span>
+      {/* Bottom tab bar — only shown in regular browser, hidden in native app WebView */}
+      {!inWebView && (
+        <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white border-t border-gray-200 z-10">
+          <div className="flex">
+            {NAV.map(({ href, label, icon: Icon }) => {
+              const active = pathname === href || pathname.startsWith(href + '/');
+              const isBell = href === '/mumin/notifications';
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`flex-1 flex flex-col items-center pt-2 pb-3 gap-1 text-[11px] font-semibold transition-colors relative ${
+                    active ? 'text-blue-600' : 'text-gray-400'
+                  }`}
+                >
+                  {active && (
+                    <span className="absolute top-0 left-1/4 right-1/4 h-[3px] bg-blue-600 rounded-b-full" />
                   )}
-                </div>
-                {label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+                  <div className="relative">
+                    <Icon className="w-6 h-6" />
+                    {isBell && unread > 0 && (
+                      <span className="absolute -top-1 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5">
+                        {unread > 9 ? '9+' : unread}
+                      </span>
+                    )}
+                  </div>
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }

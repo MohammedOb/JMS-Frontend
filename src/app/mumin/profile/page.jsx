@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import muminApi from '@/lib/muminApi';
 
 function Field({ label, value }) {
@@ -15,7 +15,17 @@ function Field({ label, value }) {
 
 export default function ProfilePage() {
   const searchParams = useSearchParams();
+  const router       = useRouter();
   const forceChange  = searchParams.get('changePassword') === 'true';
+
+  const handleLogout = () => {
+    localStorage.removeItem('jms_mumin_token');
+    localStorage.removeItem('jms_mumin_user');
+    if (typeof window !== 'undefined' && window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'user_logged_out' }));
+    }
+    router.replace('/mumin/login');
+  };
 
   const [profile, setProfile]       = useState(null);
   const [loading, setLoading]       = useState(true);
@@ -172,6 +182,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Password section */}
+
       <div className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div>
@@ -232,6 +243,17 @@ export default function ProfilePage() {
           </form>
         )}
       </div>
+
+      {/* Logout */}
+      <button
+        onClick={handleLogout}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-red-200 bg-red-50 text-red-600 text-[14px] font-semibold hover:bg-red-100 transition-colors"
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+        Logout
+      </button>
     </div>
   );
 }

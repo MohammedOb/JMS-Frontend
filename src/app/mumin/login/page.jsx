@@ -38,6 +38,14 @@ export default function MuminLoginPage() {
       localStorage.setItem('jms_mumin_token', data.accessToken);
       localStorage.setItem('jms_mumin_user', JSON.stringify(data.mumin));
 
+      // Tell native shell: user logged in (enables push notifications + sets loginAt for filtering)
+      if (typeof window !== 'undefined' && window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'user_logged_in',
+          loginAt: String(Date.now()),
+        }));
+      }
+
       // Register FCM token if injected by Expo shell app
       if (typeof window !== 'undefined' && window.__FCM_TOKEN__) {
         fetch(`${resolveApiBaseUrl()}mumin/register-fcm`, {
