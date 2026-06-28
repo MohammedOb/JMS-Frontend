@@ -479,5 +479,3 @@ export const regFormPublic = {
 export const notificationService = {
   send: (payload) => api.post('/admin/notifications/send', payload),
 };
-
-// testing
