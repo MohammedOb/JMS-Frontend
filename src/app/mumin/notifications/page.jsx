@@ -21,17 +21,30 @@ const TYPE_BADGE = {
   general:      { cls: 'bg-gray-100 text-gray-600',   label: 'General' },
 };
 
+const PREVIEW_LEN = 120;
+
+function stripHtml(html) {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+}
+
 function NotificationCard({ notif, onRead }) {
-  const badge = TYPE_BADGE[notif.type] || TYPE_BADGE.general;
+  const [expanded, setExpanded] = useState(false);
+  const badge   = TYPE_BADGE[notif.type] || TYPE_BADGE.general;
+  const plain   = stripHtml(notif.body);
+  const isLong  = plain.length > PREVIEW_LEN;
+  const preview = isLong ? plain.slice(0, PREVIEW_LEN) + '…' : plain;
+
+  const handleExpand = () => {
+    setExpanded(e => !e);
+    if (!notif.is_read) onRead(notif.id);
+  };
 
   return (
     <div
-      className={`rounded-xl border p-4 transition-colors cursor-pointer ${
-        notif.is_read
-          ? 'bg-white border-gray-200'
-          : 'bg-blue-50 border-blue-200'
+      className={`rounded-xl border p-4 transition-colors ${
+        notif.is_read ? 'bg-white border-gray-200' : 'bg-blue-50 border-blue-200'
       }`}
-      onClick={() => !notif.is_read && onRead(notif.id)}
     >
       <div className="flex items-start gap-3">
         <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${notif.is_read ? 'bg-gray-300' : 'bg-blue-500'}`} />
@@ -41,10 +54,32 @@ function NotificationCard({ notif, onRead }) {
             <span className="text-[10px] text-gray-400">{timeAgo(notif.created_at)}</span>
           </div>
           <div className="text-[13px] font-semibold text-gray-900">{notif.title}</div>
-          <div
-            className="notif-html text-[12px] text-gray-600 mt-0.5 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: notif.body }}
-          />
+
+          {expanded ? (
+            <div
+              className="notif-html text-[12px] text-gray-600 mt-1 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: notif.body }}
+            />
+          ) : (
+            <p className="text-[12px] text-gray-600 mt-1 leading-relaxed">{preview}</p>
+          )}
+
+          {isLong && (
+            <button
+              onClick={handleExpand}
+              className="mt-1 text-[11px] text-blue-600 font-medium hover:underline"
+            >
+              {expanded ? 'Show less' : 'Show more'}
+            </button>
+          )}
+          {!isLong && !notif.is_read && (
+            <button
+              onClick={() => onRead(notif.id)}
+              className="mt-1 text-[11px] text-gray-400 font-medium hover:text-blue-600"
+            >
+              Mark as read
+            </button>
+          )}
         </div>
       </div>
     </div>

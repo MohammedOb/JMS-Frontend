@@ -108,7 +108,7 @@ export default function MuminLayout({ children }) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col max-w-lg mx-auto relative shadow-xl">
       {/* Page content — no bottom padding in WebView (native tab bar is outside the WebView) */}
-      <main className={`flex-1 overflow-y-auto ${inWebView ? 'pb-2' : 'pb-20'}`}>
+      <main key={pathname} className={`flex-1 overflow-y-auto mumin-slide-page ${inWebView ? 'pb-2' : 'pb-20'}`}>
         {children}
       </main>
 
