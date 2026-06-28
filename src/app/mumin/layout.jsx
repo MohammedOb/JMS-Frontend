@@ -55,12 +55,38 @@ export default function MuminLayout({ children }) {
     }
   }, [pathname, router]);
 
+  // Register FCM token with backend for already-logged-in users.
+  // The Expo shell injects window.__FCM_TOKEN__ and calls window.__onFcmToken__.
+  // We define the handler here (layout wraps all pages) so it runs regardless
+  // of whether the user came through the login page.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const registerToken = (fcmToken) => {
+      const authToken = localStorage.getItem('jms_mumin_token');
+      if (!authToken || !fcmToken) return;
+      fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/'}mumin/register-fcm`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body:    JSON.stringify({ fcmToken }),
+      }).catch(() => {});
+    };
+
+    // If token was already injected before this component mounted
+    if (window.__FCM_TOKEN__) registerToken(window.__FCM_TOKEN__);
+
+    // Listen for token injection (fires after WebView load completes)
+    window.__onFcmToken__ = (token) => registerToken(token);
+
+    return () => { window.__onFcmToken__ = null; };
+  }, []);
+
   // Fetch unread notification count
   useEffect(() => {
     if (!ready || pathname === '/mumin/login') return;
     const token = localStorage.getItem('jms_mumin_token');
     if (!token) return;
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/mumin/notifications`, {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/'}mumin/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.json())
@@ -106,14 +132,17 @@ export default function MuminLayout({ children }) {
               <Link
                 key={href}
                 href={href}
-                className={`flex-1 flex flex-col items-center py-2 gap-0.5 text-[10px] font-medium transition-colors ${
-                  active ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                className={`flex-1 flex flex-col items-center pt-2 pb-3 gap-1 text-[11px] font-semibold transition-colors relative ${
+                  active ? 'text-blue-600' : 'text-gray-400'
                 }`}
               >
+                {active && (
+                  <span className="absolute top-0 left-1/4 right-1/4 h-[3px] bg-blue-600 rounded-b-full" />
+                )}
                 <div className="relative">
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-6 h-6" />
                   {isBell && unread > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                    <span className="absolute -top-1 -right-1.5 bg-red-500 text-white text-[9px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-0.5">
                       {unread > 9 ? '9+' : unread}
                     </span>
                   )}

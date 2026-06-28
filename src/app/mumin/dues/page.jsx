@@ -142,16 +142,18 @@ export default function DuesPage() {
       {error && <div className="text-sm text-red-600 bg-red-50 rounded-lg p-3">{error}</div>}
 
       {/* Tabs: Due only / All entries */}
-      <div className="flex border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
+      <div className="flex rounded-xl overflow-hidden border border-blue-100">
         {[
-          { key: 'dues',    label: 'Dues Only' },
-          { key: 'all',     label: 'All Entries' },
+          { key: 'dues', label: 'Dues Only' },
+          { key: 'all',  label: 'All Entries' },
         ].map(t => (
           <button
             key={t.key}
             onClick={() => { setTab(t.key); setTablePage(0); }}
-            className={`flex-1 py-2 text-[12px] font-medium transition-colors ${
-              tab === t.key ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400'
+            className={`flex-1 py-2.5 text-[13px] font-semibold transition-colors ${
+              tab === t.key
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-500 hover:bg-gray-50'
             }`}
           >
             {t.label}

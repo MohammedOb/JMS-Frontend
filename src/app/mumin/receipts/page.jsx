@@ -18,7 +18,7 @@ function fmtDate(str) {
   } catch { return str; }
 }
 
-function ReceiptCard({ receipt, onDownload, downloading }) {
+function ReceiptCard({ receipt, onDownload }) {
   const status = receipt.Status === 'Cancelled'
     ? 'Cancelled'
     : receipt.IsCashMemo
@@ -48,17 +48,12 @@ function ReceiptCard({ receipt, onDownload, downloading }) {
       </div>
       <button
         onClick={() => onDownload(receipt)}
-        disabled={downloading === receipt.ID}
-        className="flex-shrink-0 flex flex-col items-center gap-0.5 text-blue-600 disabled:opacity-40 hover:text-blue-700 transition-colors p-1"
-        title="Download PDF"
+        className="flex-shrink-0 flex flex-col items-center gap-0.5 text-blue-600 hover:text-blue-700 transition-colors p-1"
+        title="Open PDF"
       >
-        {downloading === receipt.ID ? (
-          <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-        )}
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        </svg>
         <span className="text-[9px] font-medium">PDF</span>
       </button>
     </div>
@@ -69,7 +64,6 @@ export default function ReceiptsPage() {
   const [receipts, setReceipts] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
-  const [downloading, setDownloading] = useState(null);
   const [search, setSearch]     = useState('');
   const [page, setPage]         = useState(0);
   const PAGE_SIZE = 10;
@@ -90,29 +84,16 @@ export default function ReceiptsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleDownload = async (receipt) => {
-    setDownloading(receipt.ID);
-    try {
-      const token = localStorage.getItem('jms_mumin_token');
-      const res = await fetch(
-        `${resolveApiBaseUrl()}mumin/receipts/${receipt.ID}/pdf`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (!res.ok) throw new Error('Failed');
+  const handleDownload = (receipt) => {
+    const token = localStorage.getItem('jms_mumin_token');
+    const url = `${resolveApiBaseUrl()}mumin/receipts/${receipt.ID}/pdf?token=${encodeURIComponent(token)}`;
 
-      const blob = await res.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = `Receipt_${receipt.ReceiptNo}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch {
-      alert('Could not download PDF. Please try again.');
-    } finally {
-      setDownloading(null);
+    if (window.ReactNativeWebView) {
+      // Running inside the mobile app — ask native shell to open in system PDF viewer
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'open_pdf', url }));
+    } else {
+      // Regular browser — open in a new tab
+      window.open(url, '_blank');
     }
   };
 
@@ -174,7 +155,6 @@ export default function ReceiptsPage() {
               key={r.ID}
               receipt={r}
               onDownload={handleDownload}
-              downloading={downloading}
             />
           ))
         )}
