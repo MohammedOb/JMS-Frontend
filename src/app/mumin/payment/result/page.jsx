@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import muminApi from '@/lib/muminApi';
 import Link from 'next/link';
 
-export default function PaymentResultPage() {
+function PaymentResultContent() {
   const searchParams = useSearchParams();
   const router       = useRouter();
   const txnid        = searchParams.get('txnid');
@@ -121,5 +121,20 @@ export default function PaymentResultPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+const LoadingFallback = () => (
+  <div className="flex flex-col items-center justify-center h-screen gap-4">
+    <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    <p className="text-[14px] text-gray-500">Loading...</p>
+  </div>
+);
+
+export default function PaymentResultPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <PaymentResultContent />
+    </Suspense>
   );
 }
