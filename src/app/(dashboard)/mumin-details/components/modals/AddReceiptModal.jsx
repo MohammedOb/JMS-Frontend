@@ -133,7 +133,7 @@ export default function AddReceiptModal({
     setSaving(false);
     // Reset form fields so reopening the modal always starts clean
     setRcItems([]);
-    setRcForm({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', transactionRefNo: '', remark: '', sendSMS: false, isCashMemo: false, sendWhatsApp: false, whatsAppMobile: '' });
+    setRcForm({ date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', transactionRefNo: '', remark: '', sendSMS: false, isCashMemo: false, sendWhatsApp: false, whatsAppMobile: '', sendAppNotif: false });
     setRcItem({ hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', grade: member?.grade || '', amount: '', remark: '' });
   }, [open, member]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -347,7 +347,8 @@ export default function AddReceiptModal({
     profile,
     rcForm,
     rcItems,
-    splitRows: needsSplit ? splitRows : [],
+    splitRows:  needsSplit ? splitRows : [],
+    grandTotal,
     printOnly,
   });
 
@@ -892,16 +893,6 @@ export default function AddReceiptModal({
 
         {/* ── Notifications ──────────────────────────────────────────────── */}
         <div className="flex flex-col gap-2 p-2.5 bg-surface rounded-md border border-border">
-          {/* <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              className="accent-blue-500 w-3.5 h-3.5"
-              checked={rcForm.sendSMS || false}
-              onChange={e => setRcForm(p => ({ ...p, sendSMS: e.target.checked }))}
-            />
-            Send SMS confirmation to {profile.mobile || member?.mobile}
-          </label> */}
-
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer">
               <input
@@ -923,6 +914,17 @@ export default function AddReceiptModal({
               />
             )}
           </div>
+          <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              className="accent-blue-600 w-3.5 h-3.5"
+              checked={rcForm.sendAppNotif || false}
+              onChange={e => setRcForm(p => ({ ...p, sendAppNotif: e.target.checked }))}
+            />
+            <span className={`font-medium ${rcForm.sendAppNotif ? 'text-blue-700' : 'text-gray-600'}`}>
+              Send app notification (JMS app)
+            </span>
+          </label>
         </div>
       </div>
     </Modal>

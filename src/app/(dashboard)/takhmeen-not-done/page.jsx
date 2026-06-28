@@ -7,9 +7,10 @@ import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import { takhmeenService, memberService, lookupService } from '@/services';
 import { useAuth } from '@/context/AuthContext';
-import { SearchIcon, XIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon, SendIcon } from '@/components/shared/Icons';
-import WAReminderModal from './components/WAReminderModal';
-import WABulkModal     from './components/WABulkModal';
+import { SearchIcon, XIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon, SendIcon, BellIcon } from '@/components/shared/Icons';
+import WAReminderModal   from './components/WAReminderModal';
+import WABulkModal       from './components/WABulkModal';
+import AppNotifBulkModal from '@/components/shared/AppNotifBulkModal';
 import WAQueuePanel    from './components/WAQueuePanel';
 
 const INIT_FILTERS = {
@@ -156,8 +157,10 @@ export default function TakhmeenNotDonePage() {
   // ── WhatsApp reminder state ───────────────────────────────────────────────
   const [selectedAccnos, setSelectedAccnos] = useState(new Set());
   const [waReminderRow,  setWaReminderRow]  = useState(null);
-  const [waBulkRows,     setWaBulkRows]     = useState([]);
-  const [waBulkOpen,     setWaBulkOpen]     = useState(false);
+  const [waBulkRows,        setWaBulkRows]        = useState([]);
+  const [waBulkOpen,        setWaBulkOpen]        = useState(false);
+  const [appNotifBulkRows,  setAppNotifBulkRows]  = useState([]);
+  const [appNotifBulkOpen,  setAppNotifBulkOpen]  = useState(false);
 
   const setF = useCallback((k, v) => setFilters(p => ({ ...p, [k]: v })), []);
 
@@ -576,6 +579,27 @@ export default function TakhmeenNotDonePage() {
             <SendIcon className="w-3.5 h-3.5 mr-1.5" />
             Send All ({allRows.length})
           </button>
+          <button
+            className="btn btn-sm bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+            disabled={selectedAccnos.size === 0}
+            onClick={() => {
+              setAppNotifBulkRows(allRows.filter(r => selectedAccnos.has(r.accno)));
+              setAppNotifBulkOpen(true);
+            }}
+          >
+            <BellIcon className="w-3.5 h-3.5 mr-1.5" />
+            Notify Selected ({selectedAccnos.size})
+          </button>
+          <button
+            className="btn btn-sm bg-blue-700 text-white border-blue-700 hover:bg-blue-800"
+            onClick={() => {
+              setAppNotifBulkRows(allRows);
+              setAppNotifBulkOpen(true);
+            }}
+          >
+            <BellIcon className="w-3.5 h-3.5 mr-1.5" />
+            Notify All ({allRows.length})
+          </button>
           {selectedAccnos.size > 0 && (
             <button
               className="btn btn-sm btn-secondary"
@@ -682,6 +706,14 @@ export default function TakhmeenNotDonePage() {
         onClose={() => setWaBulkOpen(false)}
         rows={waBulkRows}
         batchLabel={listLabel}
+      />
+      <AppNotifBulkModal
+        open={appNotifBulkOpen}
+        onClose={() => setAppNotifBulkOpen(false)}
+        rows={appNotifBulkRows}
+        defaultTitle="Takhmeen Reminder"
+        defaultBody={`This is a reminder that your Takhmeen for this year has not been completed.\nPlease contact us or visit the Jamaat office for assistance.`}
+        defaultType="due_reminder"
       />
     </div>
   );

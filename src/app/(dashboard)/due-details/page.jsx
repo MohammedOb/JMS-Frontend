@@ -15,6 +15,7 @@ import WAReminderModal            from './components/WAReminderModal';
 import WABulkModal                from './components/WABulkModal';
 import WAQueuePanel               from './components/WAQueuePanel';
 import SendAppNotificationModal   from '@/components/shared/SendAppNotificationModal';
+import AppNotifDueModal           from '@/components/shared/AppNotifDueModal';
 
 const INIT_FILTERS = {
   receivedFrom: '',
@@ -198,7 +199,9 @@ export default function DueDetailsPage() {
   const [waReminderRow,   setWaReminderRow]   = useState(null);
   const [waBulkRows,      setWaBulkRows]      = useState([]);
   const [waBulkOpen,      setWaBulkOpen]      = useState(false);
-  const [appNotifRow,     setAppNotifRow]     = useState(null);
+  const [appNotifRow,       setAppNotifRow]       = useState(null);
+  const [appNotifBulkRows,  setAppNotifBulkRows]  = useState([]);
+  const [appNotifBulkOpen,  setAppNotifBulkOpen]  = useState(false);
   const [exportPos,   setExportPos]   = useState({});
   const [filters,     setFilters]     = useState(INIT_FILTERS);
   const [pageSize,    setPageSize]    = useState(100);
@@ -697,6 +700,27 @@ export default function DueDetailsPage() {
             <SendIcon className="w-3.5 h-3.5 mr-1.5" />
             Send All ({filteredRows.length})
           </button>
+          <button
+            className="btn btn-sm bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+            disabled={selectedAccnos.size === 0}
+            onClick={() => {
+              setAppNotifBulkRows(filteredRows.filter(r => selectedAccnos.has(r.accno)));
+              setAppNotifBulkOpen(true);
+            }}
+          >
+            <BellIcon className="w-3.5 h-3.5 mr-1.5" />
+            Notify Selected ({selectedAccnos.size})
+          </button>
+          <button
+            className="btn btn-sm bg-blue-700 text-white border-blue-700 hover:bg-blue-800"
+            onClick={() => {
+              setAppNotifBulkRows(filteredRows);
+              setAppNotifBulkOpen(true);
+            }}
+          >
+            <BellIcon className="w-3.5 h-3.5 mr-1.5" />
+            Notify All ({filteredRows.length})
+          </button>
           {selectedAccnos.size > 0 && (
             <button
               className="btn btn-sm btn-secondary"
@@ -846,7 +870,12 @@ export default function DueDetailsPage() {
         onClose={() => setWaBulkOpen(false)}
         rows={waBulkRows}
       />
-      {/* ── App notification modal ─────────────────────────────────────────── */}
+      <AppNotifDueModal
+        open={appNotifBulkOpen}
+        onClose={() => setAppNotifBulkOpen(false)}
+        rows={appNotifBulkRows}
+      />
+      {/* ── App notification modal (per-row) ───────────────────────────────── */}
       {appNotifRow && (() => {
         const fmtAmt = (n) => n ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
         const forYear = appNotifRow.fromYear

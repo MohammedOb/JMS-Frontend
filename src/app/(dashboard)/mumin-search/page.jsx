@@ -6,10 +6,11 @@ import { memberService, lookupService } from '@/services';
 import { useRouter }     from 'next/navigation';
 import toast             from 'react-hot-toast';
 import PageHeader        from '@/components/shared/PageHeader';
-import { XIcon, RefreshIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon, SendIcon } from '@/components/shared/Icons';
+import { XIcon, RefreshIcon, DownloadIcon, BarChartIcon, FileTextIcon, PrintIcon, SendIcon, BellIcon } from '@/components/shared/Icons';
 import { useAuth } from '@/context/AuthContext';
-import WAReminderModal from './components/WAReminderModal';
-import WABulkModal     from './components/WABulkModal';
+import WAReminderModal   from './components/WAReminderModal';
+import WABulkModal       from './components/WABulkModal';
+import AppNotifBulkModal from '@/components/shared/AppNotifBulkModal';
 import WAQueuePanel    from '../takhmeen-not-done/components/WAQueuePanel';
 
 const ACCOUNT_STATUSES = ['Active', 'Closed', 'BlackList'];
@@ -50,8 +51,10 @@ export default function MuminSearchPage() {
   // ── WhatsApp state ────────────────────────────────────────────────────────
   const [selectedAccnos, setSelectedAccnos] = useState(new Set());
   const [waReminderRow,  setWaReminderRow]  = useState(null);
-  const [waBulkRows,     setWaBulkRows]     = useState([]);
-  const [waBulkOpen,     setWaBulkOpen]     = useState(false);
+  const [waBulkRows,        setWaBulkRows]        = useState([]);
+  const [waBulkOpen,        setWaBulkOpen]        = useState(false);
+  const [appNotifBulkRows,  setAppNotifBulkRows]  = useState([]);
+  const [appNotifBulkOpen,  setAppNotifBulkOpen]  = useState(false);
 
   const [filters, setFilters] = useState({
     search: '', sector: '', subsector: '', stayingIn: '', status: '', fmbStatus: '', sabeelType: '',
@@ -438,6 +441,27 @@ export default function MuminSearchPage() {
             <SendIcon className="w-3.5 h-3.5 mr-1.5" />
             Send All ({filteredRows.length})
           </button>
+          <button
+            className="btn btn-sm bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+            disabled={selectedAccnos.size === 0}
+            onClick={() => {
+              setAppNotifBulkRows(filteredRows.filter(r => selectedAccnos.has(r.accno)));
+              setAppNotifBulkOpen(true);
+            }}
+          >
+            <BellIcon className="w-3.5 h-3.5 mr-1.5" />
+            Notify Selected ({selectedAccnos.size})
+          </button>
+          <button
+            className="btn btn-sm bg-blue-700 text-white border-blue-700 hover:bg-blue-800"
+            onClick={() => {
+              setAppNotifBulkRows(filteredRows);
+              setAppNotifBulkOpen(true);
+            }}
+          >
+            <BellIcon className="w-3.5 h-3.5 mr-1.5" />
+            Notify All ({filteredRows.length})
+          </button>
           {selectedAccnos.size > 0 && (
             <button
               className="btn btn-sm btn-secondary"
@@ -534,6 +558,14 @@ export default function MuminSearchPage() {
         onClose={() => setWaBulkOpen(false)}
         rows={waBulkRows}
         batchLabel="Member List"
+      />
+      <AppNotifBulkModal
+        open={appNotifBulkOpen}
+        onClose={() => setAppNotifBulkOpen(false)}
+        rows={appNotifBulkRows}
+        defaultTitle="JMS Announcement"
+        defaultBody=""
+        defaultType="announcement"
       />
     </div>
   );

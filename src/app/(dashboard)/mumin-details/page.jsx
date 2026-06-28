@@ -6,7 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import {
   memberService, takhmeenService, receiptService,
   safaiService, vajebaatService, followupService,
-  whatsappService, lookupService,
+  whatsappService, lookupService, notificationService,
 } from '@/services';
 import toast  from 'react-hot-toast';
 import clsx   from 'clsx';
@@ -607,10 +607,10 @@ function MuminDetailsInner() {
   };
 
   // ── Receipt handlers ──────────────────────────────────────────────────────
-  const saveReceipt = async ({ profile, rcForm, rcItems, splitRows, printOnly }) => {
+  const saveReceipt = async ({ profile, rcForm, rcItems, splitRows, grandTotal: _grandTotal, printOnly }) => {
     if (rcItems.length === 0) { toast.error('Add at least one item'); return; }
 
-    const grandTotal  = rcItems.reduce((s, i) => s + Number(i.amount), 0);
+    const grandTotal  = _grandTotal ?? rcItems.reduce((s, i) => s + Number(i.amount), 0);
     const createdBy   = user?.username || user?.UserName || user?.name || '';
     const baseParams  = {
       AccNo:            profile.accno,
@@ -728,6 +728,27 @@ function MuminDetailsInner() {
         } else {
           toast.error('No mobile number to send WhatsApp');
         }
+      }
+
+      // Send app (FCM) notification if opted in
+      if (rcForm.sendAppNotif && profile.accno) {
+        const fmtAmt  = (n) => n ? `₹${Number(n).toLocaleString('en-IN')}` : '';
+        const subHead = rcItems[0]?.hubSubHead || rcItems[0]?.hubType || '';
+        const rcNos   = savedNos.join(', ');
+        notificationService.send({
+          title:  'Payment Received',
+          body:   [
+            `Dear ${profile.fullName},`,
+            '',
+            `Your payment of ${fmtAmt(grandTotal)} has been received.`,
+            subHead ? `Fund: ${subHead}` : '',
+            `Receipt No: ${rcNos}`,
+            '',
+            'Thank you for your contribution.',
+          ].filter(l => l !== undefined).join('\n'),
+          type:   'general',
+          accnos: [profile.accno],
+        }).catch(() => {});
       }
 
       // Update takhmeen received totals for this member

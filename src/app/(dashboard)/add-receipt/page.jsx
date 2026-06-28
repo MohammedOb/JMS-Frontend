@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { memberService, receiptService, takhmeenService, whatsappService } from '@/services';
+import { memberService, receiptService, takhmeenService, whatsappService, notificationService } from '@/services';
 import toast from 'react-hot-toast';
 import PageHeader from '@/components/shared/PageHeader';
 import { TrashIcon, SaveIcon, EditIcon } from '@/components/shared/Icons';
@@ -96,7 +96,7 @@ function distributeItems(items, splitRows) {
 }
 
 const EMPTY_PROFILE = { accno: '', fullName: '', mobile: '', itsNo: '', localHofIts: '', sector: '', grade: '' };
-const EMPTY_RC_FORM = { date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', transactionRefNo: '', remark: '', sendSMS: false, isCashMemo: false, sendWhatsApp: false, whatsAppMobile: '' };
+const EMPTY_RC_FORM = { date: today(), mode: 'Cash', transType: 'VOLUNTARY CONTRIBUTION', transactionRefNo: '', remark: '', sendSMS: false, isCashMemo: false, sendWhatsApp: false, whatsAppMobile: '', sendAppNotif: false };
 const EMPTY_RC_ITEM = { hubSubHead: '', hubMainHead: '', fundType: '', hubType: '', forYear: '', grade: '', amount: '', remark: '' };
 
 export default function AddReceiptPage() {
@@ -462,6 +462,26 @@ export default function AddReceiptPage() {
         } else {
           toast.error('No mobile number to send WhatsApp');
         }
+      }
+
+      // Send app (FCM) notification if opted in
+      if (rcForm.sendAppNotif && profile.accno) {
+        const subHead = rcItems[0]?.hubSubHead || rcItems[0]?.hubType || '';
+        const rcNos   = savedEnvelopes.map(e => e.receiptNo).join(', ');
+        notificationService.send({
+          title:  'Payment Received',
+          body:   [
+            `Dear ${profile.fullName},`,
+            '',
+            `Your payment of ${fmt(grandTotal)} has been received.`,
+            subHead ? `Fund: ${subHead}` : '',
+            `Receipt No: ${rcNos}`,
+            '',
+            'Thank you for your contribution.',
+          ].filter(l => l !== undefined).join('\n'),
+          type:   'general',
+          accnos: [profile.accno],
+        }).catch(() => {});
       }
 
       clearForm();
@@ -893,16 +913,6 @@ export default function AddReceiptPage() {
 
         {/* ── 6. Notifications ─────────────────────────────────────────────── */}
         <div className="flex flex-col gap-2 p-2.5 bg-surface rounded-md border border-border">
-          {/* <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer">
-            <input
-              type="checkbox"
-              className="accent-blue-500 w-3.5 h-3.5"
-              checked={rcForm.sendSMS || false}
-              onChange={e => setRcForm(p => ({ ...p, sendSMS: e.target.checked }))}
-            />
-            Send SMS confirmation to {profile.mobile || 'member'}
-          </label> */}
-
           <div className="flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer">
               <input
@@ -924,6 +934,17 @@ export default function AddReceiptPage() {
               />
             )}
           </div>
+          <label className="flex items-center gap-2 text-[11.5px] text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              className="accent-blue-600 w-3.5 h-3.5"
+              checked={rcForm.sendAppNotif || false}
+              onChange={e => setRcForm(p => ({ ...p, sendAppNotif: e.target.checked }))}
+            />
+            <span className={`font-medium ${rcForm.sendAppNotif ? 'text-blue-700' : 'text-gray-600'}`}>
+              Send app notification (JMS app)
+            </span>
+          </label>
         </div>
 
         {/* ── 7. Action buttons ─────────────────────────────────────────────── */}

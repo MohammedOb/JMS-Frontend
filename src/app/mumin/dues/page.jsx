@@ -55,6 +55,11 @@ export default function DuesPage() {
   const payFormRef              = useRef(null);
   const [payuData, setPayuData] = useState(null);
 
+  // ── Amount confirmation sheet ─────────────────────────────────────────────
+  const [confirmRow,    setConfirmRow]    = useState(null);  // row being paid
+  const [confirmAmount, setConfirmAmount] = useState('');    // editable amount
+  const [paying,        setPaying]        = useState(false);
+
   useEffect(() => {
     muminApi.get('/mumin/takhmeen')
       .then(res => setTakhmeen(res.data?.data || []))
@@ -62,21 +67,36 @@ export default function DuesPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handlePay = async (row) => {
-    const amount      = Number(row.Remaining || row.TotalRemaining);
-    const productInfo = `JMS Due: ${row.HubSubHead || row.HubMainHead} ${row.ForYear || ''}`.trim();
+  // Step 1: "Pay Now" → open confirmation sheet with pre-filled amount
+  const openConfirm = (row) => {
+    setConfirmRow(row);
+    setConfirmAmount(String(Number(row.Remaining || row.TotalRemaining)));
+    setPaying(false);
+  };
 
+  // Step 2: "Proceed" → create order and redirect to PayU
+  const handlePay = async () => {
+    if (!confirmRow) return;
+    const max    = Number(confirmRow.Remaining || confirmRow.TotalRemaining);
+    const amount = Number(confirmAmount);
+    if (!amount || amount <= 0)   { alert('Please enter a valid amount.'); return; }
+    if (amount > max)             { alert(`Amount cannot exceed ₹ ${fmt(max)}.`); return; }
+
+    const productInfo = `JMS Due: ${confirmRow.HubSubHead || confirmRow.HubMainHead} ${confirmRow.ForYear || ''}`.trim();
+    setPaying(true);
     try {
       const res = await muminApi.post('/mumin/payment/create-order', {
         amount,
         productInfo,
-        hubMainHead: row.HubMainHead || '',
-        hubSubHead:  row.HubSubHead  || '',
-        forYear:     row.ForYear     || '',
+        hubMainHead: confirmRow.HubMainHead || '',
+        hubSubHead:  confirmRow.HubSubHead  || '',
+        forYear:     confirmRow.ForYear     || '',
       });
       const { payuUrl, payuParams } = res.data;
+      setConfirmRow(null);
       setPayuData({ payuUrl, payuParams });
     } catch {
+      setPaying(false);
       alert('Could not initiate payment. Please try again.');
     }
   };
@@ -134,7 +154,7 @@ export default function DuesPage() {
         <div className="space-y-2">
           <h2 className="text-[12px] font-semibold text-red-600 uppercase tracking-wide">Pending Dues</h2>
           {sorted.filter(r => Number(r.Remaining) > 0).map((row) => (
-            <DueCard key={`${row.HubSubHead}-${row.ForYear}`} row={row} onPay={handlePay} />
+            <DueCard key={`${row.HubSubHead}-${row.ForYear}`} row={row} onPay={openConfirm} />
           ))}
         </div>
       )}
@@ -210,6 +230,116 @@ export default function DuesPage() {
             Next →
           </button>
         </div>
+      )}
+
+      {/* ── Amount confirmation bottom sheet ───────────────────────────────── */}
+      {confirmRow && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 z-40"
+            onClick={() => !paying && setConfirmRow(null)}
+          />
+          {/* Sheet */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl pt-5 px-5 pb-24 space-y-4"
+            style={{ maxWidth: 512, margin: '0 auto' }}
+          >
+            {/* Handle bar */}
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto -mt-1" />
+
+            {/* Due info */}
+            <div className="bg-red-50 border border-red-100 rounded-xl p-3">
+              <div className="text-[13px] font-semibold text-red-800">
+                {confirmRow.HubSubHead || confirmRow.HubMainHead}
+              </div>
+              {confirmRow.ForYear && (
+                <div className="text-[11px] text-red-500 mt-0.5">Year: {confirmRow.ForYear}</div>
+              )}
+              <div className="text-[11px] text-red-500">
+                Total Due: ₹ {fmt(confirmRow.Remaining || confirmRow.TotalRemaining)}
+              </div>
+            </div>
+
+            {/* Amount input */}
+            <div>
+              <label className="block text-[12px] font-semibold text-gray-700 mb-1.5">
+                Amount to Pay (₹)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[15px] font-bold text-gray-400">₹</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  className="w-full pl-8 pr-4 py-3 text-[18px] font-bold text-gray-900 border-2 border-gray-200 rounded-xl focus:border-red-400 focus:outline-none transition-colors"
+                  value={confirmAmount}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const max = Number(confirmRow.Remaining || confirmRow.TotalRemaining);
+                    // Allow typing freely but cap on blur / validate on submit
+                    if (val === '' || Number(val) <= max) setConfirmAmount(val);
+                  }}
+                  onBlur={() => {
+                    const max = Number(confirmRow.Remaining || confirmRow.TotalRemaining);
+                    const val = Number(confirmAmount);
+                    if (!val || val <= 0) setConfirmAmount(String(max));
+                    else if (val > max)   setConfirmAmount(String(max));
+                  }}
+                  min={1}
+                  max={Number(confirmRow.Remaining || confirmRow.TotalRemaining)}
+                  disabled={paying}
+                />
+              </div>
+              <div className="text-[10px] text-gray-400 mt-1">
+                You can pay a partial amount. Maximum: ₹ {fmt(confirmRow.Remaining || confirmRow.TotalRemaining)}
+              </div>
+              {/* Quick fraction buttons */}
+              {(() => {
+                const max = Number(confirmRow.Remaining || confirmRow.TotalRemaining);
+                return max >= 200 ? (
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {[
+                      { label: 'Full',  val: max },
+                      { label: '½',     val: Math.floor(max / 2) },
+                      { label: '¼',     val: Math.floor(max / 4) },
+                    ].filter(b => b.val > 0).map(b => (
+                      <button
+                        key={b.label}
+                        type="button"
+                        disabled={paying}
+                        onClick={() => setConfirmAmount(String(b.val))}
+                        className={`text-[11px] px-3 py-1 rounded-full border font-medium transition-colors ${
+                          Number(confirmAmount) === b.val
+                            ? 'bg-red-600 text-white border-red-600'
+                            : 'border-gray-200 text-gray-600 hover:border-red-300 hover:text-red-700'
+                        }`}
+                      >
+                        {b.label} — ₹ {fmt(b.val)}
+                      </button>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setConfirmRow(null)}
+                disabled={paying}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-[13px] font-semibold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePay}
+                disabled={paying || !confirmAmount || Number(confirmAmount) <= 0}
+                className="flex-[2] py-3 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-[13px] font-bold transition-colors disabled:opacity-50"
+              >
+                {paying ? 'Redirecting…' : `Pay ₹ ${fmt(Number(confirmAmount) || 0)}`}
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );
