@@ -56,7 +56,8 @@ export default function MuminLayout({ children }) {
 
   useEffect(() => {
     const token = localStorage.getItem('jms_mumin_token');
-    if (!token && pathname !== '/mumin/login') {
+    const publicPaths = ['/mumin/login', '/mumin/payment/result'];
+    if (!token && !publicPaths.some(p => pathname.startsWith(p))) {
       router.replace('/mumin/login');
     } else {
       setReady(true);
@@ -102,7 +103,7 @@ export default function MuminLayout({ children }) {
       .catch(() => {});
   }, [ready, pathname]);
 
-  if (pathname === '/mumin/login') return <>{children}</>;
+  if (pathname === '/mumin/login' || pathname.startsWith('/mumin/payment/result')) return <>{children}</>;
   if (!ready) return null;
 
   return (
