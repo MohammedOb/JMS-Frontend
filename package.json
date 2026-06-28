@@ -18,6 +18,8 @@
     "lint": "eslint src/"
   },
   "dependencies": {
+    "@tiptap/react": "^3.27.1",
+    "@tiptap/starter-kit": "^3.27.1",
     "axios": "^1.7.3",
     "clsx": "^2.1.1",
     "js-cookie": "^3.0.5",
