@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import PageHeader from '@/components/shared/PageHeader';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
@@ -103,6 +104,23 @@ export default function AppNotificationsPage() {
         title="App Notifications"
         subtitle="Push notifications for JMS Android & iOS apps"
       />
+
+      {/* ── Excel Bulk shortcut ── */}
+      <Link
+        href="/messaging/app-notifications/excel"
+        className="flex items-center gap-4 border border-blue-100 bg-blue-50 hover:bg-blue-100 rounded-2xl px-5 py-4 transition-colors group"
+      >
+        <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+          <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-[13px] font-semibold text-blue-800 group-hover:text-blue-900">Bulk Notifications via Excel</div>
+          <div className="text-[12px] text-blue-600 mt-0.5">Upload a spreadsheet and send personalized push notifications using {'{column}'} variables</div>
+        </div>
+        <div className="text-blue-400 group-hover:text-blue-600 text-lg">›</div>
+      </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* ── Compose ── */}

@@ -88,7 +88,8 @@ const NAV_SECTIONS = [
         icon: SmartphoneIcon,
         defaultOpen: false,
         items: [
-          { label: 'Push Notifications', href: '/messaging/app-notifications', icon: BellIcon, permission: null },
+          { label: 'Push Notifications', href: '/messaging/app-notifications', icon: BellIcon,     permission: null },
+          { label: 'Bulk Notifications', href: '/messaging/app-notifications/excel', icon: FileTextIcon, permission: 'notifications.send' },
         ],
       },
     ],
