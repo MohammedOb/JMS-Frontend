@@ -19,7 +19,7 @@ function fmtDate(str) {
 }
 
 function ReceiptCard({ receipt, onDownload }) {
-  const isCancelled = receipt.Status === 'Cancelled';
+  const isCancelled = ['Cancelled', 'Cancel Receipt', 'Cancel'].includes(receipt.Status);
   const status = isCancelled ? 'Cancelled' : receipt.IsCashMemo ? 'Cash Memo' : 'Receipt';
 
   return (
@@ -40,7 +40,7 @@ function ReceiptCard({ receipt, onDownload }) {
         <div className="flex items-center gap-2 mb-0.5">
           <span className="text-[13px] font-semibold text-gray-900">{receipt.ReceiptNo}</span>
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-            receipt.Status === 'Cancelled'
+            isCancelled
               ? 'bg-red-100 text-red-600'
               : 'bg-green-100 text-green-700'
           }`}>{status}</span>
@@ -142,7 +142,7 @@ export default function ReceiptsPage() {
         <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-center justify-between">
           <span className="text-[12px] text-blue-600 font-medium">{receipts.length} receipts total</span>
           <span className="text-[14px] font-bold text-blue-700">
-            ₹ {fmt(receipts.filter(r => r.Status !== 'Cancelled').reduce((s, r) => s + Number(r.Amount || 0), 0))}
+            ₹ {fmt(receipts.filter(r => !['Cancelled', 'Cancel Receipt', 'Cancel'].includes(r.Status)).reduce((s, r) => s + Number(r.Amount || 0), 0))}
           </span>
         </div>
       )}
