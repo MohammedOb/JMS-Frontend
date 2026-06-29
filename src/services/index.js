@@ -298,8 +298,8 @@ export const fmbMenuService = {
 // ── FMB Menu Feedback ─────────────────────────────────────────────────────────
 export const fmbFeedbackService = {
   // Public (token-based — never exposes numeric id)
-  getMenuByToken: (token)        => api.get(`/fmb-menu/token/${token}`),
-  submitByToken:  (token, data)  => api.post(`/fmb-menu/token/${token}/feedback`, data),
+  getMenuByToken: (token)        => publicApi.get(`/fmb-menu/token/${token}`),
+  submitByToken:  (token, data)  => publicApi.post(`/fmb-menu/token/${token}/feedback`, data),
   // Admin (numeric id, auth required)
   getAll:         (menuId)       => api.get(`/fmb-menu/${menuId}/feedback`),
   getSummary:     (menuId)       => api.get(`/fmb-menu/${menuId}/feedback/summary`),
