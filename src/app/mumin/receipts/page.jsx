@@ -102,12 +102,14 @@ export default function ReceiptsPage() {
   };
 
   const q = search.toLowerCase();
-  const filtered = receipts.filter(r =>
-    !search ||
-    r.ReceiptNo?.toLowerCase().includes(q) ||
-    r.HubSubHead?.toLowerCase().includes(q) ||
-    String(r.ForYear ?? '').toLowerCase().includes(q)
-  );
+  const filtered = receipts.filter(r => {
+    if (!search) return true;
+    return (
+      String(r.ReceiptNo  || '').toLowerCase().includes(q) ||
+      String(r.HubSubHead || '').toLowerCase().includes(q) ||
+      String(r.ForYear    || '').toLowerCase().includes(q)
+    );
+  });
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated  = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
