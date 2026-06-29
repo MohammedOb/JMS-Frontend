@@ -19,14 +19,18 @@ function fmtDate(str) {
 }
 
 function ReceiptCard({ receipt, onDownload }) {
-  const status = receipt.Status === 'Cancelled'
-    ? 'Cancelled'
-    : receipt.IsCashMemo
-    ? 'Cash Memo'
-    : 'Receipt';
+  const isCancelled = receipt.Status === 'Cancelled';
+  const status = isCancelled ? 'Cancelled' : receipt.IsCashMemo ? 'Cash Memo' : 'Receipt';
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 flex items-start gap-3">
+    <div className="relative bg-white border border-gray-200 rounded-xl p-4 flex items-start gap-3 overflow-hidden">
+      {isCancelled && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
+          <span className="text-[30px] font-black text-red-500/25 tracking-widest uppercase" style={{ transform: 'rotate(-35deg)' }}>
+            CANCELLED
+          </span>
+        </div>
+      )}
       <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
         <svg className="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -97,11 +101,12 @@ export default function ReceiptsPage() {
     }
   };
 
+  const q = search.toLowerCase();
   const filtered = receipts.filter(r =>
     !search ||
-    r.ReceiptNo?.toLowerCase().includes(search.toLowerCase()) ||
-    r.HubSubHead?.toLowerCase().includes(search.toLowerCase()) ||
-    r.ForYear?.includes(search)
+    r.ReceiptNo?.toLowerCase().includes(q) ||
+    r.HubSubHead?.toLowerCase().includes(q) ||
+    String(r.ForYear ?? '').toLowerCase().includes(q)
   );
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated  = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);

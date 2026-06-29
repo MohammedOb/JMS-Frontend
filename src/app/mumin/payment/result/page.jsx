@@ -21,17 +21,14 @@ function PaymentResultContent() {
       return;
     }
 
-    // If URL says failed, don't bother polling
-    if (urlStatus === 'failed') {
-      setStatus('failed');
-      return;
-    }
-
+    // Always poll the DB — don't trust the URL status param alone.
+    // PayU fires surl twice (S2S + browser), so the browser redirect may say
+    // "failed" even though the S2S callback already succeeded and updated the DB.
     const poll = async () => {
       try {
-        const res = await fetch(`${API_BASE}mumin/payment/status/${txnid}`);
+        const res  = await fetch(`${API_BASE}mumin/payment/status/${txnid}`);
         const json = await res.json();
-        const d   = json?.data;
+        const d    = json?.data;
         if (!d) { setStatus('error'); return; }
 
         setOrder(d);
@@ -43,7 +40,7 @@ function PaymentResultContent() {
           setStatus(d.status);
           clearInterval(pollRef.current);
         } else if (++attemptsRef.current >= 15) {
-          // Give up after 30s
+          // Give up after 30s — order still pending, may be processing
           setStatus('timeout');
           clearInterval(pollRef.current);
         }
