@@ -1052,7 +1052,7 @@ function MuminDetailsInner() {
           <div className="min-w-0">
             <div className="flex flex-col sm:flex-row gap-3 mb-3">
               {FEATURES.dueSummary && (
-                <div className="sm:w-[35%] shrink-0">
+                <div className="sm:w-[50%] shrink-0">
                   <DueSummaryCards
                     takhmeen={takhmeen}
                     onOverallDue={FEATURES.overallDue ? () => openModal('overallDue') : null}

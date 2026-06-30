@@ -120,10 +120,10 @@ export default function DueSummaryCards({ takhmeen = [], onOverallDue, onSendRem
         </tfoot>
       </table>
 
-      <div className="px-3 py-2 border-t border-gray-100 flex gap-2">
+      <div className="px-3 py-2 border-t border-gray-100 flex flex-wrap gap-2">
         {onOverallDue && (
           <button
-            className="btn btn-sm flex-1 justify-center bg-amber-500 text-white border-amber-500 hover:bg-amber-600"
+            className="btn btn-sm flex-1 min-w-[110px] justify-center bg-amber-500 text-white border-amber-500 hover:bg-amber-600"
             onClick={onOverallDue}
           >
             <ClipboardListIcon className="w-3.5 h-3.5 mr-1.5" />Overall Due
@@ -131,7 +131,7 @@ export default function DueSummaryCards({ takhmeen = [], onOverallDue, onSendRem
         )}
         {onSendReminder && (
           <button
-            className="btn btn-sm flex-1 justify-center bg-green-600 text-white border-green-600 hover:bg-green-700"
+            className="btn btn-sm flex-1 min-w-[130px] justify-center bg-green-600 text-white border-green-600 hover:bg-green-700"
             onClick={handleOverallSend}
           >
             <SendIcon className="w-3.5 h-3.5 mr-1.5" />Send WA Reminder
@@ -139,10 +139,10 @@ export default function DueSummaryCards({ takhmeen = [], onOverallDue, onSendRem
         )}
         {onSendAppNotif && (
           <button
-            className="btn btn-sm flex-1 justify-center bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+            className="btn btn-sm flex-1 min-w-[110px] justify-center bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
             onClick={handleOverallAppNotif}
           >
-            <BellIcon className="w-3.5 h-3.5 mr-1.5" />Send App Notif
+            <BellIcon className="w-3.5 h-3.5 mr-1.5" />Send App Notify
           </button>
         )}
       </div>
