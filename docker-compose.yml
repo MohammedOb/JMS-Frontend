@@ -7,3 +7,5 @@ services:
     restart: always
     ports:
       - "3000:3000"   # exposes frontend to host so cloudflared can reach it at localhost:3000
+    environment:
+      - PAYMENT_URL_SECRET=${PAYMENT_URL_SECRET}
