@@ -1,84 +1,17 @@
 'use client';
 
-import { Suspense, useEffect, useState, useRef } from 'react';
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/';
-
 function PaymentResultContent() {
   const searchParams = useSearchParams();
-  const txnid        = searchParams.get('txnid');
-  const urlStatus    = searchParams.get('status'); // 'success' or 'failed' from redirect URL
-  const [status, setStatus]   = useState('loading');
-  const [order, setOrder]     = useState(null);
-  const pollRef               = useRef(null);
-  const attemptsRef           = useRef(0);
-  const failedCountRef        = useRef(0);
+  const urlStatus  = searchParams.get('status');   // 'success' | 'failed' | 'cancelled'
+  const receiptNo  = searchParams.get('receiptNo');
+  const rawAmount  = searchParams.get('amount');
+  const amount     = rawAmount ? Number(rawAmount) : null;
 
-  useEffect(() => {
-    if (!txnid) {
-      setStatus('error');
-      return;
-    }
-
-    // Always poll the DB — don't trust the URL status param alone.
-    // PayU fires two callbacks (S2S + browser redirect). The S2S often arrives first
-    // and may temporarily set status='failed', then the browser callback overwrites to
-    // 'success'. If urlStatus=success we allow up to 5 consecutive 'failed' polls
-    // (10 seconds) before giving up, so the browser callback has time to finish.
-    const poll = async () => {
-      try {
-        const res  = await fetch(`${API_BASE}mumin/payment/status/${txnid}`);
-        const json = await res.json();
-        const d    = json?.data;
-        if (!d) { setStatus('error'); return; }
-
-        setOrder(d);
-
-        if (d.status === 'success') {
-          setStatus('success');
-          clearInterval(pollRef.current);
-        } else if (d.status === 'cancelled') {
-          setStatus('cancelled');
-          clearInterval(pollRef.current);
-        } else if (d.status === 'failed') {
-          // If URL says success, give 5 more polls (10s) for the browser callback
-          // to finish updating the DB — S2S race condition may have set 'failed' early.
-          if (urlStatus === 'success' && failedCountRef.current < 5) {
-            failedCountRef.current += 1;
-          } else {
-            setStatus('failed');
-            clearInterval(pollRef.current);
-          }
-        } else if (++attemptsRef.current >= 15) {
-          // Give up after 30s — order still pending, may be processing
-          setStatus('timeout');
-          clearInterval(pollRef.current);
-        }
-      } catch {
-        if (++attemptsRef.current >= 15) {
-          setStatus('error');
-          clearInterval(pollRef.current);
-        }
-      }
-    };
-
-    poll();
-    pollRef.current = setInterval(poll, 2000);
-    return () => clearInterval(pollRef.current);
-  }, [txnid, urlStatus]);
-
-  if (status === 'loading') {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen gap-4">
-        <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-[14px] text-gray-500">Verifying payment...</p>
-      </div>
-    );
-  }
-
-  if (status === 'success') {
+  if (urlStatus === 'success') {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center gap-5">
         <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
@@ -86,16 +19,29 @@ function PaymentResultContent() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
+
         <div>
           <h1 className="text-[20px] font-bold text-gray-900">Payment Successful!</h1>
           <p className="text-[13px] text-gray-500 mt-1">Your dues have been updated and receipt generated.</p>
-          {order?.amount && <p className="text-[24px] font-bold text-green-600 mt-2">₹ {Number(order.amount).toLocaleString('en-IN')}</p>}
+          {amount !== null && !isNaN(amount) && (
+            <p className="text-[24px] font-bold text-green-600 mt-2">₹ {amount.toLocaleString('en-IN')}</p>
+          )}
+          {receiptNo && (
+            <p className="text-[13px] text-gray-500 mt-1">Receipt No: <span className="font-semibold text-gray-700">{receiptNo}</span></p>
+          )}
         </div>
+
         <div className="flex flex-col gap-2 w-full max-w-xs">
-          <Link href="/mumin/receipts" className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl py-3 text-[14px] text-center transition-colors">
+          <Link
+            href="/mumin/receipts"
+            className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl py-3 text-[14px] text-center transition-colors"
+          >
             View Receipts
           </Link>
-          <Link href="/mumin/dues" className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl py-3 text-[14px] text-center transition-colors">
+          <Link
+            href="/mumin/dues"
+            className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl py-3 text-[14px] text-center transition-colors"
+          >
             Back to Dues
           </Link>
         </div>
@@ -103,8 +49,8 @@ function PaymentResultContent() {
     );
   }
 
-  // Failed / cancelled / timeout / error
-  const isTimeout = status === 'timeout';
+  // Failed / cancelled / unknown
+  const isTimeout = urlStatus === 'timeout';
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-6 text-center gap-5">
       <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
@@ -123,10 +69,16 @@ function PaymentResultContent() {
         </p>
       </div>
       <div className="flex flex-col gap-2 w-full max-w-xs">
-        <Link href="/mumin/dues" className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl py-3 text-[14px] text-center transition-colors">
+        <Link
+          href="/mumin/dues"
+          className="block w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl py-3 text-[14px] text-center transition-colors"
+        >
           Try Again
         </Link>
-        <Link href="/mumin/receipts" className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl py-3 text-[14px] text-center transition-colors">
+        <Link
+          href="/mumin/receipts"
+          className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-xl py-3 text-[14px] text-center transition-colors"
+        >
           View Receipts
         </Link>
       </div>
