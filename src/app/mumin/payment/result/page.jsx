@@ -14,6 +14,7 @@ function PaymentResultContent() {
   const [order, setOrder]     = useState(null);
   const pollRef               = useRef(null);
   const attemptsRef           = useRef(0);
+  const failedCountRef        = useRef(0);
 
   useEffect(() => {
     if (!txnid) {
@@ -22,8 +23,10 @@ function PaymentResultContent() {
     }
 
     // Always poll the DB — don't trust the URL status param alone.
-    // PayU fires surl twice (S2S + browser), so the browser redirect may say
-    // "failed" even though the S2S callback already succeeded and updated the DB.
+    // PayU fires two callbacks (S2S + browser redirect). The S2S often arrives first
+    // and may temporarily set status='failed', then the browser callback overwrites to
+    // 'success'. If urlStatus=success we allow up to 5 consecutive 'failed' polls
+    // (10 seconds) before giving up, so the browser callback has time to finish.
     const poll = async () => {
       try {
         const res  = await fetch(`${API_BASE}mumin/payment/status/${txnid}`);
@@ -36,9 +39,18 @@ function PaymentResultContent() {
         if (d.status === 'success') {
           setStatus('success');
           clearInterval(pollRef.current);
-        } else if (d.status === 'failed' || d.status === 'cancelled') {
-          setStatus(d.status);
+        } else if (d.status === 'cancelled') {
+          setStatus('cancelled');
           clearInterval(pollRef.current);
+        } else if (d.status === 'failed') {
+          // If URL says success, give 5 more polls (10s) for the browser callback
+          // to finish updating the DB — S2S race condition may have set 'failed' early.
+          if (urlStatus === 'success' && failedCountRef.current < 5) {
+            failedCountRef.current += 1;
+          } else {
+            setStatus('failed');
+            clearInterval(pollRef.current);
+          }
         } else if (++attemptsRef.current >= 15) {
           // Give up after 30s — order still pending, may be processing
           setStatus('timeout');
