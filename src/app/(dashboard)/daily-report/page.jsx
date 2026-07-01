@@ -9,6 +9,7 @@ import PageHeader from '@/components/shared/PageHeader';
 import { StatusBadge } from '@/components/shared/Badge';
 import EditReceiptModal from '@/app/(dashboard)/mumin-details/components/modals/EditReceiptModal';
 import ReceiptPrintModal from '@/components/shared/ReceiptPrintModal';
+import PrintConfigButton, { PrintConfigModal } from '@/components/shared/PrintConfigButton';
 import {
   DownloadIcon, PrintIcon, SearchIcon, XIcon, EditIcon, TrashIcon,
   BarChartIcon, FileTextIcon,
@@ -122,6 +123,10 @@ export default function DailyReportPage() {
   const [printModal, setPrintModal] = useState(false);
   const [printData,  setPrintData]  = useState(null);
 
+  // ── Print config (configurable template button, same as Receipts tab) ───────
+  const [cfgOpen,     setCfgOpen]     = useState(false);
+  const [printConfig, setPrintConfig] = useState(null);
+
   // ── Export dropdown ──────────────────────────────────────────────────────────
   const exportBtnRef  = useRef(null);
   const exportMenuRef = useRef(null);
@@ -142,6 +147,13 @@ export default function DailyReportPage() {
 
     lookupService.getYears()
       .then(res => setYears(Array.isArray(res.data?.data) ? res.data.data : []))
+      .catch(() => {});
+
+    takhmeenService.loadPrintButtonConfig('daily-report-print')
+      .then(res => {
+        const row = res?.data?.data?.[0];
+        if (row) setPrintConfig({ templateId: row.TemplateId ? String(row.TemplateId) : '', subhead: row.SubHead || '', forYear: row.ForYear || '' });
+      })
       .catch(() => {});
   }, []);
 
@@ -608,6 +620,15 @@ export default function DailyReportPage() {
             <DownloadIcon className="w-3.5 h-3.5 mr-1.5" />Export
           </button>
           )}
+          {can('takhmeen.edit') && (
+            <button
+              title="Configure receipt print template"
+              onClick={() => setCfgOpen(true)}
+              className="inline-flex items-center gap-1 px-2 py-1 text-[12px] rounded border border-gray-200 bg-white text-gray-600 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors"
+            >
+              ⚙ Print Config
+            </button>
+          )}
           <div className="relative">
             <input
               className="form-input w-[230px] pr-7 text-[12px]"
@@ -748,13 +769,16 @@ export default function DailyReportPage() {
                           <EditIcon className="w-3.5 h-3.5" />
                         </button>
                           )}
-                        <button
-                          title="Print preview"
-                          onClick={() => handlePrint(r)}
+                        <PrintConfigButton
+                          buttonId="daily-report-print"
+                          accno={r.AccNo}
+                          transactionId={r.ID || r.id}
+                          hideGear
+                          configOverride={printConfig}
+                          icon={<PrintIcon className="w-3.5 h-3.5" />}
+                          label=""
                           className="p-1.5 rounded text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                        >
-                          <PrintIcon className="w-3.5 h-3.5" />
-                        </button>
+                        />
                         {can('daily_report.cancel') && !cancelled && (
                           <button
                             title="Cancel receipt"
@@ -916,6 +940,15 @@ export default function DailyReportPage() {
           printData={printData}
         />
       )}
+
+      {/* ── Print Config Modal (admin only, single instance) ─────────────────── */}
+      <PrintConfigModal
+        open={cfgOpen}
+        onClose={() => setCfgOpen(false)}
+        buttonId="daily-report-print"
+        savedConfig={printConfig}
+        onSaved={setPrintConfig}
+      />
     </div>
   );
 }

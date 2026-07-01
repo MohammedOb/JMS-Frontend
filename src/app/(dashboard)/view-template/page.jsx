@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { memberService, takhmeenService, safaiService, receiptService, vajebaatService } from '@/services';
 import { decodeViewToken } from '@/lib/urlToken';
@@ -85,6 +85,21 @@ const HISTORY_COL_LABELS = {
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const fmt     = n => (n != null && n !== '') ? `₹${Number(n).toLocaleString('en-IN')}` : '—';
 const fmtDate = v => { if (!v) return ''; try { return new Date(v).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }); } catch { return String(v); } };
+
+// Wait for the AL-Kanz webfont (used for Urdu/Arabic labels) to actually finish loading.
+// font-display:swap means the browser shows a fallback font until it's ready — if we
+// print/screenshot before that swap happens, Urdu/Arabic text is printed in the wrong
+// (fallback) font. document.fonts.load() forces the fetch and resolves once it's usable.
+async function ensureUrduFontReady() {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  try {
+    await Promise.all([
+      document.fonts.load('16px "AL-Kanz"'),
+      document.fonts.load('bold 16px "AL-Kanz"'),
+    ]);
+    await document.fonts.ready;
+  } catch { /* font failed to load — fall back silently rather than block printing */ }
+}
 
 // ── Receipt helpers ────────────────────────────────────────────────────────────
 const FUND_URDU_MAP = {
@@ -662,9 +677,28 @@ export default function TakhmeenFormPage() {
   const _decoded = _token ? decodeViewToken(_token) : null;
   const _p = key => _decoded?.[key] ?? searchParams.get(key) ?? '';
 
-  const [controlsOpen, setControlsOpen] = useState(
-    !_token && !searchParams.get('accno') && !searchParams.get('transactionId') && !searchParams.get('serialNo')
+  // Print mode = opened via a print link (token or raw params) rather than manual admin browsing.
+  // In this mode the page should behave like a print popup: no header controls, no preview
+  // canvas (only the hidden print target is rendered), auto-print, then close.
+  const isPrintMode = Boolean(
+    _token || searchParams.get('accno') || searchParams.get('transactionId') || searchParams.get('serialNo')
   );
+
+  const [controlsOpen, setControlsOpen] = useState(!isPrintMode);
+
+  const activeTemplate = templates.find(t => String(t.id) === String(activeId)) || null;
+
+  // Which optional data sources this template's elements actually reference — lets us
+  // skip fetching raza/silaFitra/history entirely for templates that don't use them
+  // (e.g. plain receipts), cutting the request waterfall that was slowing page load.
+  const templateNeeds = useMemo(() => {
+    const els = activeTemplate?.elements || [];
+    return {
+      raza:      els.some(el => el.type === 'razaField'),
+      silaFitra: els.some(el => el.type === 'silafitraField'),
+      history:   els.some(el => el.type === 'historyGrid'),
+    };
+  }, [activeTemplate]);
 
   // Load templates from DB + auto-select by templateId or subhead param
   useEffect(() => {
@@ -706,8 +740,11 @@ export default function TakhmeenFormPage() {
     if (accno)    { setAccNoInput(accno); searchMember(accno); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load HubSubHead options (no main head filter)
+  // Load HubSubHead options (no main head filter) — only needed to populate the controls
+  // bar's combobox and refine the subhead param match; both are irrelevant in print mode
+  // (controls bar is hidden there), so skip the call entirely to shave a round trip.
   useEffect(() => {
+    if (isPrintMode) return;
     takhmeenService.loadHubHeadDetails({ IsActive: 1 })
       .then(res => {
         const rows = normalizeArray(res?.data);
@@ -750,8 +787,10 @@ export default function TakhmeenFormPage() {
     }
   }, [accNoInput]);
 
-  // Auto-load latest raza record when member changes (skip if a specific serialNo is already set)
+  // Auto-load latest raza record when member changes (skip if a specific serialNo is already set,
+  // or if the active template doesn't even use raza fields — avoids a needless round trip)
   useEffect(() => {
+    if (!templateNeeds.raza) return;
     if (!member?.accno) { setRazaData(null); return; }
     if (serialNoInput) return;
     safaiService.loadRazaDetails({ AccNo: member.accno })
@@ -760,15 +799,16 @@ export default function TakhmeenFormPage() {
         if (rows.length) setRazaData(rows[0]);
       })
       .catch(() => {});
-  }, [member?.accno, serialNoInput]);
+  }, [member?.accno, serialNoInput, templateNeeds.raza]);
 
-  // Load Sila Fitra details when member changes
+  // Load Sila Fitra details when member changes (only if the template actually uses them)
   useEffect(() => {
+    if (!templateNeeds.silaFitra) return;
     if (!member?.accno) { setSilaFitraData([]); return; }
     vajebaatService.loadSilaFitra({ AccNo: member.accno })
       .then(res => setSilaFitraData(normalizeArray(res?.data)))
       .catch(() => setSilaFitraData([]));
-  }, [member?.accno]);
+  }, [member?.accno, templateNeeds.silaFitra]);
 
   // Load raza by serial number
   const searchRaza = useCallback(async (overrideSerial) => {
@@ -818,8 +858,9 @@ export default function TakhmeenFormPage() {
     }
   }, [txIdInput]);
 
-  // Load history when member + subHead set
+  // Load history when member + subHead set (only if the template actually shows a history grid)
   useEffect(() => {
+    if (!templateNeeds.history) return;
     if (!member?.accno || !subHead) { setHistory([]); return; }
     setHistLoading(true);
     takhmeenService.loadDetails({ AccNo: member.accno, HubSubHead: subHead })
@@ -831,27 +872,35 @@ export default function TakhmeenFormPage() {
       })
       .catch(() => setHistory([]))
       .finally(() => setHistLoading(false));
-  }, [member?.accno, subHead]);
+  }, [member?.accno, subHead, templateNeeds.history]);
 
-  const activeTemplate = templates.find(t => String(t.id) === String(activeId)) || null;
-
-  // Non-admin: auto-print once template + member data are ready, then close on afterprint
+  // Print mode: auto-print once template + member data are ready, then close on afterprint
   useEffect(() => {
-    if (isAdmin) return;
+    if (!isPrintMode) return;
     const close = () => window.close();
     window.addEventListener('afterprint', close);
     return () => window.removeEventListener('afterprint', close);
-  }, [isAdmin]);
+  }, [isPrintMode]);
 
   useEffect(() => {
-    if (isAdmin || autoPrinted.current || !activeTemplate) return;
+    if (!isPrintMode || autoPrinted.current || !activeTemplate) return;
     if (searchParams.get('transactionId') && !receiptData) return;
-    const t = setTimeout(() => { autoPrinted.current = true; window.print(); }, 600);
-    return () => clearTimeout(t);
-  }, [isAdmin, activeTemplate, member, receiptData]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (searchParams.get('accno') && !member) return;
+    let cancelled = false;
+    // Short settle buffer for final paint (images etc.) — font readiness is awaited
+    // explicitly below rather than padded into this delay, so it can stay small.
+    const t = setTimeout(async () => {
+      await ensureUrduFontReady();
+      if (cancelled) return;
+      autoPrinted.current = true;
+      window.print();
+    }, 150);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [isPrintMode, activeTemplate, member, receiptData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handlePrint() {
+  async function handlePrint() {
     if (!activeTemplate) { toast.error('Select a template first'); return; }
+    await ensureUrduFontReady();
     window.print();
   }
 
@@ -906,18 +955,20 @@ export default function TakhmeenFormPage() {
               Search a member by Acc No, pick a template and print the form.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {isAdmin && (
-              <button
-                onClick={() => setControlsOpen(o => !o)}
-                className="btn btn-secondary btn-sm"
-                title={controlsOpen ? 'Hide controls' : 'Show controls'}
-              >
-                {controlsOpen ? 'Hide Controls' : 'Show Controls'}
-              </button>
-            )}
-            {isAdmin && <button onClick={handlePrint} className="btn btn-primary">Print Form</button>}
-          </div>
+          {!isPrintMode && (
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <button
+                  onClick={() => setControlsOpen(o => !o)}
+                  className="btn btn-secondary btn-sm"
+                  title={controlsOpen ? 'Hide controls' : 'Show controls'}
+                >
+                  {controlsOpen ? 'Hide Controls' : 'Show Controls'}
+                </button>
+              )}
+              {isAdmin && <button onClick={handlePrint} className="btn btn-primary">Print Form</button>}
+            </div>
+          )}
         </div>
 
         {/* Controls bar — admin only */}
@@ -1034,7 +1085,13 @@ export default function TakhmeenFormPage() {
           </div>
         </div>}
 
-        {/* Canvas */}
+        {/* Canvas — skipped in print mode: only the hidden print target needs to render,
+            avoiding double the layout/AutoFit work and speeding up the popup */}
+        {isPrintMode ? (
+          <div className="flex-1 min-h-0 flex items-center justify-center text-gray-400 text-[13px]">
+            Preparing print…
+          </div>
+        ) : (
         <div className="flex-1 min-h-0 overflow-auto bg-gray-200 rounded-xl p-6"
           style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
           <LiveCanvas
@@ -1050,6 +1107,7 @@ export default function TakhmeenFormPage() {
             silaFitraData={silaFitraData}
           />
         </div>
+        )}
       </div>
     </>
   );
