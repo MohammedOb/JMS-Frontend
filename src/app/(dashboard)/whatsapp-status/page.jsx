@@ -45,14 +45,12 @@ function fmtLogTime(iso) {
 function StageProgress({ initStage }) {
   const current = stageIndex(initStage);
   return (
-    <PermissionGuard permission="utility.view">
     <div className="space-y-1 pt-1">
       {INIT_STAGES.map((s, i) => {
         const done    = current > i;
         const active  = current === i;
         const pending = current < i;
         return (
-    <PermissionGuard permission="utility.view">
           <div key={s.key} className="flex items-center gap-2 text-[12px]">
             <span className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold
               ${done    ? 'bg-green-500 text-white'
@@ -103,6 +101,7 @@ function LogViewer({ logs }) {
         </div>
       )}
     </div>
+    </PermissionGuard>
   );
 }
 
