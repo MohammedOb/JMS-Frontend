@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { memberService, takhmeenService, safaiService, receiptService, vajebaatService } from '@/services';
 import { decodeViewToken } from '@/lib/urlToken';
@@ -686,20 +686,6 @@ export default function TakhmeenFormPage() {
 
   const [controlsOpen, setControlsOpen] = useState(!isPrintMode);
 
-  const activeTemplate = templates.find(t => String(t.id) === String(activeId)) || null;
-
-  // Which optional data sources this template's elements actually reference — lets us
-  // skip fetching raza/silaFitra/history entirely for templates that don't use them
-  // (e.g. plain receipts), cutting the request waterfall that was slowing page load.
-  const templateNeeds = useMemo(() => {
-    const els = activeTemplate?.elements || [];
-    return {
-      raza:      els.some(el => el.type === 'razaField'),
-      silaFitra: els.some(el => el.type === 'silafitraField'),
-      history:   els.some(el => el.type === 'historyGrid'),
-    };
-  }, [activeTemplate]);
-
   // Load templates from DB + auto-select by templateId or subhead param
   useEffect(() => {
     takhmeenService.loadFormTemplates()
@@ -740,11 +726,8 @@ export default function TakhmeenFormPage() {
     if (accno)    { setAccNoInput(accno); searchMember(accno); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load HubSubHead options (no main head filter) — only needed to populate the controls
-  // bar's combobox and refine the subhead param match; both are irrelevant in print mode
-  // (controls bar is hidden there), so skip the call entirely to shave a round trip.
+  // Load HubSubHead options (no main head filter)
   useEffect(() => {
-    if (isPrintMode) return;
     takhmeenService.loadHubHeadDetails({ IsActive: 1 })
       .then(res => {
         const rows = normalizeArray(res?.data);
@@ -787,10 +770,8 @@ export default function TakhmeenFormPage() {
     }
   }, [accNoInput]);
 
-  // Auto-load latest raza record when member changes (skip if a specific serialNo is already set,
-  // or if the active template doesn't even use raza fields — avoids a needless round trip)
+  // Auto-load latest raza record when member changes (skip if a specific serialNo is already set)
   useEffect(() => {
-    if (!templateNeeds.raza) return;
     if (!member?.accno) { setRazaData(null); return; }
     if (serialNoInput) return;
     safaiService.loadRazaDetails({ AccNo: member.accno })
@@ -799,16 +780,15 @@ export default function TakhmeenFormPage() {
         if (rows.length) setRazaData(rows[0]);
       })
       .catch(() => {});
-  }, [member?.accno, serialNoInput, templateNeeds.raza]);
+  }, [member?.accno, serialNoInput]);
 
-  // Load Sila Fitra details when member changes (only if the template actually uses them)
+  // Load Sila Fitra details when member changes
   useEffect(() => {
-    if (!templateNeeds.silaFitra) return;
     if (!member?.accno) { setSilaFitraData([]); return; }
     vajebaatService.loadSilaFitra({ AccNo: member.accno })
       .then(res => setSilaFitraData(normalizeArray(res?.data)))
       .catch(() => setSilaFitraData([]));
-  }, [member?.accno, templateNeeds.silaFitra]);
+  }, [member?.accno]);
 
   // Load raza by serial number
   const searchRaza = useCallback(async (overrideSerial) => {
@@ -858,9 +838,8 @@ export default function TakhmeenFormPage() {
     }
   }, [txIdInput]);
 
-  // Load history when member + subHead set (only if the template actually shows a history grid)
+  // Load history when member + subHead set
   useEffect(() => {
-    if (!templateNeeds.history) return;
     if (!member?.accno || !subHead) { setHistory([]); return; }
     setHistLoading(true);
     takhmeenService.loadDetails({ AccNo: member.accno, HubSubHead: subHead })
@@ -872,7 +851,9 @@ export default function TakhmeenFormPage() {
       })
       .catch(() => setHistory([]))
       .finally(() => setHistLoading(false));
-  }, [member?.accno, subHead, templateNeeds.history]);
+  }, [member?.accno, subHead]);
+
+  const activeTemplate = templates.find(t => String(t.id) === String(activeId)) || null;
 
   // Print mode: auto-print once template + member data are ready, then close on afterprint
   useEffect(() => {
@@ -885,16 +866,13 @@ export default function TakhmeenFormPage() {
   useEffect(() => {
     if (!isPrintMode || autoPrinted.current || !activeTemplate) return;
     if (searchParams.get('transactionId') && !receiptData) return;
-    if (searchParams.get('accno') && !member) return;
     let cancelled = false;
-    // Short settle buffer for final paint (images etc.) — font readiness is awaited
-    // explicitly below rather than padded into this delay, so it can stay small.
     const t = setTimeout(async () => {
       await ensureUrduFontReady();
       if (cancelled) return;
       autoPrinted.current = true;
       window.print();
-    }, 150);
+    }, 600);
     return () => { cancelled = true; clearTimeout(t); };
   }, [isPrintMode, activeTemplate, member, receiptData]); // eslint-disable-line react-hooks/exhaustive-deps
 
