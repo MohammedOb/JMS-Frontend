@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Pull latest code
-        run: git pull origin main
+        run: git fetch origin && git reset --hard origin/main
 
       - name: Rebuild and restart containers
         run: docker compose up -d --build --remove-orphans
