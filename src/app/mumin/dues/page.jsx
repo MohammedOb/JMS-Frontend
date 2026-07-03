@@ -70,6 +70,7 @@ export default function DuesPage() {
   const [utrSubmitted, setUtrSubmitted] = useState(false);
   const [utrSending,   setUtrSending]   = useState(false);
   const [utrRevealed,  setUtrRevealed]  = useState(false);  // user tapped "Already paid?"
+  const [intentDeclined, setIntentDeclined] = useState(false); // UPI app refused the intent payment
 
   const isInApp = typeof window !== 'undefined' && !!window.ReactNativeWebView;
 
@@ -144,6 +145,7 @@ export default function DuesPage() {
     setUtrValue('');
     setUtrSubmitted(false);
     setUtrRevealed(false);
+    setIntentDeclined(false);
     const t = setInterval(() => setSecondsLeft(s => (s > 0 ? s - 1 : 0)), 1000);
     return () => clearInterval(t);
   }, [upiCheckout]);
@@ -156,7 +158,9 @@ export default function DuesPage() {
       try {
         const res = await muminApi.get(`/mumin/payment/status/${upiCheckout.txnid}`);
         const d = res.data?.data;
-        if (d?.t && d.status !== 'pending') {
+        // Only auto-redirect on success — a 'failed' order can still be rescued
+        // via manual pay + UTR (the sheet shows guidance for that).
+        if (d?.t && d.status === 'success') {
           window.location.href = `/mumin/payment/result?t=${d.t}`;
         }
       } catch {}
@@ -183,8 +187,14 @@ export default function DuesPage() {
       setConfirming(true);
       try {
         const res = await muminApi.post('/mumin/payment/upi-intent-result', result);
-        const { t } = res.data || {};
-        if (t) { window.location.href = `/mumin/payment/result?t=${t}`; return; }
+        const { status, t } = res.data || {};
+        if (status === 'success' && t) { window.location.href = `/mumin/payment/result?t=${t}`; return; }
+        if (status === 'failed') {
+          // UPI app declined (common for personal-VPA intent payments) —
+          // keep the session alive and guide the member to pay manually.
+          setIntentDeclined(true);
+          setUtrRevealed(true);
+        }
       } catch {}
       setConfirming(false); // pending/unknown — polling + UTR fallback take over
     };
@@ -467,6 +477,28 @@ export default function DuesPage() {
                 <div className="text-[11px] text-gray-400 text-center -mt-2">
                   GPay · PhonePe · Paytm · any UPI app
                 </div>
+
+                {/* UPI app declined the automatic payment — guide manual payment */}
+                {intentDeclined && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
+                    <div className="text-[12px] font-semibold text-amber-800">
+                      Your UPI app declined this payment
+                    </div>
+                    <div className="text-[11px] text-amber-700 leading-relaxed">
+                      No money was deducted. You can still pay manually: open your UPI app,
+                      choose <b>Pay to UPI ID</b>, send{' '}
+                      <b>₹ {fmt(upiCheckout.amount)}</b> to{' '}
+                      <b className="break-all">
+                        {(() => {
+                          try {
+                            return decodeURIComponent((upiCheckout.upiLink.match(/[?&]pa=([^&]+)/) || [])[1] || '');
+                          } catch { return ''; }
+                        })()}
+                      </b>
+                      , then enter the UPI reference number below.
+                    </div>
+                  </div>
+                )}
 
                 {/* QR for browser/desktop */}
                 {qrDataUrl && (
