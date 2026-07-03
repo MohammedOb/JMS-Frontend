@@ -107,6 +107,12 @@ export default function DuesPage() {
         forYear:     confirmRow.ForYear     || '',
       });
       const { upiLink, txnid, amount: amtStr } = res.data;
+      if (!upiLink || !amtStr) {
+        // Server is still on the old gateway code (or misconfigured)
+        setPaying(false);
+        alert('Payment service is being updated. Please try again in a few minutes.');
+        return;
+      }
       setConfirmRow(null);
       setPaying(false);
       setUpiCheckout({ upiLink, txnid, amount: amtStr, label });
