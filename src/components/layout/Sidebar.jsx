@@ -47,6 +47,7 @@ const NAV_SECTIONS = [
     items: [
       { label: 'Due Details',       href: '/due-details',       icon: AlertCircleIcon,   permission: 'due.view' },
       { label: 'Follow Up List',    href: '/followup',          icon: ClipboardListIcon, permission: 'followup.view' },
+      { label: 'UPI Approvals',     href: '/upi-payments',      icon: CreditCardIcon,    permission: 'receipts.edit' },
     ],
   },
   {

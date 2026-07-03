@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import muminApi from '@/lib/muminApi';
 
 function fmt(n) {
@@ -45,6 +45,9 @@ function TakhmeenRow({ row, idx }) {
   );
 }
 
+const CHECKOUT_SECONDS = 300;         // 5 min session
+const UTR_REVEAL_AFTER = 180;         // show manual fallback after 3 min
+
 export default function DuesPage() {
   const [takhmeen, setTakhmeen] = useState([]);
   const [loading, setLoading]   = useState(true);
@@ -52,13 +55,23 @@ export default function DuesPage() {
   const [tab, setTab]           = useState('dues');
   const [tablePage, setTablePage] = useState(0);
   const TABLE_PAGE_SIZE = 10;
-  const payFormRef              = useRef(null);
-  const [payuData, setPayuData] = useState(null);
 
   // ── Amount confirmation sheet ─────────────────────────────────────────────
   const [confirmRow,    setConfirmRow]    = useState(null);  // row being paid
   const [confirmAmount, setConfirmAmount] = useState('');    // editable amount
   const [paying,        setPaying]        = useState(false);
+
+  // ── UPI checkout sheet ────────────────────────────────────────────────────
+  const [upiCheckout,  setUpiCheckout]  = useState(null);  // { upiLink, txnid, amount, label }
+  const [qrDataUrl,    setQrDataUrl]    = useState('');
+  const [secondsLeft,  setSecondsLeft]  = useState(CHECKOUT_SECONDS);
+  const [confirming,   setConfirming]   = useState(false);  // intent result being verified
+  const [utrValue,     setUtrValue]     = useState('');
+  const [utrSubmitted, setUtrSubmitted] = useState(false);
+  const [utrSending,   setUtrSending]   = useState(false);
+  const [utrRevealed,  setUtrRevealed]  = useState(false);  // user tapped "Already paid?"
+
+  const isInApp = typeof window !== 'undefined' && !!window.ReactNativeWebView;
 
   useEffect(() => {
     muminApi.get('/mumin/takhmeen')
@@ -74,7 +87,7 @@ export default function DuesPage() {
     setPaying(false);
   };
 
-  // Step 2: "Proceed" → create order and redirect to PayU
+  // Step 2: "Proceed" → create in-house UPI order and open the checkout sheet
   const handlePay = async () => {
     if (!confirmRow) return;
     const max    = Number(confirmRow.Remaining || confirmRow.TotalRemaining);
@@ -82,7 +95,8 @@ export default function DuesPage() {
     if (!amount || amount <= 0)   { alert('Please enter a valid amount.'); return; }
     if (amount > max)             { alert(`Amount cannot exceed ₹ ${fmt(max)}.`); return; }
 
-    const productInfo = `JMS Due: ${confirmRow.HubSubHead || confirmRow.HubMainHead} ${confirmRow.ForYear || ''}`.trim();
+    const label       = `${confirmRow.HubSubHead || confirmRow.HubMainHead} ${confirmRow.ForYear || ''}`.trim();
+    const productInfo = `JMS Due: ${label}`;
     setPaying(true);
     try {
       const res = await muminApi.post('/mumin/payment/create-order', {
@@ -92,30 +106,97 @@ export default function DuesPage() {
         hubSubHead:  confirmRow.HubSubHead  || '',
         forYear:     confirmRow.ForYear     || '',
       });
-      const { payuUrl, payuParams } = res.data;
+      const { upiLink, txnid, amount: amtStr } = res.data;
       setConfirmRow(null);
-
-      // In native WebView: tell RN to inject the form submit so PayU stays in-app.
-      // In browser: fall back to the hidden-form auto-submit approach.
-      if (typeof window !== 'undefined' && window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(
-          JSON.stringify({ type: 'payu_checkout', payuUrl, payuParams })
-        );
-      } else {
-        setPayuData({ payuUrl, payuParams });
-      }
+      setPaying(false);
+      setUpiCheckout({ upiLink, txnid, amount: amtStr, label });
     } catch {
       setPaying(false);
       alert('Could not initiate payment. Please try again.');
     }
   };
 
-  // Auto-submit PayU form when payuData is set
-  useEffect(() => {
-    if (payuData && payFormRef.current) {
-      payFormRef.current.submit();
+  // Open the member's UPI app. New app builds handle the intent natively (and
+  // report the result back); old builds and plain browsers navigate the upi://
+  // link, which Android resolves to the installed-UPI-apps chooser.
+  const openUpiApp = () => {
+    if (!upiCheckout) return;
+    if (isInApp && window.__upiIntentSupported) {
+      window.ReactNativeWebView.postMessage(
+        JSON.stringify({ type: 'upi_intent_checkout', upiLink: upiCheckout.upiLink, txnid: upiCheckout.txnid })
+      );
+    } else {
+      window.location.href = upiCheckout.upiLink;
     }
-  }, [payuData]);
+  };
+
+  // Reset checkout session state + countdown whenever a checkout opens
+  useEffect(() => {
+    if (!upiCheckout) return;
+    setSecondsLeft(CHECKOUT_SECONDS);
+    setConfirming(false);
+    setUtrValue('');
+    setUtrSubmitted(false);
+    setUtrRevealed(false);
+    const t = setInterval(() => setSecondsLeft(s => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [upiCheckout]);
+
+  // Poll order status — flips to the result page the moment the backend
+  // confirms (native intent result or admin approval).
+  useEffect(() => {
+    if (!upiCheckout) return;
+    const iv = setInterval(async () => {
+      try {
+        const res = await muminApi.get(`/mumin/payment/status/${upiCheckout.txnid}`);
+        const d = res.data?.data;
+        if (d?.t && d.status !== 'pending') {
+          window.location.href = `/mumin/payment/result?t=${d.t}`;
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(iv);
+  }, [upiCheckout]);
+
+  // QR code for browser/desktop users (pointless inside the app WebView)
+  useEffect(() => {
+    if (!upiCheckout || isInApp) { setQrDataUrl(''); return; }
+    let alive = true;
+    import('qrcode')
+      .then(QR => QR.toDataURL(upiCheckout.upiLink, { width: 220, margin: 1 }))
+      .then(url => { if (alive) setQrDataUrl(url); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [upiCheckout, isInApp]);
+
+  // Receive the native UPI intent result injected by the RN app
+  useEffect(() => {
+    if (!upiCheckout || typeof window === 'undefined') return;
+    window.__onUpiIntentResult = async (result) => {
+      if (!result || result.txnid !== upiCheckout.txnid) return;
+      setConfirming(true);
+      try {
+        const res = await muminApi.post('/mumin/payment/upi-intent-result', result);
+        const { t } = res.data || {};
+        if (t) { window.location.href = `/mumin/payment/result?t=${t}`; return; }
+      } catch {}
+      setConfirming(false); // pending/unknown — polling + UTR fallback take over
+    };
+    return () => { delete window.__onUpiIntentResult; };
+  }, [upiCheckout]);
+
+  const submitUtr = async () => {
+    if (!upiCheckout || !utrValue.trim()) return;
+    setUtrSending(true);
+    try {
+      await muminApi.post('/mumin/payment/submit-utr', { txnid: upiCheckout.txnid, utr: utrValue.trim() });
+      setUtrSubmitted(true);
+    } catch (e) {
+      alert(e.response?.data?.message || 'Could not submit reference number.');
+    } finally {
+      setUtrSending(false);
+    }
+  };
 
   const parseYear = y => parseInt(String(y || '0').split('-')[0], 10);
   const sorted = [...takhmeen].sort((a, b) => parseYear(b.ForYear) - parseYear(a.ForYear));
@@ -137,15 +218,6 @@ export default function DuesPage() {
 
   return (
     <div className="p-4 space-y-4">
-      {/* PayU hidden form — auto-submitted */}
-      {payuData && (
-        <form ref={payFormRef} action={payuData.payuUrl} method="POST" style={{ display: 'none' }}>
-          {Object.entries(payuData.payuParams).map(([k, v]) => (
-            <input key={k} type="hidden" name={k} value={v} />
-          ))}
-        </form>
-      )}
-
       <h1 className="text-[16px] font-bold text-gray-900">Dues & Takhmeen</h1>
 
       {/* Total remaining for this member */}
@@ -344,9 +416,135 @@ export default function DuesPage() {
                 disabled={paying || !confirmAmount || Number(confirmAmount) <= 0}
                 className="flex-[2] py-3 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-[13px] font-bold transition-colors disabled:opacity-50"
               >
-                {paying ? 'Redirecting…' : `Pay ₹ ${fmt(Number(confirmAmount) || 0)}`}
+                {paying ? 'Please wait…' : `Pay ₹ ${fmt(Number(confirmAmount) || 0)}`}
               </button>
             </div>
+          </div>
+        </>
+      )}
+
+      {/* ── UPI checkout sheet ─────────────────────────────────────────────── */}
+      {upiCheckout && (
+        <>
+          <div className="fixed inset-0 bg-black/40 z-40" />
+          <div
+            className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl pt-5 px-5 pb-24 space-y-4 max-h-[90vh] overflow-y-auto"
+            style={{ maxWidth: 512, margin: '0 auto' }}
+          >
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto -mt-1" />
+
+            {/* Order summary */}
+            <div className="text-center">
+              <div className="text-[12px] text-gray-500">{upiCheckout.label}</div>
+              <div className="text-[26px] font-bold text-gray-900 mt-0.5">₹ {fmt(upiCheckout.amount)}</div>
+              <div className="text-[10px] text-gray-400 mt-0.5">Txn: {upiCheckout.txnid}</div>
+            </div>
+
+            {confirming ? (
+              <div className="flex flex-col items-center gap-3 py-6">
+                <div className="w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                <div className="text-[13px] font-semibold text-gray-700">Confirming your payment…</div>
+              </div>
+            ) : (
+              <>
+                {/* Pay button */}
+                <button
+                  onClick={openUpiApp}
+                  disabled={secondsLeft === 0}
+                  className="w-full py-3.5 rounded-xl bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-[15px] font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                  </svg>
+                  Pay via UPI App
+                </button>
+                <div className="text-[11px] text-gray-400 text-center -mt-2">
+                  GPay · PhonePe · Paytm · any UPI app
+                </div>
+
+                {/* QR for browser/desktop */}
+                {qrDataUrl && (
+                  <div className="flex flex-col items-center gap-1.5 pt-1">
+                    <div className="text-[11px] text-gray-400 font-medium">OR scan with any UPI app</div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={qrDataUrl} alt="UPI QR code" className="w-[180px] h-[180px] border border-gray-200 rounded-xl" />
+                  </div>
+                )}
+
+                {/* Waiting / countdown */}
+                <div className="flex items-center justify-center gap-2 text-[12px] text-gray-500">
+                  {secondsLeft > 0 ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                      Waiting for payment confirmation…
+                      <span className="font-semibold text-gray-700">
+                        {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-amber-600 font-medium">
+                      Session expired — if you already paid, submit your UPI reference below.
+                    </span>
+                  )}
+                </div>
+
+                {/* "Already paid?" — lets browser users reach the UTR fallback right away
+                    (browsers get no automatic confirmation; only the app does) */}
+                {!utrRevealed && secondsLeft > CHECKOUT_SECONDS - UTR_REVEAL_AFTER && (
+                  <button
+                    onClick={() => setUtrRevealed(true)}
+                    className="w-full text-center text-[12px] text-blue-600 font-medium underline underline-offset-2"
+                  >
+                    Already paid? Confirm with your UPI reference number
+                  </button>
+                )}
+
+                {/* Manual fallback — via "Already paid?" or auto-reveal after 3 min */}
+                {(utrRevealed || secondsLeft <= CHECKOUT_SECONDS - UTR_REVEAL_AFTER) && (
+                  utrSubmitted ? (
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center text-[12px] text-blue-700">
+                      Reference number submitted. Your payment will be verified and the
+                      receipt generated shortly — you can safely close this page.
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-2">
+                      <div className="text-[12px] font-semibold text-gray-700">
+                        Trouble confirming? Enter your UPI reference number (UTR)
+                      </div>
+                      <div className="text-[10px] text-gray-400">
+                        Find it in your UPI app under this transaction's details.
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={22}
+                          placeholder="e.g. 415012345678"
+                          className="flex-1 px-3 py-2 text-[13px] border border-gray-200 rounded-lg focus:border-blue-400 focus:outline-none"
+                          value={utrValue}
+                          onChange={e => setUtrValue(e.target.value.replace(/[^A-Za-z0-9]/g, ''))}
+                          disabled={utrSending}
+                        />
+                        <button
+                          onClick={submitUtr}
+                          disabled={utrSending || utrValue.trim().length < 10}
+                          className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-semibold transition-colors disabled:opacity-50"
+                        >
+                          {utrSending ? '…' : 'Submit'}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                )}
+              </>
+            )}
+
+            <button
+              onClick={() => setUpiCheckout(null)}
+              className="w-full py-2.5 rounded-xl border border-gray-200 text-[12px] font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
+            >
+              Close
+            </button>
           </div>
         </>
       )}
