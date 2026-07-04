@@ -168,16 +168,20 @@ export default function DuesPage() {
     return () => clearInterval(iv);
   }, [upiCheckout]);
 
-  // QR code for browser/desktop users (pointless inside the app WebView)
+  // QR code — shown everywhere, including inside the app WebView. The native
+  // "Pay via UPI App" intent doesn't work for this merchant/collect-registered
+  // VPA (confirmed: direct-send fails on every UPI app; only QR-scan settles),
+  // so QR is the one proven-working path and app users need it too, not just
+  // desktop browsers.
   useEffect(() => {
-    if (!upiCheckout || isInApp) { setQrDataUrl(''); return; }
+    if (!upiCheckout) { setQrDataUrl(''); return; }
     let alive = true;
     import('qrcode')
       .then(QR => QR.toDataURL(upiCheckout.upiLink, { width: 220, margin: 1 }))
       .then(url => { if (alive) setQrDataUrl(url); })
       .catch(() => {});
     return () => { alive = false; };
-  }, [upiCheckout, isInApp]);
+  }, [upiCheckout]);
 
   // Receive the native UPI intent result injected by the RN app
   useEffect(() => {
@@ -463,49 +467,41 @@ export default function DuesPage() {
               </div>
             ) : (
               <>
-                {/* Pay button */}
-                <button
-                  onClick={openUpiApp}
-                  disabled={secondsLeft === 0}
-                  className="w-full py-3.5 rounded-xl bg-green-600 hover:bg-green-700 active:bg-green-800 text-white text-[15px] font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
-                  </svg>
-                  Pay via UPI App
-                </button>
-                <div className="text-[11px] text-gray-400 text-center -mt-2">
-                  GPay · PhonePe · Paytm · any UPI app
-                </div>
-
-                {/* UPI app declined the automatic payment — guide manual payment */}
-                {intentDeclined && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
-                    <div className="text-[12px] font-semibold text-amber-800">
-                      Your UPI app declined this payment
-                    </div>
-                    <div className="text-[11px] text-amber-700 leading-relaxed">
-                      No money was deducted. You can still pay manually: open your UPI app,
-                      choose <b>Pay to UPI ID</b>, send{' '}
-                      <b>₹ {fmt(upiCheckout.amount)}</b> to{' '}
-                      <b className="break-all">
-                        {(() => {
-                          try {
-                            return decodeURIComponent((upiCheckout.upiLink.match(/[?&]pa=([^&]+)/) || [])[1] || '');
-                          } catch { return ''; }
-                        })()}
-                      </b>
-                      , then enter the UPI reference number below.
+                {/* QR — proven-working path for this account, shown as primary */}
+                {qrDataUrl && (
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="text-[12px] font-semibold text-gray-700">Scan to Pay</div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={qrDataUrl} alt="UPI QR code" className="w-[200px] h-[200px] border border-gray-200 rounded-xl" />
+                    <div className="text-[11px] text-gray-400 text-center">
+                      Using this same phone? Use your UPI app's <b>"Scan from Gallery/Screenshot"</b> option
+                      after taking a screenshot of this QR.
                     </div>
                   </div>
                 )}
 
-                {/* QR for browser/desktop */}
-                {qrDataUrl && (
-                  <div className="flex flex-col items-center gap-1.5 pt-1">
-                    <div className="text-[11px] text-gray-400 font-medium">OR scan with any UPI app</div>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={qrDataUrl} alt="UPI QR code" className="w-[180px] h-[180px] border border-gray-200 rounded-xl" />
+                {/* One-tap pay — works on some accounts/banks, harmless to try */}
+                <button
+                  onClick={openUpiApp}
+                  disabled={secondsLeft === 0}
+                  className="w-full py-3 rounded-xl border-2 border-green-600 text-green-700 hover:bg-green-50 text-[14px] font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                  </svg>
+                  Or try one-tap Pay via UPI App
+                </button>
+
+                {/* UPI app declined the one-tap payment — the QR above is what to use instead */}
+                {intentDeclined && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-1">
+                    <div className="text-[12px] font-semibold text-amber-800">
+                      One-tap pay isn't supported for this payment
+                    </div>
+                    <div className="text-[11px] text-amber-700 leading-relaxed">
+                      No money was deducted. Please use the <b>Scan to Pay</b> QR code above instead —
+                      then enter the UPI reference number below once paid.
+                    </div>
                   </div>
                 )}
 
