@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import muminApi from '@/lib/muminApi';
 
 function fmt(n) {
@@ -61,6 +61,10 @@ export default function DuesPage() {
   const [confirmAmount, setConfirmAmount] = useState('');    // editable amount
   const [paying,        setPaying]        = useState(false);
 
+  // ── Hosted gateway checkout (PayU or any future form-post gateway) ────────
+  const [formPost, setFormPost] = useState(null);  // { url, params }
+  const payFormRef = useRef(null);
+
   // ── UPI checkout sheet ────────────────────────────────────────────────────
   const [upiCheckout,  setUpiCheckout]  = useState(null);  // { upiLink, txnid, amount, label }
   const [qrDataUrl,    setQrDataUrl]    = useState('');
@@ -107,6 +111,23 @@ export default function DuesPage() {
         hubSubHead:  confirmRow.HubSubHead  || '',
         forYear:     confirmRow.ForYear     || '',
       });
+      // Hosted checkouts (PayU today, any future gateway): the server says how
+      // to hand off — form_post auto-submits a hidden form, redirect navigates.
+      // Works in the browser and inside the app WebView alike; the gateway
+      // posts the result to the server callback which lands back on
+      // /mumin/payment/result.
+      const checkout = res.data?.checkout;
+      if (checkout?.type === 'form_post') {
+        setConfirmRow(null);
+        setFormPost({ url: checkout.url, params: checkout.params });
+        return; // keep the "Please wait…" state while the redirect happens
+      }
+      if (checkout?.type === 'redirect') {
+        setConfirmRow(null);
+        window.location.href = checkout.url;
+        return;
+      }
+
       const { upiLink, txnid, amount: amtStr } = res.data;
       if (!upiLink || !amtStr) {
         // Server is still on the old gateway code (or misconfigured)
@@ -117,11 +138,20 @@ export default function DuesPage() {
       setConfirmRow(null);
       setPaying(false);
       setUpiCheckout({ upiLink, txnid, amount: amtStr, label });
-    } catch {
+    } catch (err) {
       setPaying(false);
-      alert('Could not initiate payment. Please try again.');
+      // Surface the server's reason when it gives one (e.g. the active gateway
+      // has no checkout implementation) instead of a generic retry message.
+      alert(err?.response?.data?.message || 'Could not initiate payment. Please try again.');
     }
   };
+
+  // Auto-submit the hidden gateway form once it renders
+  useEffect(() => {
+    if (formPost && payFormRef.current) {
+      payFormRef.current.submit();
+    }
+  }, [formPost]);
 
   // Open the member's UPI app. New app builds handle the intent natively (and
   // report the result back); old builds and plain browsers navigate the upi://
@@ -238,6 +268,15 @@ export default function DuesPage() {
 
   return (
     <div className="p-4 space-y-4">
+      {/* Hosted gateway hidden form — auto-submitted */}
+      {formPost && (
+        <form ref={payFormRef} action={formPost.url} method="POST" style={{ display: 'none' }}>
+          {Object.entries(formPost.params).map(([k, v]) => (
+            <input key={k} type="hidden" name={k} value={v} />
+          ))}
+        </form>
+      )}
+
       <h1 className="text-[16px] font-bold text-gray-900">Dues & Takhmeen</h1>
 
       {/* Total remaining for this member */}

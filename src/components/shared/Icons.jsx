@@ -226,6 +226,15 @@ export const CreditCardIcon = mk(<>
   <line x1="1" y1="10" x2="23" y2="10"/>
 </>);
 
+export const LandmarkIcon = mk(<>
+  <line x1="3" y1="22" x2="21" y2="22"/>
+  <line x1="6" y1="18" x2="6" y2="11"/>
+  <line x1="10" y1="18" x2="10" y2="11"/>
+  <line x1="14" y1="18" x2="14" y2="11"/>
+  <line x1="18" y1="18" x2="18" y2="11"/>
+  <polygon points="12 2 20 7 4 7"/>
+</>);
+
 export const TruckIcon = mk(<>
   <rect x="1" y="3" width="15" height="13" rx="1"/>
   <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/>

@@ -14,7 +14,7 @@ import {
   MapPinIcon, CalendarIcon, ListIcon, MailIcon,
   UtensilsIcon, UserCogIcon, SettingsIcon, LogoutIcon, LayersIcon, TableIcon,
   MessageIcon, SmartphoneIcon, ZapIcon, InboxIcon, ChevronDownIcon, SendIcon,
-  DatabaseIcon, PaletteIcon, PrintIcon,
+  DatabaseIcon, PaletteIcon, PrintIcon, LandmarkIcon,
 } from '@/components/shared/Icons';
 
 // ── Nav config ─────────────────────────────────────────────────────────────
@@ -55,6 +55,7 @@ const NAV_SECTIONS = [
     items: [
       { label: 'Expense Report',         href: '/expense-report',       icon: FileTextIcon, permission: 'expenses.view' },
       { label: 'Income & Expense Heads', href: '/income-expense-heads', icon: LayersIcon,   permission: 'expenses.view' },
+      { label: 'Bank Accounts',          href: '/bank-accounts',        icon: LandmarkIcon, permission: 'utility.view' },
       { label: 'Distribution List',      href: '/distribution',         icon: TruckIcon,    permission: 'distribution.view' },
     ],
   },
@@ -102,6 +103,7 @@ const NAV_SECTIONS = [
       { label: 'FMB Daily Menu',    href: '/fmb-daily-menu',    icon: UtensilsIcon, permission: 'fmb_menu.view' },
       { label: 'Access Control',    href: '/access-control',    icon: UserCogIcon,  permission: 'users.view' },
       { label: 'System Variables',   href: '/system-variables',      icon: SettingsIcon,      permission: 'utility.view' },
+      { label: 'Payment Gateways',   href: '/payment-gateways',      icon: CreditCardIcon,    permission: 'utility.view' },
       { label: 'Alert Rules',        href: '/takhmeen-alert-rules',  icon: AlertCircleIcon,   permission: 'utility.view' },
       { label: 'Theme Settings',     href: '/theme-settings',        icon: PaletteIcon,       permission: 'utility.view' },
       { label: 'Utility',            href: '/utility',               icon: SettingsIcon,      permission: 'utility.view' },

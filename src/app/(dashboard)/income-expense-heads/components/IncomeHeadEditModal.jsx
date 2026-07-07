@@ -8,8 +8,8 @@ import { SaveIcon }            from '@/components/shared/Icons';
 import { incomeHeadService }   from '@/services';
 import SuggestionInput         from './SuggestionInput';
 
-export default function IncomeHeadEditModal({ open, onClose, item, onSaved, existingRows = [], contribSuggestions = [] }) {
-  const [form,   setForm]   = useState({ HubHeadCode: '', HubMainHead: '', HubSubHead: '', ContributionType: '', CashLimit: '', DefaultLaagat: '', IsActive: 1 });
+export default function IncomeHeadEditModal({ open, onClose, item, onSaved, existingRows = [], contribSuggestions = [], bankAccounts = [] }) {
+  const [form,   setForm]   = useState({ HubHeadCode: '', HubMainHead: '', HubSubHead: '', ContributionType: '', CashLimit: '', DefaultLaagat: '', DefaultBankAccountID: '', IsActive: 1 });
   const [saving, setSaving] = useState(false);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
@@ -24,6 +24,7 @@ export default function IncomeHeadEditModal({ open, onClose, item, onSaved, exis
         ContributionType: item.ContributionType ?? '',
         CashLimit:        item.CashLimit        ?? '',
         DefaultLaagat:    item.DefaultLaagat    ?? '',
+        DefaultBankAccountID: item.DefaultBankAccountID ?? '',
         IsActive:         item.IsActive         ?? 1,
       });
     }
@@ -78,6 +79,7 @@ export default function IncomeHeadEditModal({ open, onClose, item, onSaved, exis
         ContributionType: form.ContributionType.trim(),
         CashLimit:        Number(form.CashLimit)     || 0,
         DefaultLaagat:    Number(form.DefaultLaagat) || 0,
+        DefaultBankAccountID: form.DefaultBankAccountID ? Number(form.DefaultBankAccountID) : null,
         IsActive:         form.IsActive,
       });
       toast.success('Income Head updated');
@@ -201,6 +203,23 @@ export default function IncomeHeadEditModal({ open, onClose, item, onSaved, exis
               onChange={e => set('DefaultLaagat', e.target.value)}
             />
           </div>
+        </div>
+
+        <div>
+          <label className="form-label">Default Bank Account</label>
+          <select
+            className="form-select"
+            value={form.DefaultBankAccountID}
+            onChange={e => set('DefaultBankAccountID', e.target.value)}
+          >
+            <option value="">— Org default account —</option>
+            {bankAccounts.map(ba => (
+              <option key={ba.ID} value={ba.ID}>{ba.Alias} ({ba.BankName})</option>
+            ))}
+          </select>
+          <p className="text-[11px] text-gray-400 mt-1">
+            Contributions to this head are collected into this account (incl. online UPI payments).
+          </p>
         </div>
 
         <div className="flex items-center gap-3">

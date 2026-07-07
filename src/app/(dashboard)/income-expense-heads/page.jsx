@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import clsx              from 'clsx';
 import toast             from 'react-hot-toast';
 import PageHeader        from '@/components/shared/PageHeader';
-import { incomeHeadService, expenseHeadService } from '@/services';
+import { incomeHeadService, expenseHeadService, bankAccountService } from '@/services';
 
 import IncomeHeadList      from './components/IncomeHeadList';
 import IncomeHeadAddModal  from './components/IncomeHeadAddModal';
@@ -26,6 +26,17 @@ export default function IncomeExpenseHeadsPage() {
 
   // Derived: unique ContributionType values used as suggestions in modals
   const incomeContribSuggestions = [...new Set(incomeRows.map(r => r.ContributionType).filter(Boolean))];
+
+  // Active bank accounts for the "Default Bank Account" select in the modals
+  const [bankAccounts, setBankAccounts] = useState([]);
+  useEffect(() => {
+    bankAccountService.load({ IsActive: 1 })
+      .then(res => {
+        const data = res.data?.data ?? res.data;
+        setBankAccounts(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {});
+  }, []);
 
   const loadIncome = useCallback(async () => {
     setIncomeLoading(true);
@@ -136,6 +147,7 @@ export default function IncomeExpenseHeadsPage() {
         onSaved={handleIncomeSaved}
         existingRows={incomeRows}
         contribSuggestions={incomeContribSuggestions}
+        bankAccounts={bankAccounts}
       />
       <IncomeHeadEditModal
         open={!!incomeEditItem}
@@ -144,6 +156,7 @@ export default function IncomeExpenseHeadsPage() {
         onSaved={handleIncomeSaved}
         existingRows={incomeRows}
         contribSuggestions={incomeContribSuggestions}
+        bankAccounts={bankAccounts}
       />
 
       {/* ── Expense Head modals ──────────────────────────────────────────────── */}

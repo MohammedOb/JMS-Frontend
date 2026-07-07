@@ -319,6 +319,23 @@ export const utilityService = {
   saveSchedule:          (key, data) => api.put(`/utility/schedules/${key}`, data),
 };
 
+// ── Bank Accounts ────────────────────────────────────────────────────────────
+// Mutations also invalidate income-head caches: the hub head list joins the
+// account alias, so a rename/delete must not serve a stale alias.
+export const bankAccountService = {
+  load:   cache.cached((data) => api.post('/LoadBankAccounts',   data), (d) => cache.makeKey('bank-account', d), TTL.ref),
+  add:    cache.mutates((data) => api.post('/AddBankAccount',    data), 'bank-account', 'income-head', 'hub-head'),
+  update: cache.mutates((data) => api.post('/UpdateBankAccount', data), 'bank-account', 'income-head', 'hub-head'),
+  delete: cache.mutates((data) => api.delete('/DeleteBankAccount', { data }), 'bank-account', 'income-head', 'hub-head'),
+};
+
+// ── Payment Gateways ─────────────────────────────────────────────────────────
+export const paymentGatewayService = {
+  load:         () => api.post('/LoadPaymentGateways', {}),
+  setActive:    (data) => api.post('/SetActivePaymentGateway',    data),
+  updateConfig: (data) => api.post('/UpdatePaymentGatewayConfig', data),
+};
+
 // ── System Variables ─────────────────────────────────────────────────────────
 export const systemVarsService = {
   getAll:  (data) => api.post('/LoadSystemVariables',   data),

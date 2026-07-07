@@ -7,9 +7,9 @@ import { SaveIcon }       from '@/components/shared/Icons';
 import { incomeHeadService } from '@/services';
 import SuggestionInput    from './SuggestionInput';
 
-const DEFAULTS = { HubHeadCode: '', HubMainHead: '', HubSubHead: '', ContributionType: '', CashLimit: '', DefaultLaagat: '' };
+const DEFAULTS = { HubHeadCode: '', HubMainHead: '', HubSubHead: '', ContributionType: '', CashLimit: '', DefaultLaagat: '', DefaultBankAccountID: '' };
 
-export default function IncomeHeadAddModal({ open, onClose, onSaved, existingRows = [], contribSuggestions = [] }) {
+export default function IncomeHeadAddModal({ open, onClose, onSaved, existingRows = [], contribSuggestions = [], bankAccounts = [] }) {
   const [form,   setForm]   = useState(DEFAULTS);
   const [saving, setSaving] = useState(false);
 
@@ -39,6 +39,7 @@ export default function IncomeHeadAddModal({ open, onClose, onSaved, existingRow
         ContributionType: form.ContributionType.trim(),
         CashLimit:        Number(form.CashLimit)     || 0,
         DefaultLaagat:    Number(form.DefaultLaagat) || 0,
+        DefaultBankAccountID: form.DefaultBankAccountID ? Number(form.DefaultBankAccountID) : null,
         IsActive:         1,
       });
       toast.success('Income Head added');
@@ -172,6 +173,23 @@ export default function IncomeHeadAddModal({ open, onClose, onSaved, existingRow
               onChange={e => set('DefaultLaagat', e.target.value)}
             />
           </div>
+        </div>
+
+        <div>
+          <label className="form-label">Default Bank Account</label>
+          <select
+            className="form-select"
+            value={form.DefaultBankAccountID}
+            onChange={e => set('DefaultBankAccountID', e.target.value)}
+          >
+            <option value="">— Org default account —</option>
+            {bankAccounts.map(ba => (
+              <option key={ba.ID} value={ba.ID}>{ba.Alias} ({ba.BankName})</option>
+            ))}
+          </select>
+          <p className="text-[11px] text-gray-400 mt-1">
+            Contributions to this head are collected into this account (incl. online UPI payments).
+          </p>
         </div>
       </div>
     </Modal>

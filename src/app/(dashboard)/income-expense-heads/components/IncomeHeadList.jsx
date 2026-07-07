@@ -41,6 +41,7 @@ export default function IncomeHeadList({ rows, loading, onAdd, onEdit, onDeleted
         ContributionType: item.ContributionType ?? '',
         CashLimit:        item.CashLimit        ?? 0,
         DefaultLaagat:    item.DefaultLaagat    ?? 0,
+        DefaultBankAccountID: item.DefaultBankAccountID ?? null,
         IsActive:         newVal,
       });
       toast.success(newVal ? 'Activated' : 'Deactivated');
@@ -104,16 +105,16 @@ export default function IncomeHeadList({ rows, loading, onAdd, onEdit, onDeleted
           <table className="w-full border-collapse text-[12.5px]">
             <thead>
               <tr>
-                {['#', 'Action', 'Active', 'Hub Head Code', 'Hub Main Head', 'Hub Sub Head', 'Contribution Type', 'Cash Limit', 'Default Laagat'].map(h => (
+                {['#', 'Action', 'Active', 'Hub Head Code', 'Hub Main Head', 'Hub Sub Head', 'Contribution Type', 'Cash Limit', 'Default Laagat', 'Bank Account'].map(h => (
                   <th key={h} className="th-navy">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="text-center py-10 text-gray-400">Loading…</td></tr>
+                <tr><td colSpan={10} className="text-center py-10 text-gray-400">Loading…</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-10 text-gray-400">No income heads found</td></tr>
+                <tr><td colSpan={10} className="text-center py-10 text-gray-400">No income heads found</td></tr>
               ) : filtered.map((r, i) => (
                 <tr key={r.ID ?? i} className="hover:bg-blue-500/[0.025]">
                   <td className="px-3 py-2.5 border-t border-border text-gray-400 text-center">{i + 1}</td>
@@ -162,6 +163,7 @@ export default function IncomeHeadList({ rows, loading, onAdd, onEdit, onDeleted
                   <td className="px-3 py-2.5 border-t border-border">
                     {r.DefaultLaagat != null ? `₹${Number(r.DefaultLaagat).toLocaleString('en-IN')}` : '—'}
                   </td>
+                  <td className="px-3 py-2.5 border-t border-border">{r.BankAccountAlias || '—'}</td>
                 </tr>
               ))}
             </tbody>
