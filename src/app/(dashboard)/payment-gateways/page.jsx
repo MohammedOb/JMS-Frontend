@@ -8,42 +8,37 @@ import PageHeader from '@/components/shared/PageHeader';
 import { SaveIcon, CheckIcon } from '@/components/shared/Icons';
 import { paymentGatewayService, bankAccountService } from '@/services';
 
-// Config form fields per gateway code. type: text | password | select | bankAccount
-const GATEWAY_FIELDS = {
-  inhouse_upi: [
-    { key: 'bankAccountId', label: 'Collection Bank Account', type: 'bankAccount',
-      hint: 'VPA that receives payments when the hub head has no bank account of its own. Leave unset to use the org default account (or server .env settings).' },
-  ],
-  razorpay: [
-    { key: 'keyId',     label: 'Key ID',     type: 'text' },
-    { key: 'keySecret', label: 'Key Secret', type: 'password' },
-  ],
-  cashfree: [
-    { key: 'appId',       label: 'App ID',      type: 'text' },
-    { key: 'secretKey',   label: 'Secret Key',  type: 'password' },
-    { key: 'environment', label: 'Environment', type: 'select', options: ['sandbox', 'production'] },
-  ],
-  payu: [
-    { key: 'merchantKey',  label: 'Merchant Key',  type: 'text' },
-    { key: 'merchantSalt', label: 'Merchant Salt', type: 'password' },
-    { key: 'baseUrl',      label: 'Base URL',      type: 'text' },
-  ],
-};
-
+// Config forms are NOT hardcoded here: each gateway's field definitions come
+// from the API (adapter's configFields, sent as gw.ConfigFields). Gateways
+// without field definitions get a raw JSON editor, so even a DB-only gateway
+// row is configurable without touching this page.
 function GatewayCard({ gw, implemented, bankAccounts, onActivate, onSaveConfig }) {
-  const [config, setConfig] = useState(gw.Config || {});
-  const [saving, setSaving] = useState(false);
+  const [config,  setConfig]  = useState(gw.Config || {});
+  const [rawJson, setRawJson] = useState(JSON.stringify(gw.Config || {}, null, 2));
+  const [saving,  setSaving]  = useState(false);
 
-  useEffect(() => { setConfig(gw.Config || {}); }, [gw]);
+  useEffect(() => {
+    setConfig(gw.Config || {});
+    setRawJson(JSON.stringify(gw.Config || {}, null, 2));
+  }, [gw]);
 
-  const fields = GATEWAY_FIELDS[gw.Code] || [];
+  const fields = gw.ConfigFields || null;
   const isImplemented = implemented.includes(gw.Code);
   const set = (k, v) => setConfig(p => ({ ...p, [k]: v }));
 
   const handleSave = async () => {
+    let toSave = config;
+    if (!fields) {
+      try {
+        toSave = JSON.parse(rawJson || '{}');
+      } catch {
+        toast.error('Config is not valid JSON');
+        return;
+      }
+    }
     setSaving(true);
     try {
-      await onSaveConfig(gw.Code, config);
+      await onSaveConfig(gw.Code, toSave);
     } finally {
       setSaving(false);
     }
@@ -80,7 +75,22 @@ function GatewayCard({ gw, implemented, bankAccounts, onActivate, onSaveConfig }
           <p className="text-[12px] text-gray-500">{gw.Description}</p>
         )}
 
-        {fields.map(f => (
+        {!fields && (
+          <div>
+            <label className="form-label">Config (JSON)</label>
+            <textarea
+              className="form-input font-mono text-[12px] min-h-[120px]"
+              spellCheck={false}
+              value={rawJson}
+              onChange={e => setRawJson(e.target.value)}
+            />
+            <p className="text-[11px] text-gray-400 mt-1">
+              No form definition for this gateway — edit the raw config JSON.
+            </p>
+          </div>
+        )}
+
+        {(fields || []).map(f => (
           <div key={f.key}>
             <label className="form-label">{f.label}</label>
 
