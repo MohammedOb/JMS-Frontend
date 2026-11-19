@@ -9,6 +9,7 @@ import Sidebar                  from '@/components/layout/Sidebar';
 import Topbar                   from '@/components/layout/Topbar';
 import PermissionGuard          from '@/components/shared/PermissionGuard';
 import { SystemVarsProvider }   from '@/context/SystemVarsContext';
+import HelpWidget               from '@/components/shared/HelpWidget';
 
 // Route → can() code(s). null = always accessible when authenticated.
 // Arrays use OR logic (any match grants access).
@@ -93,6 +94,7 @@ export default function DashboardLayout({ children }) {
           </main>
         </div>
       </div>
+      <HelpWidget kind="staff" />
     </SystemVarsProvider>
   );
 }

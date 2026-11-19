@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
+import HelpWidget from '@/components/shared/HelpWidget';
 
 const NAV = [
   { href: '/mumin/notifications', label: 'Notifications', icon: BellIcon },
@@ -146,6 +147,10 @@ export default function MuminLayout({ children }) {
           </div>
         </nav>
       )}
+
+      {/* Help icon. In a browser it sits above the bottom tab bar instead of covering it. */}
+      {!inWebView && <style>{'apphelp-widget{--apphelp-bottom:76px}'}</style>}
+      <HelpWidget kind="member" />
     </div>
   );
 }

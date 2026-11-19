@@ -12,7 +12,9 @@ COPY . .
 
 # NEXT_PUBLIC_* vars are baked in at build time — pass the production API URL
 ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_HELP_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_HELP_URL=$NEXT_PUBLIC_HELP_URL
 
 # Signals next.config.js to enable standalone output and skip the custom distDir
 ENV DOCKER_BUILD=1

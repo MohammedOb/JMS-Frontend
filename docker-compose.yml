@@ -4,6 +4,7 @@ services:
       context: .
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_HELP_URL: ${NEXT_PUBLIC_HELP_URL:-}
     restart: always
     ports:
       - "3000:3000"   # exposes frontend to host so cloudflared can reach it at localhost:3000
